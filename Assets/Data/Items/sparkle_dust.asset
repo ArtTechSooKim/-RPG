@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6217c2ef872fb4a45905f118eb0cc94f, type: 3}
+  m_Name: sparkle_dust
+  m_EditorClassIdentifier: WordRPG::WordRPG.Items.ItemData
+  itemId: sparkle_dust
+  displayName: "\uBC18\uC9DD \uAC00\uB8E8"
+  description: "\uB4F1\uBD88\uC774\uB97C \uC9C4\uD654\uC2DC\uD0A4\uB294 \uBE5B\uB098\uB294
+    \uAC00\uB8E8."
+  kind: 0
+  icon: {fileID: 0}
+  placeholderColor: {r: 1, g: 0.9, b: 0.4, a: 1}

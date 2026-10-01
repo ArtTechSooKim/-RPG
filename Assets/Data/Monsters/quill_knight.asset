@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ec416e140bfc414b93cb9aa6306ba85, type: 3}
+  m_Name: quill_knight
+  m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.MonsterSpecies
+  speciesId: quill_knight
+  displayName: "\uAE43\uD39C\uAE30\uC0AC"
+  description: "\uD39C\uCD09\uC774\uAC00 \uC9C4\uD654\uD55C \uBAA8\uC2B5. \uAE43\uD39C\uC744
+    \uAC80\uCC98\uB7FC \uD718\uB450\uB978\uB2E4."
+  role: 0
+  sprite: {fileID: 0}
+  placeholderColor: {r: 0.15, g: 0.25, b: 0.7, a: 1}
+  baseStats:
+    maxHp: 38
+    attack: 19
+    defense: 10
+  growthPerLevel:
+    maxHp: 5
+    attack: 4
+    defense: 2
+  skills:
+  - {fileID: 11400000, guid: 5c961584047e39b4c8bca8104527aa07, type: 2}
+  - {fileID: 11400000, guid: beeb680b30facd3438323ba9611535d4, type: 2}
+  evolvesTo: {fileID: 0}
+  evolveLevel: 5
+  evolveItem: {fileID: 0}
+  evolveItemCount: 3
+  expReward: 5
+  goldReward: 5
+  drops: []

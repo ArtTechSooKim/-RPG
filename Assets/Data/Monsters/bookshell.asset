@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ec416e140bfc414b93cb9aa6306ba85, type: 3}
+  m_Name: bookshell
+  m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.MonsterSpecies
+  speciesId: bookshell
+  displayName: "\uCC45\uAECD\uC9C8"
+  description: "\uCC45\uC744 \uB4F1\uAECD\uC9C8 \uC0BC\uC544 \uC9C0\uACE0 \uB2E4\uB2C8\uB294
+    \uAC70\uBD81. \uB3D9\uB8CC\uB97C \uC9C0\uD0A8\uB2E4."
+  role: 1
+  sprite: {fileID: 0}
+  placeholderColor: {r: 0.6, g: 0.4, b: 0.2, a: 1}
+  baseStats:
+    maxHp: 40
+    attack: 8
+    defense: 14
+  growthPerLevel:
+    maxHp: 6
+    attack: 1
+    defense: 3
+  skills:
+  - {fileID: 11400000, guid: 451ee5c1f34fe024fb70f9e4037ff8af, type: 2}
+  - {fileID: 11400000, guid: 479e79226885bcb4387c6bfa2c8bcc1a, type: 2}
+  evolvesTo: {fileID: 11400000, guid: 0e41be42d3bea184b864ea57bddb3161, type: 2}
+  evolveLevel: 5
+  evolveItem: {fileID: 11400000, guid: 4ef0a20b2f82e9c4c8ea2a134a013bf4, type: 2}
+  evolveItemCount: 3
+  expReward: 5
+  goldReward: 5
+  drops: []

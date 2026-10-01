@@ -104,3 +104,8 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# --- WordRPG 추가 ---
+# IDE 설정 (Unity가 자동 생성)
+.vscode/
+.idea/

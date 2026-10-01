@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ec416e140bfc414b93cb9aa6306ba85, type: 3}
+  m_Name: encyclotortoise
+  m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.MonsterSpecies
+  speciesId: encyclotortoise
+  displayName: "\uBC31\uACFC\uAC70\uBD81"
+  description: "\uCC45\uAECD\uC9C8\uC774 \uC9C4\uD654\uD55C \uBAA8\uC2B5. \uB4F1\uAECD\uC9C8\uC774
+    \uBC31\uACFC\uC0AC\uC804\uB9CC\uD07C \uB450\uAECD\uB2E4."
+  role: 1
+  sprite: {fileID: 0}
+  placeholderColor: {r: 0.4, g: 0.25, b: 0.1, a: 1}
+  baseStats:
+    maxHp: 50
+    attack: 11
+    defense: 18
+  growthPerLevel:
+    maxHp: 7
+    attack: 2
+    defense: 4
+  skills:
+  - {fileID: 11400000, guid: 451ee5c1f34fe024fb70f9e4037ff8af, type: 2}
+  - {fileID: 11400000, guid: c80bf315202942846b8511a825cbfaec, type: 2}
+  evolvesTo: {fileID: 0}
+  evolveLevel: 5
+  evolveItem: {fileID: 0}
+  evolveItemCount: 3
+  expReward: 5
+  goldReward: 5
+  drops: []

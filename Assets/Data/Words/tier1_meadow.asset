@@ -1,0 +1,617 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b72d5cf44eaeb8458f8605263c9da22, type: 3}
+  m_Name: tier1_meadow
+  m_EditorClassIdentifier: WordRPG::WordRPG.Words.WordDatabase
+  tier: 1
+  words:
+  - id: abandon
+    english: abandon
+    meaning: "\uBC84\uB9AC\uB2E4, \uD3EC\uAE30\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: accommodate
+    english: accommodate
+    meaning: "\uC218\uC6A9\uD558\uB2E4, \uC219\uBC15\uC2DC\uD0A4\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: accompany
+    english: accompany
+    meaning: "\uB3D9\uBC18\uD558\uB2E4, \uB3D9\uD589\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: accomplish
+    english: accomplish
+    meaning: "\uC131\uCDE8\uD558\uB2E4, \uC644\uC218\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: accurate
+    english: accurate
+    meaning: "\uC815\uD655\uD55C"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: acquire
+    english: acquire
+    meaning: "\uC5BB\uB2E4, \uD68D\uB4DD\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: adequate
+    english: adequate
+    meaning: "\uCDA9\uBD84\uD55C, \uC801\uC808\uD55C"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: adjust
+    english: adjust
+    meaning: "\uC870\uC815\uD558\uB2E4, \uC801\uC751\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: admit
+    english: admit
+    meaning: "\uC778\uC815\uD558\uB2E4, \uC785\uC7A5\uC744 \uD5C8\uB77D\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: advantage
+    english: advantage
+    meaning: "\uC774\uC810, \uC720\uB9AC\uD55C \uC810"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: affordable
+    english: affordable
+    meaning: "(\uAC00\uACA9\uC774) \uC54C\uB9DE\uC740, \uAC10\uB2F9\uD560 \uC218
+      \uC788\uB294"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: agenda
+    english: agenda
+    meaning: "\uC548\uAC74, \uC758\uC81C"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: allocate
+    english: allocate
+    meaning: "\uD560\uB2F9\uD558\uB2E4, \uBC30\uBD84\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: alternative
+    english: alternative
+    meaning: "\uB300\uC548"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: analyze
+    english: analyze
+    meaning: "\uBD84\uC11D\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: announce
+    english: announce
+    meaning: "\uBC1C\uD45C\uD558\uB2E4, \uC54C\uB9AC\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: annual
+    english: annual
+    meaning: "\uC5F0\uB840\uC758, \uB9E4\uB144\uC758"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: anticipate
+    english: anticipate
+    meaning: "\uC608\uC0C1\uD558\uB2E4, \uAE30\uB300\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: apparent
+    english: apparent
+    meaning: "\uBA85\uBC31\uD55C, \uAC89\uBCF4\uAE30\uC758"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: apply
+    english: apply
+    meaning: "\uC9C0\uC6D0\uD558\uB2E4, \uC801\uC6A9\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: appointment
+    english: appointment
+    meaning: "\uC57D\uC18D, \uC784\uBA85"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: appreciate
+    english: appreciate
+    meaning: "\uAC10\uC0AC\uD558\uB2E4, \uC9C4\uAC00\uB97C \uC54C\uC544\uBCF4\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: approve
+    english: approve
+    meaning: "\uC2B9\uC778\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: approximately
+    english: approximately
+    meaning: "\uB300\uB7B5, \uC57D"
+    partOfSpeech: adv
+    example: 
+    exampleMeaning: 
+  - id: arrange
+    english: arrange
+    meaning: "\uC900\uBE44\uD558\uB2E4, \uBC30\uC5F4\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: assign
+    english: assign
+    meaning: "\uBC30\uC815\uD558\uB2E4, \uB9E1\uAE30\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: assist
+    english: assist
+    meaning: "\uB3D5\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: attach
+    english: attach
+    meaning: "\uCCA8\uBD80\uD558\uB2E4, \uBD99\uC774\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: attend
+    english: attend
+    meaning: "\uCC38\uC11D\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: available
+    english: available
+    meaning: "\uC774\uC6A9 \uAC00\uB2A5\uD55C, \uC2DC\uAC04\uC774 \uC788\uB294"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: avoid
+    english: avoid
+    meaning: "\uD53C\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: budget
+    english: budget
+    meaning: "\uC608\uC0B0"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: candidate
+    english: candidate
+    meaning: "\uD6C4\uBCF4\uC790, \uC9C0\uC6D0\uC790"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: capable
+    english: capable
+    meaning: "\uC720\uB2A5\uD55C, ~\uD560 \uC218 \uC788\uB294"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: colleague
+    english: colleague
+    meaning: "\uB3D9\uB8CC"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: commute
+    english: commute
+    meaning: "\uD1B5\uADFC\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: competitive
+    english: competitive
+    meaning: "\uACBD\uC7C1\uB825 \uC788\uB294, \uACBD\uC7C1\uC801\uC778"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: complaint
+    english: complaint
+    meaning: "\uBD88\uD3C9, \uD56D\uC758"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: comprehensive
+    english: comprehensive
+    meaning: "\uD3EC\uAD04\uC801\uC778, \uC885\uD569\uC801\uC778"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: conduct
+    english: conduct
+    meaning: "(\uC5C5\uBB34\uB97C) \uC218\uD589\uD558\uB2E4, \uC2E4\uC2DC\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: confirm
+    english: confirm
+    meaning: "\uD655\uC778\uD558\uB2E4, \uD655\uC815\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: consider
+    english: consider
+    meaning: "\uACE0\uB824\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: consistent
+    english: consistent
+    meaning: "\uC77C\uAD00\uB41C, \uAFB8\uC900\uD55C"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: contract
+    english: contract
+    meaning: "\uACC4\uC57D(\uC11C)"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: contribute
+    english: contribute
+    meaning: "\uAE30\uC5EC\uD558\uB2E4, \uAE30\uBD80\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: convenient
+    english: convenient
+    meaning: "\uD3B8\uB9AC\uD55C"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: deadline
+    english: deadline
+    meaning: "\uB9C8\uAC10 \uAE30\uD55C"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: decline
+    english: decline
+    meaning: "\uAC10\uC18C\uD558\uB2E4, \uAC70\uC808\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: delay
+    english: delay
+    meaning: "\uC9C0\uC5F0\uC2DC\uD0A4\uB2E4, \uBBF8\uB8E8\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: deliver
+    english: deliver
+    meaning: "\uBC30\uB2EC\uD558\uB2E4, \uC804\uB2EC\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: demand
+    english: demand
+    meaning: "\uC218\uC694, \uC694\uAD6C"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: department
+    english: department
+    meaning: "\uBD80\uC11C"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: deposit
+    english: deposit
+    meaning: "\uC608\uAE08, \uBCF4\uC99D\uAE08"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: determine
+    english: determine
+    meaning: "\uACB0\uC815\uD558\uB2E4, \uC54C\uC544\uB0B4\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: distribute
+    english: distribute
+    meaning: "\uBC30\uD3EC\uD558\uB2E4, \uBD84\uBC30\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: efficient
+    english: efficient
+    meaning: "\uD6A8\uC728\uC801\uC778"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: eligible
+    english: eligible
+    meaning: "\uC790\uACA9\uC774 \uC788\uB294"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: emphasize
+    english: emphasize
+    meaning: "\uAC15\uC870\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: enclose
+    english: enclose
+    meaning: "\uB3D9\uBD09\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: ensure
+    english: ensure
+    meaning: "\uBCF4\uC7A5\uD558\uB2E4, \uD655\uC2E4\uD788 \uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: establish
+    english: establish
+    meaning: "\uC124\uB9BD\uD558\uB2E4, \uD655\uB9BD\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: estimate
+    english: estimate
+    meaning: "\uACAC\uC801, \uCD94\uC815(\uCE58)"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: evaluate
+    english: evaluate
+    meaning: "\uD3C9\uAC00\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: exceed
+    english: exceed
+    meaning: "\uCD08\uACFC\uD558\uB2E4, \uB118\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: expand
+    english: expand
+    meaning: "\uD655\uC7A5\uD558\uB2E4, \uD655\uB300\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: expense
+    english: expense
+    meaning: "\uBE44\uC6A9, \uC9C0\uCD9C"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: expire
+    english: expire
+    meaning: "\uB9CC\uB8CC\uB418\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: facility
+    english: facility
+    meaning: "\uC2DC\uC124"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: feature
+    english: feature
+    meaning: "\uD2B9\uC9D5, \uAE30\uB2A5"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: flexible
+    english: flexible
+    meaning: "\uC720\uC5F0\uD55C, \uC735\uD1B5\uC131 \uC788\uB294"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: guarantee
+    english: guarantee
+    meaning: "\uBCF4\uC99D\uD558\uB2E4, \uBCF4\uC7A5\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: implement
+    english: implement
+    meaning: "\uC2DC\uD589\uD558\uB2E4, \uC2E4\uD589\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: improve
+    english: improve
+    meaning: "\uAC1C\uC120\uD558\uB2E4, \uD5A5\uC0C1\uC2DC\uD0A4\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: inquire
+    english: inquire
+    meaning: "\uBB38\uC758\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: inspect
+    english: inspect
+    meaning: "\uC810\uAC80\uD558\uB2E4, \uAC80\uC0AC\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: install
+    english: install
+    meaning: "\uC124\uCE58\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: invest
+    english: invest
+    meaning: "\uD22C\uC790\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: invoice
+    english: invoice
+    meaning: "\uC1A1\uC7A5, \uCCAD\uAD6C\uC11C"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: maintain
+    english: maintain
+    meaning: "\uC720\uC9C0\uD558\uB2E4, \uBCF4\uC218\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: merchandise
+    english: merchandise
+    meaning: "\uC0C1\uD488"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: negotiate
+    english: negotiate
+    meaning: "\uD611\uC0C1\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: notify
+    english: notify
+    meaning: "\uD1B5\uC9C0\uD558\uB2E4, \uC54C\uB9AC\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: obtain
+    english: obtain
+    meaning: "\uC190\uC5D0 \uB123\uB2E4, \uC5BB\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: operate
+    english: operate
+    meaning: "\uC6B4\uC601\uD558\uB2E4, \uC791\uB3D9\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: participate
+    english: participate
+    meaning: "\uCC38\uAC00\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: postpone
+    english: postpone
+    meaning: "\uC5F0\uAE30\uD558\uB2E4, \uBBF8\uB8E8\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: predict
+    english: predict
+    meaning: "\uC608\uCE21\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: preference
+    english: preference
+    meaning: "\uC120\uD638(\uB3C4)"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: previous
+    english: previous
+    meaning: "\uC774\uC804\uC758"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: promote
+    english: promote
+    meaning: "\uC2B9\uC9C4\uC2DC\uD0A4\uB2E4, \uD64D\uBCF4\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: purchase
+    english: purchase
+    meaning: "\uAD6C\uB9E4\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: qualified
+    english: qualified
+    meaning: "\uC790\uACA9\uC744 \uAC16\uCD98"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: receipt
+    english: receipt
+    meaning: "\uC601\uC218\uC99D"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: recommend
+    english: recommend
+    meaning: "\uCD94\uCC9C\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: reduce
+    english: reduce
+    meaning: "\uC904\uC774\uB2E4, \uAC10\uC18C\uC2DC\uD0A4\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: refund
+    english: refund
+    meaning: "\uD658\uBD88"
+    partOfSpeech: n
+    example: 
+    exampleMeaning: 
+  - id: register
+    english: register
+    meaning: "\uB4F1\uB85D\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: reliable
+    english: reliable
+    meaning: "\uBBFF\uC744 \uC218 \uC788\uB294"
+    partOfSpeech: adj
+    example: 
+    exampleMeaning: 
+  - id: require
+    english: require
+    meaning: "\uC694\uAD6C\uD558\uB2E4, \uD544\uC694\uB85C \uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 
+  - id: reserve
+    english: reserve
+    meaning: "\uC608\uC57D\uD558\uB2E4"
+    partOfSpeech: v
+    example: 
+    exampleMeaning: 

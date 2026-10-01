@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ec416e140bfc414b93cb9aa6306ba85, type: 3}
+  m_Name: scribble_bat
+  m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.MonsterSpecies
+  speciesId: scribble_bat
+  displayName: "\uB099\uC11C \uBC15\uC950"
+  description: "\uACF5\uCC45 \uADC0\uD241\uC774 \uB099\uC11C\uC5D0\uC11C \uD0DC\uC5B4\uB09C
+    \uBC15\uC950."
+  role: 0
+  sprite: {fileID: 0}
+  placeholderColor: {r: 0.5, g: 0.5, b: 0.55, a: 1}
+  baseStats:
+    maxHp: 18
+    attack: 11
+    defense: 6
+  growthPerLevel:
+    maxHp: 4
+    attack: 2
+    defense: 1
+  skills:
+  - {fileID: 11400000, guid: 1f9e698cd99249f4f8b001d293500b4b, type: 2}
+  evolvesTo: {fileID: 0}
+  evolveLevel: 5
+  evolveItem: {fileID: 0}
+  evolveItemCount: 3
+  expReward: 7
+  goldReward: 6
+  drops:
+  - item: {fileID: 11400000, guid: 83903ba43d39288409cddb3a5f7b0f43, type: 2}
+    chance: 0.4
+    count: 1
+  - item: {fileID: 11400000, guid: d068093b31fa6bd479a9978022d8bc1f, type: 2}
+    chance: 0.15
+    count: 1

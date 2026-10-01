@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ec416e140bfc414b93cb9aa6306ba85, type: 3}
+  m_Name: ink_slime
+  m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.MonsterSpecies
+  speciesId: ink_slime
+  displayName: "\uC789\uD06C \uC2AC\uB77C\uC784"
+  description: "\uC3DF\uC544\uC9C4 \uC789\uD06C\uAC00 \uBB49\uCCD0 \uC0DD\uAE34 \uC2AC\uB77C\uC784."
+  role: 0
+  sprite: {fileID: 0}
+  placeholderColor: {r: 0.35, g: 0.2, b: 0.5, a: 1}
+  baseStats:
+    maxHp: 22
+    attack: 9
+    defense: 8
+  growthPerLevel:
+    maxHp: 5
+    attack: 2
+    defense: 2
+  skills:
+  - {fileID: 11400000, guid: 72fa4539ecff5634da7065d645d95a20, type: 2}
+  evolvesTo: {fileID: 0}
+  evolveLevel: 5
+  evolveItem: {fileID: 0}
+  evolveItemCount: 3
+  expReward: 6
+  goldReward: 5
+  drops:
+  - item: {fileID: 11400000, guid: d068093b31fa6bd479a9978022d8bc1f, type: 2}
+    chance: 0.4
+    count: 1
+  - item: {fileID: 11400000, guid: 4ef0a20b2f82e9c4c8ea2a134a013bf4, type: 2}
+    chance: 0.15
+    count: 1
