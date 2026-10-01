@@ -62,6 +62,8 @@ namespace WordRPG.UI
         private EvolutionView evolutionView;
         private ShopView shopView;
         private Text[] badgeNames;
+        private Text[] badgeInitials;
+        private Image[] badgeSprites;
         private RectTransform[] badgeFills;
         private Image[] badgeFillImages;
 
@@ -486,11 +488,11 @@ namespace WordRPG.UI
             UiKit.ApplySafeArea(hudRoot);
 
             // 상단: 지역 이름 · 도감 진행 · 도감 버튼
-            var top = UiKit.Panel("TopBar", hudRoot, new Color(0, 0, 0, 0.55f), 0, 0.94f, 1, 1);
+            var top = UiKit.Panel("TopBar", hudRoot, Palette.Scrim, 0, 0.94f, 1, 1);
             top.raycastTarget = false;
-            areaLabel = UiKit.Label("Area", top.transform, "", 38, Palette.Gold, 0.03f, 0, 0.32f, 1,
-                TextAnchor.MiddleLeft, FontStyle.Bold);
-            dexLabel = UiKit.Label("DexProgress", top.transform, "", 30, Palette.Text, 0.32f, 0, 0.78f, 1,
+            areaLabel = UiKit.Display(UiKit.Label("Area", top.transform, "", 44, Palette.Gold, 0.03f, 0, 0.4f, 1,
+                TextAnchor.MiddleLeft, FontStyle.Normal, true, 24));
+            dexLabel = UiKit.Label("DexProgress", top.transform, "", 30, Palette.Text, 0.4f, 0, 0.78f, 1,
                 TextAnchor.MiddleRight);
             var dexButton = UiKit.MakeButton("DexButton", top.transform, "도감", Palette.Button, 34, 0.8f, 0.08f, 0.97f, 0.92f);
             dexButton.onClick.AddListener(OpenDex);
@@ -498,24 +500,36 @@ namespace WordRPG.UI
             // 파티 HP
             var strip = UiKit.Rect("PartyStrip", hudRoot, 0, 0.875f, 1, 0.935f);
             badgeNames = new Text[GameSession.MaxPartySize];
+            badgeInitials = new Text[GameSession.MaxPartySize];
+            badgeSprites = new Image[GameSession.MaxPartySize];
             badgeFills = new RectTransform[GameSession.MaxPartySize];
             badgeFillImages = new Image[GameSession.MaxPartySize];
             for (int i = 0; i < GameSession.MaxPartySize; i++)
             {
-                var badge = UiKit.Panel($"Badge_{i}", strip, new Color(0, 0, 0, 0.55f), i / 3f, 0, (i + 1) / 3f, 1);
+                // Figma 'Party Badge': 얼굴 원 + 이름 + HP 바
+                var badge = UiKit.RoundPanel($"Badge_{i}", strip, Palette.Scrim, UiKit.RadiusMd, i / 3f, 0, (i + 1) / 3f, 1);
                 badge.raycastTarget = false;
-                UiKit.Pad(badge.rectTransform, 6, 0, 6, 0);
-                badgeNames[i] = UiKit.Label("Name", badge.transform, "", 28, Palette.Text, 0.04f, 0.42f, 0.96f, 1,
-                    TextAnchor.MiddleCenter, FontStyle.Bold, true, 16);
-                var back = UiKit.Panel("HpBack", badge.transform, new Color(0.04f, 0.05f, 0.09f), 0.06f, 0.14f, 0.94f, 0.36f);
+                UiKit.Pad(badge.rectTransform, 8, 0, 8, 0);
+                var avatar = UiKit.Pill(UiKit.Panel("Avatar", badge.transform, Palette.PanelLight, 0, 0.62f, 0, 0.62f));
+                avatar.raycastTarget = false;
+                avatar.rectTransform.pivot = new Vector2(0, 0.5f);
+                avatar.rectTransform.sizeDelta = new Vector2(48, 48);
+                avatar.rectTransform.anchoredPosition = new Vector2(14, 0);
+                badgeInitials[i] = UiKit.Display(UiKit.Label("Initial", avatar.transform, "", 30, Palette.Text, 0, 0, 1, 1));
+                badgeSprites[i] = UiKit.IconImage("Sprite", avatar.transform, null, 0.05f, 0.05f, 0.95f, 0.95f);
+                badgeNames[i] = UiKit.Label("Name", badge.transform, "", 28, Palette.Text, 0, 0.4f, 1, 0.86f,
+                    TextAnchor.MiddleLeft, FontStyle.Bold, true, 16);
+                badgeNames[i].rectTransform.offsetMin = new Vector2(74, 0);
+                badgeNames[i].rectTransform.offsetMax = new Vector2(-8, 0);
+                var back = UiKit.Pill(UiKit.Panel("HpBack", badge.transform, Palette.Track, 0.05f, 0.14f, 0.95f, 0.32f));
                 back.raycastTarget = false;
-                badgeFillImages[i] = UiKit.Panel("HpFill", back.transform, Palette.Good);
+                badgeFillImages[i] = UiKit.Pill(UiKit.Panel("HpFill", back.transform, Palette.Good));
                 badgeFillImages[i].raycastTarget = false;
                 badgeFills[i] = badgeFillImages[i].rectTransform;
             }
 
             // 알림
-            var toast = UiKit.Panel("Toast", hudRoot, new Color(0, 0, 0, 0.78f), 0.06f, 0.29f, 0.94f, 0.37f);
+            var toast = UiKit.RoundPanel("Toast", hudRoot, Palette.Scrim, UiKit.RadiusMd, 0.06f, 0.29f, 0.94f, 0.37f);
             toast.raycastTarget = false;
             toastPanel = toast.gameObject;
             toastText = UiKit.Label("Text", toast.transform, "", 34, Palette.Text, 0, 0, 1, 1,
@@ -543,8 +557,8 @@ namespace WordRPG.UI
         private static HoldButton PadButton(RectTransform parent, string name, string arrow,
             float minX, float minY, float maxX, float maxY)
         {
-            var image = UiKit.Panel(name, parent, new Color(1, 1, 1, 0.22f), minX, minY, maxX, maxY);
-            UiKit.Label("Arrow", image.transform, arrow, 64, new Color(1, 1, 1, 0.9f), 0, 0, 1, 1);
+            var image = UiKit.RoundPanel(name, parent, new Color(1, 1, 1, 0.22f), UiKit.RadiusMd, minX, minY, maxX, maxY);
+            UiKit.Label("Arrow", image.transform, arrow, 52, new Color(1, 1, 1, 0.92f), 0, 0, 1, 1, TextAnchor.MiddleCenter, FontStyle.Bold);
             return image.gameObject.AddComponent<HoldButton>();
         }
 
@@ -582,6 +596,12 @@ namespace WordRPG.UI
                 var monster = session.Party[i];
                 float ratio = Mathf.Clamp01((float)monster.CurrentHp / Mathf.Max(1, monster.Stats.MaxHp));
                 badgeNames[i].text = $"{monster.DisplayName} Lv{monster.Level}";
+                var sprite = monster.Species.Sprite;
+                badgeSprites[i].sprite = sprite;
+                badgeSprites[i].enabled = sprite != null;
+                badgeInitials[i].enabled = sprite == null;
+                badgeInitials[i].text = monster.DisplayName.Length > 0 ? monster.DisplayName.Substring(0, 1) : "?";
+                badgeFillImages[i].enabled = ratio > 0f;
                 badgeFills[i].anchorMax = new Vector2(ratio, 1);
                 badgeFillImages[i].color = ratio > 0.5f ? Palette.Good : ratio > 0.25f ? Palette.Gold : Palette.Bad;
             }

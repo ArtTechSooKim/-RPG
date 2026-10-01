@@ -61,6 +61,7 @@ namespace WordRPG.UI
 
         private Text skillTitle;
         private readonly List<Button> skillButtons = new List<Button>();
+        private readonly List<Text> skillDetails = new List<Text>();
         private Button cancelButton;
 
         private Text quizPrompt, quizHint;
@@ -69,9 +70,12 @@ namespace WordRPG.UI
         private readonly List<Button> choiceButtons = new List<Button>();
 
         private Text cardTitle, cardWord, cardMeaning, cardExtra, cardConfirmLabel;
+        private Image cardBorder;
         private Button cardConfirm;
 
         private Text resultTitle, resultBody;
+        private RectTransform resultLines;
+        private Image resultBorder;
         private Button resultPrimary, resultSecondary;
 
         // --- 입력 대기용 ---
@@ -290,7 +294,9 @@ namespace WordRPG.UI
                 bool used = i < question.Choices.Count;
                 choiceButtons[i].gameObject.SetActive(used);
                 if (!used) continue;
-                UiKit.LabelOf(choiceButtons[i]).text = question.Choices[i];
+                var choiceLabel = UiKit.LabelOf(choiceButtons[i]);
+                choiceLabel.text = question.Choices[i];
+                choiceLabel.color = Palette.Text;
                 UiKit.SetColor(choiceButtons[i], Palette.Button);
                 choiceButtons[i].interactable = true;
             }
@@ -323,10 +329,26 @@ namespace WordRPG.UI
 
         private void MarkChoices(QuizQuestion question, int chosen)
         {
+            var font = UiFonts.Bold;
+            bool marks = font.HasCharacter('✓') && font.HasCharacter('✕');
             for (int i = 0; i < question.Choices.Count; i++)
             {
-                if (i == question.CorrectIndex) UiKit.SetColor(choiceButtons[i], Palette.Good);
-                else if (i == chosen) UiKit.SetColor(choiceButtons[i], Palette.Bad);
+                var label = UiKit.LabelOf(choiceButtons[i]);
+                if (i == question.CorrectIndex)
+                {
+                    UiKit.SetColor(choiceButtons[i], Palette.Good);
+                    if (marks) label.text = "✓  " + label.text;
+                }
+                else if (i == chosen)
+                {
+                    UiKit.SetColor(choiceButtons[i], Palette.Bad);
+                    if (marks) label.text = "✕  " + label.text;
+                }
+                else
+                {
+                    UiKit.SetColor(choiceButtons[i], Palette.Disabled);
+                    label.color = Palette.TextDim;
+                }
             }
         }
 
@@ -346,6 +368,7 @@ namespace WordRPG.UI
             }
             cardExtra.text = extra.ToString();
             cardConfirmLabel.text = buttonText;
+            cardBorder.color = titleColor == Palette.Gold ? Palette.Gold : Palette.PanelLight;
             cardConfirmed = false;
             ShowPanel(cardPanel);
 
@@ -427,6 +450,7 @@ namespace WordRPG.UI
         {
             bool victory = engine.Phase == BattlePhase.Victory;
             var body = new StringBuilder();
+            ClearResultLines();
 
             if (victory)
             {
@@ -434,26 +458,25 @@ namespace WordRPG.UI
                 var levels = BattleRewardCalculator.Apply(reward, session.Party, session.Inventory);
                 resultTitle.text = "승리!";
                 resultTitle.color = Palette.Gold;
-                body.AppendLine($"경험치 +{reward.Exp}   골드 +{reward.Gold}  (보유 {session.Inventory.Gold})");
-                foreach (var item in reward.Items) body.AppendLine($"획득: {item.Item.DisplayName} x{item.Count}");
+                AddResultLine(null, $"경험치 +{reward.Exp}", Palette.Text);
+                AddResultLine(UiKit.Icon("gold"), $"+{reward.Gold}   (보유 {session.Inventory.Gold}G)", Palette.Text);
+                foreach (var item in reward.Items) AddResultLine(UiKit.ItemIcon(item.Item), $"{item.Item.DisplayName} x{item.Count} 획득", Palette.Text);
+                // 레벨 업은 한 줄로 모아서 (도감 배너까지 붙어도 결과 패널이 넘치지 않게)
+                var leveled = new List<string>();
                 for (int i = 0; i < session.Party.Count; i++)
-                {
-                    var member = session.Party[i];
-                    if (levels[i] > 0) body.AppendLine($"{member.DisplayName} 레벨 업! → Lv{member.Level}");
-                }
+                    if (levels[i] > 0) leveled.Add($"{session.Party[i].DisplayName} Lv{session.Party[i].Level}");
+                if (leveled.Count > 0) AddResultLine(UiKit.Icon("star_full"), $"레벨 업!  {string.Join(" · ", leveled)}", Palette.Gold);
             }
             else
             {
                 resultTitle.text = "패배…";
                 resultTitle.color = Palette.Bad;
-                body.AppendLine(loopBattles ? "파티가 전멸했다. 회복하고 다시 도전하자!" : "파티가 전멸했다… 시작 지점으로 돌아간다.");
+                AddResultLine(null, loopBattles ? "파티가 전멸했다. 회복하고 다시 도전하자!" : "파티가 전멸했다… 시작 지점으로 돌아간다.", Palette.Text);
             }
+            resultBorder.color = victory ? Palette.Gold : Palette.PanelLight;
+            UiKit.SetColor(resultPrimary, victory ? Palette.Button : Palette.Neutral);
 
-            foreach (var completion in session.ClaimDexRewards(new[] { words }))
-            {
-                body.AppendLine();
-                body.AppendLine(CompletionText(completion));
-            }
+            foreach (var completion in session.ClaimDexRewards(new[] { words })) AddDexBanner(completion);
 
             int up = 0, down = 0;
             foreach (var change in engine.MasteryChanges)
@@ -461,7 +484,6 @@ namespace WordRPG.UI
                 if (change.LeveledUp) up++;
                 else if (change.LeveledDown) down++;
             }
-            body.AppendLine();
             body.AppendLine($"정답 {engine.CorrectAnswers}   오답 {engine.WrongAnswers}   단어 숙련도 ▲{up} ▼{down}");
             body.Append($"발견한 단어 {LearnedCount()}/{words.Words.Count}");
             resultBody.text = body.ToString();
@@ -483,6 +505,54 @@ namespace WordRPG.UI
             }
         }
 
+        private void ClearResultLines()
+        {
+            foreach (Transform child in resultLines)
+            {
+                child.gameObject.SetActive(false); // 레이아웃에서 즉시 빠지게
+                Destroy(child.gameObject);
+            }
+        }
+
+        // 결과 한 줄: [아이콘] 글자 (Figma 'Result Panel')
+        private void AddResultLine(Sprite icon, string text, Color color)
+        {
+            var row = UiKit.Rect("Line", resultLines, 0, 0, 1, 1);
+            var layout = row.gameObject.AddComponent<LayoutElement>();
+            layout.minHeight = layout.preferredHeight = 46;
+            if (icon != null)
+            {
+                var image = UiKit.IconImage("Icon", row, icon, 0, 0, 0, 1);
+                image.rectTransform.pivot = new Vector2(0, 0.5f);
+                image.rectTransform.sizeDelta = new Vector2(46, 0);
+            }
+            var label = UiKit.Label("Text", row, text, 32, color, 0, 0, 1, 1, TextAnchor.MiddleLeft, FontStyle.Normal, true, 18);
+            label.rectTransform.offsetMin = new Vector2(icon != null ? 60 : 0, 0);
+        }
+
+        // 지역 도감을 다 채운 순간 결과 화면에 붙는 배너: 징표 아이콘 + "★ 초원 도감 완성!"
+        private void AddDexBanner(DexCompletion completion)
+        {
+            var row = UiKit.Rect("DexBanner", resultLines, 0, 0, 1, 1);
+            var layout = row.gameObject.AddComponent<LayoutElement>();
+            layout.minHeight = layout.preferredHeight = 120;
+            UiKit.RoundPanel("Bg", row, Palette.PanelLight, UiKit.RadiusMd).raycastTarget = false;
+            UiKit.Outline(UiKit.Panel("Border", row, Palette.Gold), UiKit.RadiusMd, 3).raycastTarget = false;
+            var icon = UiKit.IconImage("Keepsake", row, UiKit.ItemIcon(completion.Keepsake), 0, 0.08f, 0, 0.92f);
+            icon.rectTransform.pivot = new Vector2(0, 0.5f);
+            icon.rectTransform.sizeDelta = new Vector2(88, 0);
+            icon.rectTransform.anchoredPosition = new Vector2(12, 0);
+            var headline = UiKit.Display(UiKit.Label("Headline", row, $"★ {completion.Region.RegionName} 도감 완성!", 36, Palette.Gold,
+                0, 0.48f, 1, 0.94f, TextAnchor.MiddleLeft, FontStyle.Normal, true, 20));
+            headline.rectTransform.offsetMin = new Vector2(116, 0);
+            headline.rectTransform.offsetMax = new Vector2(-12, 0);
+            string keepsake = completion.Keepsake != null ? $"징표 '{completion.Keepsake.DisplayName}' + " : "";
+            var detail = UiKit.Label("Detail", row, $"{keepsake}{completion.Gold} 골드 획득", 28, Palette.Text,
+                0, 0.08f, 1, 0.48f, TextAnchor.MiddleLeft, FontStyle.Normal, true, 16);
+            detail.rectTransform.offsetMin = new Vector2(116, 0);
+            detail.rectTransform.offsetMax = new Vector2(-12, 0);
+        }
+
         // ------------------------------------------------------------------ 스킬 메뉴 / 대상 선택
 
         private void ShowSkillMenu(BattleUnit actor)
@@ -498,7 +568,8 @@ namespace WordRPG.UI
                 if (!used) continue;
 
                 var skill = actor.Skills[i];
-                UiKit.LabelOf(skillButtons[i]).text = SkillLabel(skill);
+                UiKit.LabelOf(skillButtons[i]).text = skill.DisplayName;
+                skillDetails[i].text = SkillDetail(skill);
                 UiKit.SetColor(skillButtons[i], SkillColor(skill));
                 skillButtons[i].interactable = true;
                 skillButtons[i].onClick.RemoveAllListeners();
@@ -571,7 +642,7 @@ namespace WordRPG.UI
             }
         }
 
-        private static string SkillLabel(SkillData skill)
+        private static string SkillDetail(SkillData skill)
         {
             string kind = skill.Kind == SkillKind.Damage ? "공격" : skill.Kind == SkillKind.Heal ? "회복" : "보호막";
             string target;
@@ -584,16 +655,16 @@ namespace WordRPG.UI
                 default: target = "자신"; break;
             }
             string quiz = skill.QuizDirection == QuizDirection.EnglishToMeaning ? "영→한 · 쉬움" : "한→영 · 어려움";
-            return $"{skill.DisplayName}\n<size=30>{kind} {skill.Power} · {target}  |  문제 {quiz}</size>";
+            return $"{kind} {skill.Power} · {target}  |  문제 {quiz}";
         }
 
         private static Color SkillColor(SkillData skill)
         {
             switch (skill.Kind)
             {
-                case SkillKind.Damage: return new Color(0.6f, 0.25f, 0.28f);
-                case SkillKind.Heal: return new Color(0.2f, 0.5f, 0.33f);
-                default: return new Color(0.22f, 0.38f, 0.62f);
+                case SkillKind.Damage: return Palette.Attack;
+                case SkillKind.Heal: return Palette.Heal;
+                default: return Palette.Guard;
             }
         }
 
@@ -656,10 +727,10 @@ namespace WordRPG.UI
 
         private IEnumerator FloatRoutine(RectTransform target, string text, Color color, int size)
         {
-            var label = UiKit.Label("Float", root, text, size, color, 0.5f, 0.5f, 0.5f, 0.5f,
-                TextAnchor.MiddleCenter, FontStyle.Bold);
+            var label = UiKit.Display(UiKit.Label("Float", root, text, size + 8, color, 0.5f, 0.5f, 0.5f, 0.5f,
+                TextAnchor.MiddleCenter));
             var rt = label.rectTransform;
-            rt.sizeDelta = new Vector2(520, 90);
+            rt.sizeDelta = new Vector2(560, 100);
             var outline = label.gameObject.AddComponent<Outline>();
             outline.effectColor = new Color(0, 0, 0, 0.85f);
             outline.effectDistance = new Vector2(3, -3);
@@ -720,8 +791,8 @@ namespace WordRPG.UI
             resultSecondary.gameObject.SetActive(two);
             if (two) UiKit.LabelOf(resultSecondary).text = secondary;
             var rt = (RectTransform)resultPrimary.transform;
-            rt.anchorMin = new Vector2(two ? 0.03f : 0.2f, 0.02f);
-            rt.anchorMax = new Vector2(two ? 0.49f : 0.8f, 0.2f);
+            rt.anchorMin = new Vector2(two ? 0.03f : 0.05f, 0.025f);
+            rt.anchorMax = new Vector2(two ? 0.49f : 0.95f, 0.185f);
         }
 
         // ------------------------------------------------------------------ UI 생성
@@ -747,8 +818,8 @@ namespace WordRPG.UI
             UiKit.ApplySafeArea(root);
 
             // 상단 바
-            roundLabel = UiKit.Label("Round", root, "라운드 1", 36, Palette.Gold, 0.03f, 0.945f, 0.3f, 1f,
-                TextAnchor.MiddleLeft, FontStyle.Bold);
+            roundLabel = UiKit.Display(UiKit.Label("Round", root, "라운드 1", 44, Palette.Gold, 0.03f, 0.945f, 0.3f, 1f,
+                TextAnchor.MiddleLeft));
             vocabLabel = UiKit.Label("Vocab", root, "", 30, Palette.TextDim, 0.3f, 0.945f, 0.78f, 1f,
                 TextAnchor.MiddleRight);
             dexButton = UiKit.MakeButton("DexButton", root, "도감", Palette.Button, 34, 0.8f, 0.948f, 0.97f, 0.998f);
@@ -757,7 +828,7 @@ namespace WordRPG.UI
             enemyArea = UiKit.Rect("EnemyArea", root, 0, 0.62f, 1, 0.94f);
 
             // 전투 로그
-            var logPanel = UiKit.Panel("LogPanel", root, Palette.Panel, 0.03f, 0.512f, 0.97f, 0.612f);
+            var logPanel = UiKit.RoundPanel("LogPanel", root, Palette.Panel, UiKit.RadiusMd, 0.03f, 0.512f, 0.97f, 0.612f);
             logLabel = UiKit.Label("Log", logPanel.transform, "", 31, Palette.Text, 0, 0, 1, 1,
                 TextAnchor.MiddleLeft, FontStyle.Normal, true, 22);
             UiKit.Pad(logLabel.rectTransform, 24, 8, 24, 8);
@@ -790,13 +861,18 @@ namespace WordRPG.UI
             {
                 float top = 0.82f - i * 0.2066f;
                 var button = UiKit.MakeButton($"SkillButton_{i}", skillPanel.transform, "", Palette.Button, 44,
-                    0, top - 0.19f, 1, top);
+                    0, top - 0.19f, 1, top, bestFit: true);
                 var label = UiKit.LabelOf(button);
-                label.horizontalOverflow = HorizontalWrapMode.Wrap;
+                label.rectTransform.anchorMin = new Vector2(0, 0.4f);
+                label.rectTransform.offsetMin = new Vector2(16, 0);
+                var detail = UiKit.Label("Detail", button.transform, "", 26, new Color(1, 1, 1, 0.85f), 0, 0.06f, 1, 0.44f,
+                    TextAnchor.MiddleCenter, FontStyle.Normal, true, 16);
+                UiKit.Pad(detail.rectTransform, 16, 0, 16, 0);
                 skillButtons.Add(button);
+                skillDetails.Add(detail);
             }
 
-            cancelButton = UiKit.MakeButton("CancelButton", skillPanel.transform, "취소", new Color(0.35f, 0.35f, 0.4f),
+            cancelButton = UiKit.MakeButton("CancelButton", skillPanel.transform, "취소", Palette.Neutral,
                 44, 0.25f, 0.04f, 0.75f, 0.24f);
             cancelButton.onClick.AddListener(OnCancelTargeting);
         }
@@ -804,21 +880,25 @@ namespace WordRPG.UI
         private void BuildQuizPanel(Transform parent)
         {
             quizPanel = UiKit.Stretch("QuizPanel", parent).gameObject;
-            quizPrompt = UiKit.Label("Prompt", quizPanel.transform, "", 72, Palette.Text, 0, 0.8f, 1, 1,
-                TextAnchor.MiddleCenter, FontStyle.Bold, true, 30);
+            quizPrompt = UiKit.Display(UiKit.Label("Prompt", quizPanel.transform, "", 84, Palette.Text, 0, 0.8f, 1, 1,
+                TextAnchor.MiddleCenter, FontStyle.Normal, true, 30));
             quizHint = UiKit.Label("Hint", quizPanel.transform, "", 30, Palette.TextDim, 0, 0.735f, 1, 0.8f);
 
-            var timerBack = UiKit.Panel("TimerBack", quizPanel.transform, new Color(0.04f, 0.05f, 0.09f),
-                0.02f, 0.695f, 0.98f, 0.72f);
-            timerFillImage = UiKit.Panel("TimerFill", timerBack.transform, Palette.Info);
+            var timerBack = UiKit.Pill(UiKit.Panel("TimerBack", quizPanel.transform, Palette.Track,
+                0.02f, 0.695f, 0.98f, 0.72f));
+            timerFillImage = UiKit.Pill(UiKit.Panel("TimerFill", timerBack.transform, Palette.Info));
             timerFill = timerFillImage.rectTransform;
 
             for (int i = 0; i < 4; i++)
             {
                 int index = i;
                 float top = 0.68f - i * 0.1725f;
-                var button = UiKit.MakeButton($"Choice_{i}", quizPanel.transform, "", Palette.Button, 44,
+                var button = UiKit.MakeButton($"Choice_{i}", quizPanel.transform, "", Palette.Button, 40,
                     0, top - 0.16f, 1, top, bestFit: true);
+                UiKit.LabelOf(button).font = UiFonts.Bold; // 보기는 읽기 쉬운 본문 글꼴 (Figma Body/Large Bold)
+                var choiceColors = button.colors;
+                choiceColors.disabledColor = Color.white; // 정답/오답 색이 흐려지지 않게
+                button.colors = choiceColors;
                 button.onClick.AddListener(() =>
                 {
                     if (pickedChoice == int.MinValue) pickedChoice = index;
@@ -830,33 +910,46 @@ namespace WordRPG.UI
         private void BuildCardPanel(Transform parent)
         {
             cardPanel = UiKit.Stretch("CardPanel", parent).gameObject;
-            UiKit.Panel("Bg", cardPanel.transform, Palette.Panel);
-            cardTitle = UiKit.Label("Title", cardPanel.transform, "", 44, Palette.Gold, 0, 0.8f, 1, 1,
-                TextAnchor.MiddleCenter, FontStyle.Bold, true, 24);
-            cardWord = UiKit.Label("Word", cardPanel.transform, "", 88, Palette.Text, 0.03f, 0.56f, 0.97f, 0.8f,
-                TextAnchor.MiddleCenter, FontStyle.Bold, true, 36);
-            cardMeaning = UiKit.Label("Meaning", cardPanel.transform, "", 54, Palette.Gold, 0.03f, 0.38f, 0.97f, 0.57f,
-                TextAnchor.MiddleCenter, FontStyle.Bold, true, 26);
+            UiKit.RoundPanel("Bg", cardPanel.transform, Palette.Panel, UiKit.RadiusLg);
+            cardBorder = UiKit.Outline(UiKit.Panel("Border", cardPanel.transform, Palette.Gold), UiKit.RadiusLg, 4);
+            cardBorder.raycastTarget = false;
+            cardTitle = UiKit.Display(UiKit.Label("Title", cardPanel.transform, "", 44, Palette.Gold, 0, 0.8f, 1, 0.97f,
+                TextAnchor.MiddleCenter, FontStyle.Normal, true, 24));
+            cardWord = UiKit.Display(UiKit.Label("Word", cardPanel.transform, "", 92, Palette.Text, 0.03f, 0.56f, 0.97f, 0.8f,
+                TextAnchor.MiddleCenter, FontStyle.Normal, true, 36));
+            cardMeaning = UiKit.Display(UiKit.Label("Meaning", cardPanel.transform, "", 56, Palette.Gold, 0.03f, 0.38f, 0.97f, 0.57f,
+                TextAnchor.MiddleCenter, FontStyle.Normal, true, 26));
             cardExtra = UiKit.Label("Extra", cardPanel.transform, "", 30, Palette.TextDim, 0.05f, 0.2f, 0.95f, 0.38f,
                 TextAnchor.UpperCenter, FontStyle.Normal, true, 20);
-            cardConfirm = UiKit.MakeButton("CardConfirmButton", cardPanel.transform, "확인", Palette.Button, 44,
-                0.2f, 0.03f, 0.8f, 0.2f);
+            cardConfirm = UiKit.MakeButton("CardConfirmButton", cardPanel.transform, "확인", Palette.Gold, 44,
+                0.05f, 0.04f, 0.95f, 0.2f);
             cardConfirmLabel = UiKit.LabelOf(cardConfirm);
+            cardConfirmLabel.color = Palette.OnAccent;
             cardConfirm.onClick.AddListener(() => cardConfirmed = true);
         }
 
         private void BuildResultPanel(Transform parent)
         {
             resultPanel = UiKit.Stretch("ResultPanel", parent).gameObject;
-            UiKit.Panel("Bg", resultPanel.transform, Palette.Panel);
-            resultTitle = UiKit.Label("Title", resultPanel.transform, "", 60, Palette.Gold, 0, 0.8f, 1, 1,
-                TextAnchor.MiddleCenter, FontStyle.Bold);
-            resultBody = UiKit.Label("Body", resultPanel.transform, "", 34, Palette.Text, 0.05f, 0.24f, 0.95f, 0.8f,
-                TextAnchor.UpperLeft, FontStyle.Normal, true, 22);
+            UiKit.RoundPanel("Bg", resultPanel.transform, Palette.Panel, UiKit.RadiusLg);
+            resultBorder = UiKit.Outline(UiKit.Panel("Border", resultPanel.transform, Palette.Gold), UiKit.RadiusLg, 4);
+            resultBorder.raycastTarget = false;
+            resultTitle = UiKit.Display(UiKit.Label("Title", resultPanel.transform, "", 60, Palette.Gold, 0, 0.845f, 1, 0.975f,
+                TextAnchor.MiddleCenter));
+            resultLines = UiKit.Rect("Lines", resultPanel.transform, 0.05f, 0.37f, 0.95f, 0.85f);
+            var lines = resultLines.gameObject.AddComponent<VerticalLayoutGroup>();
+            lines.spacing = 6;
+            lines.childAlignment = TextAnchor.UpperLeft;
+            lines.childControlWidth = true;
+            lines.childControlHeight = true;
+            lines.childForceExpandWidth = true;
+            lines.childForceExpandHeight = false;
+            resultBody = UiKit.Label("Body", resultPanel.transform, "", 28, Palette.TextDim, 0.05f, 0.2f, 0.95f, 0.36f,
+                TextAnchor.MiddleCenter, FontStyle.Normal, true, 18);
             resultPrimary = UiKit.MakeButton("ResultButton_Primary", resultPanel.transform, "", Palette.Button, 38,
                 0.03f, 0.02f, 0.49f, 0.2f, bestFit: true);
             resultPrimary.onClick.AddListener(() => resultChoice = 0);
-            resultSecondary = UiKit.MakeButton("ResultButton_Secondary", resultPanel.transform, "", new Color(0.2f, 0.5f, 0.33f),
+            resultSecondary = UiKit.MakeButton("ResultButton_Secondary", resultPanel.transform, "", Palette.Heal,
                 38, 0.51f, 0.02f, 0.97f, 0.2f, bestFit: true);
             resultSecondary.onClick.AddListener(() => resultChoice = 1);
         }

@@ -16,6 +16,7 @@ namespace WordRPG.UI
         public bool IsOpen => Root != null && Root.activeSelf;
 
         private Text title, progressText, rewardText, detailText;
+        private Image rewardIcon;
         private RectTransform progressFill, content;
         private ScrollRect scroll;
         private readonly List<GameObject> rows = new List<GameObject>();
@@ -32,28 +33,28 @@ namespace WordRPG.UI
             var bg = view.Root.AddComponent<Image>(); // 뒤쪽 화면으로 터치가 새지 않게 막는다
             bg.color = Palette.Background;
 
-            view.title = UiKit.Label("Title", rootRect, "단어 도감", 46, Palette.Gold, 0, 0.925f, 1, 0.995f,
+            view.title = UiKit.IconTitle("Title", rootRect, UiKit.Icon("dex"), "단어 도감", 52, Palette.Gold, 0, 0.928f, 1, 0.995f);
+            view.progressText = UiKit.Label("Progress", rootRect, "", 34, Palette.Text, 0.03f, 0.89f, 0.97f, 0.93f,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
-            view.progressText = UiKit.Label("Progress", rootRect, "", 34, Palette.Text, 0.03f, 0.885f, 0.97f, 0.93f,
-                TextAnchor.MiddleCenter);
-            var barBack = UiKit.Panel("BarBack", rootRect, new Color(0.04f, 0.05f, 0.09f), 0.05f, 0.868f, 0.95f, 0.884f);
-            var fill = UiKit.Panel("BarFill", barBack.transform, Palette.Good);
+            var barBack = UiKit.Pill(UiKit.Panel("BarBack", rootRect, Palette.Track, 0.03f, 0.869f, 0.97f, 0.884f));
+            var fill = UiKit.Pill(UiKit.Panel("BarFill", barBack.transform, Palette.Gold));
             view.progressFill = fill.rectTransform;
 
-            var rewardBox = UiKit.Panel("RewardBox", rootRect, Palette.Panel, 0.03f, 0.775f, 0.97f, 0.86f);
-            view.rewardText = UiKit.Label("Reward", rewardBox.transform, "", 32, Palette.Text, 0, 0, 1, 1,
-                TextAnchor.MiddleCenter, FontStyle.Normal, true, 20);
-            UiKit.Pad(view.rewardText.rectTransform, 16, 4, 16, 4);
+            var rewardBox = UiKit.RoundPanel("RewardBox", rootRect, Palette.Panel, UiKit.RadiusMd, 0.03f, 0.775f, 0.97f, 0.858f);
+            view.rewardIcon = UiKit.IconImage("Keepsake", rewardBox.transform, null, 0.02f, 0.1f, 0.12f, 0.9f);
+            view.rewardText = UiKit.Label("Reward", rewardBox.transform, "", 32, Palette.Text, 0.14f, 0, 1, 1,
+                TextAnchor.MiddleLeft, FontStyle.Normal, true, 20);
+            UiKit.Pad(view.rewardText.rectTransform, 8, 4, 16, 4);
 
             view.BuildList(rootRect);
 
-            var detailBox = UiKit.Panel("DetailBox", rootRect, Palette.Panel, 0.03f, 0.105f, 0.97f, 0.29f);
+            var detailBox = UiKit.RoundPanel("DetailBox", rootRect, Palette.PanelLight, UiKit.RadiusMd, 0.03f, 0.105f, 0.97f, 0.29f);
             view.detailText = UiKit.Label("Detail", detailBox.transform, "", 34, Palette.Text, 0, 0, 1, 1,
                 TextAnchor.UpperLeft, FontStyle.Normal, true, 20);
             UiKit.Pad(view.detailText.rectTransform, 22, 10, 22, 10);
 
-            var close = UiKit.MakeButton("DexCloseButton", rootRect, "닫기", new Color(0.35f, 0.35f, 0.4f), 44,
-                0.25f, 0.012f, 0.75f, 0.092f);
+            var close = UiKit.MakeButton("DexCloseButton", rootRect, "닫기", Palette.Neutral, 44,
+                0.05f, 0.012f, 0.95f, 0.092f);
             close.onClick.AddListener(view.Hide);
 
             view.Root.SetActive(false);
@@ -62,7 +63,7 @@ namespace WordRPG.UI
 
         private void BuildList(RectTransform parent)
         {
-            var viewport = UiKit.Panel("Viewport", parent, new Color(0.1f, 0.12f, 0.2f), 0.03f, 0.30f, 0.97f, 0.765f);
+            var viewport = UiKit.Panel("Viewport", parent, Color.clear, 0.03f, 0.30f, 0.97f, 0.765f); // 투명하지만 스크롤 터치는 받음
             viewport.gameObject.AddComponent<RectMask2D>();
 
             var contentGo = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
@@ -113,6 +114,9 @@ namespace WordRPG.UI
             progressText.text = $"{progress.Discovered} / {progress.Total} 발견      완전 숙련 {progress.Mastered}개";
             progressFill.anchorMax = new Vector2(progress.Ratio, 1);
             rewardText.text = RewardText(progress);
+            var keepsakeIcon = UiKit.ItemIcon(region.CompletionKeepsake);
+            rewardIcon.sprite = keepsakeIcon;
+            rewardIcon.enabled = keepsakeIcon != null;
 
             foreach (var row in rows) UnityEngine.Object.Destroy(row);
             rows.Clear();
@@ -139,18 +143,28 @@ namespace WordRPG.UI
             var level = session.Vocabulary.GetLevel(word.Id);
             bool discovered = level > MasteryLevel.New;
 
-            var image = UiKit.Panel($"DexRow_{index}", content, RowColor(level));
-            image.gameObject.AddComponent<LayoutElement>().preferredHeight = 84;
+            var image = UiKit.RoundPanel($"DexRow_{index}", content, RowColor(level), UiKit.RadiusMd);
+            image.gameObject.AddComponent<LayoutElement>().preferredHeight = 92;
             var button = image.gameObject.AddComponent<Button>();
             button.targetGraphic = image;
             int captured = index;
             button.onClick.AddListener(() => ShowDetail(captured));
 
-            UiKit.Label("Name", image.transform, $"{index + 1:000}   {(discovered ? word.English : "???")}", 38,
-                discovered ? Palette.Text : Palette.TextDim, 0.03f, 0, 0.68f, 1, TextAnchor.MiddleLeft,
-                discovered ? FontStyle.Bold : FontStyle.Normal);
-            UiKit.Label("Stars", image.transform, Dex.Stars(level), 34, Palette.Gold, 0.68f, 0, 0.97f, 1,
-                TextAnchor.MiddleRight);
+            UiKit.Label("Number", image.transform, $"{index + 1:000}", 28, Palette.TextDim, 0.03f, 0, 0.12f, 1, TextAnchor.MiddleLeft);
+            var name = UiKit.Label("Name", image.transform, discovered ? word.English : "???", 40,
+                discovered ? Palette.Text : Palette.TextDim, 0.13f, 0, 0.66f, 1, TextAnchor.MiddleLeft,
+                discovered ? FontStyle.Bold : FontStyle.Normal, true, 22);
+            if (!discovered) UiKit.Display(name);
+            // 숙련도 별 4개 (Figma Icon/Star Full · Star Empty)
+            if (discovered)
+            {
+                int filled = (int)level;
+                for (int s = 0; s < 4; s++)
+                {
+                    float x = 0.68f + s * 0.075f;
+                    UiKit.IconImage($"Star_{s}", image.transform, UiKit.Icon(s < filled ? "star_full" : "star_empty"), x, 0.24f, x + 0.065f, 0.76f);
+                }
+            }
             return image.gameObject;
         }
 
@@ -158,10 +172,10 @@ namespace WordRPG.UI
         {
             switch (level)
             {
-                case MasteryLevel.Learning: return new Color(0.2f, 0.28f, 0.45f);
-                case MasteryLevel.Reviewing: return new Color(0.2f, 0.38f, 0.5f);
-                case MasteryLevel.Proficient: return new Color(0.2f, 0.5f, 0.42f);
-                case MasteryLevel.Mastered: return new Color(0.5f, 0.42f, 0.15f);
+                case MasteryLevel.Learning: return Palette.MasteryLearning;
+                case MasteryLevel.Reviewing: return Palette.MasteryReviewing;
+                case MasteryLevel.Proficient: return Palette.MasteryProficient;
+                case MasteryLevel.Mastered: return Palette.MasteryMastered;
                 default: return Palette.Panel;
             }
         }
