@@ -53,7 +53,8 @@
       `UiKit.AddButton`/`MakeButton`은 누르면 딸깍 소리 (`clickSound: false`로 끔). 새 소리를 쓰면 열거형 + 스크립트 표에 같이 추가 (AudioArtTests가 검사)
     - 전투: 효과 `BattleFx`(Fx 열거형 = Art/NinjaAdventure/Fx/{소문자}.png 정사각 프레임 시트), 배경은 지역 타일(`BattleScreen.SetBackdrop`)
     - Linear 색공간이라 반투명 검정은 알파를 높게(0.7~0.8) 잡아야 눈에 보이는 만큼 어두워진다
-13. **맵은 글자 데이터로만**: 미니맵·지도(`MapViews.cs`)가 FieldMap에서 자동으로 그려진다. 새 맵 글자(타일 종류)를 추가하면
+13. **맵은 글자 데이터로만**: 미니맵·지도(`MapViews.cs`)가 FieldMap에서 자동으로 그려진다. 탐험 안개는 `WorldState.Reveal/IsExplored`
+    (지역별 비트 기록 `ExploredArea`, 세이브에 포함). 새 맵 글자(타일 종류)를 추가하면
     `MinimapArt.ColorOf`·`FieldArt`·`PlaceholderArt`에도 추가 (MinimapTests·AudioArtTests가 빠진 것을 잡음)
 
 ## 폴더 구조

@@ -275,6 +275,7 @@ namespace WordRPG.UI
         {
             session.World.SetPosition(area.AreaId, walker.Position);
             minimap.Picture.SetPlayer(walker.Position);
+            if (session.World.Reveal(area.AreaId, walker.Map.Width, walker.Map.Height, walker.Position) > 0) minimap.Redraw();
             var tile = walker.Map.Get(walker.Position);
             if (tile == FieldTile.Door)
             {
@@ -455,7 +456,8 @@ namespace WordRPG.UI
 
             cam.backgroundColor = PlaceholderArt.OutsideColor(area.Theme);
             if (!inBattle) Sound.PlayMusic(AreaMusic);
-            minimap.SetArea(map, area.Theme, IsCellDone);
+            session.World.Reveal(area.AreaId, map.Width, map.Height, position);
+            minimap.SetArea(map, area.Theme, IsCellDone, cell => session.World.IsExplored(area.AreaId, cell));
             SnapPlayer();
             UpdateCamera();
             RefreshHud();

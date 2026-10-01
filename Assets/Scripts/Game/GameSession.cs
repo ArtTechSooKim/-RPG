@@ -112,6 +112,22 @@ namespace WordRPG.Game
             return remaining;
         }
 
+        // 지도 화면의 '탐험 N%' — 벽이 아닌 칸 중 가 본 칸
+        public (int explored, int total) ExplorationProgress(FieldArea area)
+        {
+            var map = area.Map;
+            int explored = 0, total = 0;
+            for (int y = 0; y < map.Height; y++)
+            for (int x = 0; x < map.Width; x++)
+            {
+                var cell = new Vector2Int(x, y);
+                if (map.Get(cell) == FieldTile.Wall) continue;
+                total++;
+                if (World.IsExplored(area.AreaId, cell)) explored++;
+            }
+            return (explored, total);
+        }
+
         public SaveData ToSaveData(DateTime nowUtc)
         {
             var partyData = new List<MonsterSaveData>();

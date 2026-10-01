@@ -16,6 +16,7 @@ namespace WordRPG.UI
         public static readonly Color32 Shop = new Color32(229, 83, 75, 255);
         public static readonly Color32 Door = new Color32(255, 255, 255, 255);
         public static readonly Color32 Boss = new Color32(255, 107, 138, 255);
+        public static readonly Color32 Fog = new Color32(20, 22, 34, 255); // 아직 안 가 본 칸
 
         // done: 연 상자·쓰러뜨린 보스 → 바닥색으로
         public static Color32 ColorOf(FieldTile tile, FieldTheme theme, bool done)
@@ -37,7 +38,9 @@ namespace WordRPG.UI
             }
         }
 
-        public static Texture2D Build(FieldMap map, FieldTheme theme, Func<Vector2Int, bool> done, Texture2D reuse = null)
+        // explored: 가 본 칸인지 (null = 전부 보임). 안 가 본 칸은 안개색 — 그 안의 상자·보스도 숨는다
+        public static Texture2D Build(FieldMap map, FieldTheme theme, Func<Vector2Int, bool> done, Texture2D reuse = null,
+            Func<Vector2Int, bool> explored = null)
         {
             var texture = reuse;
             if (texture == null || texture.width != map.Width || texture.height != map.Height)
@@ -57,7 +60,8 @@ namespace WordRPG.UI
                 var cell = new Vector2Int(x, y);
                 var tile = map.Get(cell);
                 bool isDone = (tile == FieldTile.Chest || tile == FieldTile.Boss) && done != null && done(cell);
-                pixels[y * map.Width + x] = ColorOf(tile, theme, isDone);
+                bool seen = explored == null || explored(cell);
+                pixels[y * map.Width + x] = seen ? ColorOf(tile, theme, isDone) : Fog;
             }
             texture.SetPixels32(pixels);
             texture.Apply();
@@ -118,6 +122,7 @@ namespace WordRPG.UI
         private FieldMap map;
         private FieldTheme theme;
         private Func<Vector2Int, bool> done;
+        private Func<Vector2Int, bool> explored;
 
         public static MinimapView Create(Transform parent)
         {
@@ -132,11 +137,13 @@ namespace WordRPG.UI
             return view;
         }
 
-        public void SetArea(FieldMap fieldMap, FieldTheme fieldTheme, Func<Vector2Int, bool> isDone)
+        public void SetArea(FieldMap fieldMap, FieldTheme fieldTheme, Func<Vector2Int, bool> isDone,
+            Func<Vector2Int, bool> isExplored = null)
         {
             map = fieldMap;
             theme = fieldTheme;
             done = isDone;
+            explored = isExplored;
             root.sizeDelta = new Vector2(map.Width * CellPixels + 24, map.Height * CellPixels + 24);
             Redraw();
         }
@@ -145,7 +152,7 @@ namespace WordRPG.UI
         public void Redraw()
         {
             if (map == null) return;
-            texture = MinimapArt.Build(map, theme, done, texture);
+            texture = MinimapArt.Build(map, theme, done, texture, explored);
             Picture.SetTexture(texture);
         }
 
@@ -181,7 +188,9 @@ namespace WordRPG.UI
             {
                 ("나", Palette.Gold), ("보물상자", MinimapArt.Chest), ("회복의 샘", MinimapArt.Fountain), ("진화의 제단", MinimapArt.Altar),
                 ("상점", MinimapArt.Shop), ("출입구", MinimapArt.Door), ("보스", MinimapArt.Boss), ("풀숲 (몬스터)", new Color32(63, 122, 53, 255)),
+                ("아직 안 가 본 곳", MinimapArt.Fog),
             };
+            int[] rowStart = { 0, 5, legend.Length };
             for (int row = 0; row < 2; row++)
             {
                 var line = UiKit.Rect($"Legend_{row}", root, 0.03f, 0.205f - row * 0.04f, 0.97f, 0.24f - row * 0.04f);
@@ -190,7 +199,7 @@ namespace WordRPG.UI
                 layout.spacing = 16;
                 layout.childControlWidth = layout.childControlHeight = true;
                 layout.childForceExpandWidth = layout.childForceExpandHeight = false;
-                for (int i = row * 4; i < row * 4 + 4; i++)
+                for (int i = rowStart[row]; i < rowStart[row + 1]; i++)
                 {
                     var chip = UiKit.Pill(UiKit.Panel($"Chip_{i}", line, Palette.Panel));
                     chip.raycastTarget = false;
@@ -225,11 +234,13 @@ namespace WordRPG.UI
             float cell = Mathf.Floor(Mathf.Min(936f / texture.width, 1000f / texture.height));
             frame.sizeDelta = new Vector2(texture.width * cell + 48, texture.height * cell + 48);
 
+            var (seen, total) = session.ExplorationProgress(area);
+            string explore = $"탐험 {(total > 0 ? seen * 100 / total : 100)}%   ·   ";
             int chests = session.RemainingChests(area);
             string boss = area.Boss != null
                 ? (session.World.IsBossDefeated(area.BossId) ? "   ·   보스 쓰러뜨림 ★" : $"   ·   보스 {area.Boss.Species.DisplayName}")
                 : "";
-            info.text = (chests > 0 ? $"남은 보물상자 {chests}개" : "보물상자를 모두 열었어요") + boss;
+            info.text = explore + (chests > 0 ? $"남은 보물상자 {chests}개" : "보물상자를 모두 열었어요") + boss;
             Root.transform.SetAsLastSibling();
             Root.SetActive(true);
         }

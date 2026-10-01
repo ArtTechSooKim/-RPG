@@ -95,8 +95,9 @@ namespace WordRPG.UI
                 floaters.Add((rt, -y, i * 1.3f));
             }
 
-            // 로고 (게임 이름은 아직 가제)
-            UiKit.Display(UiKit.Label("Logo", root, "WordRPG", 176, Palette.Gold, 0, 0.7f, 1, 0.86f));
+            // 로고 (게임 이름: 영단어RPG)
+            UiKit.Display(UiKit.Label("Logo", root, "영단어RPG", 168, Palette.Gold, 0, 0.7f, 1, 0.86f,
+                TextAnchor.MiddleCenter, FontStyle.Normal, true, 96));
             UiKit.Label("Subtitle", root, "몬스터와 함께하는 영단어 모험", 40, Palette.Text, 0, 0.655f, 1, 0.7f,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
 

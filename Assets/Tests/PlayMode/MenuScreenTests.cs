@@ -150,6 +150,27 @@ namespace WordRPG.Tests
             yield return null;
         }
 
+        // 탐험 안개: 멀리 있는 상자는 처음엔 안 보이다가 가까이 걸어가면 미니맵에 나타난다
+        [UnityTest]
+        public IEnumerator WalkingRevealsFogOnMinimap()
+        {
+            //   y=1  #P..........C#   ← 시작 (1,1), 상자 (12,1)
+            area.Set("map", "##############\n#P..........C#\n##############");
+            var field = MakeField();
+            yield return null;
+            yield return null;
+            var chest = new Vector2Int(12, 1);
+            Assert.AreEqual((Color)MinimapArt.Fog, (Color)field.Minimap.Texture.GetPixel(chest.x, chest.y), "처음엔 안개");
+            Assert.IsFalse(session.World.IsExplored("meadow", chest));
+
+            yield return HoldPad(field, "Pad_Right", () => field.PlayerCell.x >= 9, 8f);
+            Assert.IsTrue(session.World.IsExplored("meadow", chest), "3칸 안으로 다가가면 밝혀짐");
+            Assert.AreEqual((Color)MinimapArt.Chest, (Color)field.Minimap.Texture.GetPixel(chest.x, chest.y), "미니맵에 상자가 나타남");
+
+            Object.Destroy(field.gameObject);
+            yield return null;
+        }
+
         [UnityTest]
         public IEnumerator SettingsSaveChangesAndDeleteNeedsConfirm()
         {
