@@ -35,7 +35,7 @@ namespace WordRPG.Field
         [SerializeField] private string areaId;
         [SerializeField] private string displayName; // 예: "초원"
 
-        [Tooltip(". 길  , 풀숲(조우)  # 나무  ~ 물  F 회복의 샘  C 보물상자  P 시작 위치")]
+        [Tooltip(". 길  , 풀숲(조우)  # 나무  ~ 물  P 시작 위치  /  부딪혀서 사용: F 회복의 샘  C 보물상자  E 진화의 제단  S 상점")]
         [TextArea(12, 40)]
         [SerializeField] private string map;
 
@@ -47,6 +47,10 @@ namespace WordRPG.Field
         [SerializeField] private float encounterRate = 0.12f;
         [Tooltip("조우 직후 이 걸음 수만큼은 다시 조우하지 않음")]
         [SerializeField] private int minStepsBetweenEncounters = 4;
+
+        [Header("마을")]
+        [Tooltip("맵의 S(상점)에 부딪히면 여는 상점")]
+        [SerializeField] private ShopData shop;
 
         [Header("보물상자 — 맵의 C를 위→아래, 왼→오른 순서로 하나씩 대응")]
         [SerializeField] private List<ChestContent> chests = new List<ChestContent>();
@@ -61,6 +65,7 @@ namespace WordRPG.Field
         public float EncounterRate => encounterRate;
         public int MinStepsBetweenEncounters => minStepsBetweenEncounters;
         public IReadOnlyList<ChestContent> ChestContents => chests;
+        public ShopData Shop => shop;
 
         // 맵 텍스트가 바뀌면 다시 해석 (인스펙터에서 고치면서 플레이할 수 있게)
         public FieldMap Map

@@ -50,7 +50,7 @@ MonoBehaviour:
 
     #.................#
 
-    #.#.#...F.....#.#.#
+    #.#.#.E.F..S..#.#.#
 
     #.................#
 
@@ -65,6 +65,7 @@ MonoBehaviour:
   words: {fileID: 11400000, guid: 89d1f80701129f84bad1df742f174dae, type: 2}
   encounterRate: 0.12
   minStepsBetweenEncounters: 4
+  shop: {fileID: 11400000, guid: 8910f903f6d24d547b0b0e158f0d6404, type: 2}
   chests:
   - item: {fileID: 11400000, guid: 4ef0a20b2f82e9c4c8ea2a134a013bf4, type: 2}
     count: 2

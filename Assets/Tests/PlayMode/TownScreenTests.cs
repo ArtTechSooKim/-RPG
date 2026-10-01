@@ -1,0 +1,111 @@
+using System.Collections;
+using System.Collections.Generic;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
+using WordRPG.Field;
+using WordRPG.Game;
+using WordRPG.Items;
+using WordRPG.Monsters;
+using WordRPG.UI;
+using WordRPG.Words;
+using static WordRPG.Tests.UiDriver;
+
+namespace WordRPG.Tests
+{
+    // 마을: 상점에 부딪혀 재료 구매 → 진화의 제단에 부딪혀 진화 (실제 패드·버튼 사용)
+    public class TownScreenTests
+    {
+        //   y=3  #####
+        //   y=2  #ES.#   ← 진화의 제단 (1,2), 상점 (2,2)
+        //   y=1  #.P.#   ← 시작 (2,1)
+        //   y=0  #####
+        private const string TownMap = "#####\n#ES.#\n#.P.#\n#####";
+
+        [UnityTest]
+        public IEnumerator BuyMaterialThenEvolve()
+        {
+            var ink = TestData.Item("shiny_ink").Set("displayName", "빛나는 잉크");
+            var poke = TestData.Skill("poke", SkillKind.Damage, SkillTarget.SingleEnemy, 20);
+            var storm = TestData.Skill("storm", SkillKind.Damage, SkillTarget.AllEnemies, 22).Set("displayName", "잉크 폭풍");
+            var knight = TestData.Species("quill_knight", new MonsterStats(40, 20, 11), new MonsterStats(5, 4, 2), poke, storm)
+                .Set("displayName", "깃펜기사");
+            var nib = TestData.Species("nib", new MonsterStats(30, 14, 8), new MonsterStats(4, 3, 1), poke)
+                .Set("displayName", "펜촉이")
+                .Set("evolvesTo", knight).Set("evolveLevel", 5).Set("evolveItem", ink).Set("evolveItemCount", 3);
+            var shop = ScriptableObject.CreateInstance<ShopData>()
+                .Set("displayName", "테스트 상점")
+                .Set("entries", new List<ShopEntry> { new ShopEntry(ink, 60) });
+            var words = ScriptableObject.CreateInstance<WordDatabase>();
+            words.ReplaceWords(TestData.SampleWords());
+            var table = ScriptableObject.CreateInstance<EncounterTable>()
+                .Set("entries", new List<EncounterTable.Entry> { new EncounterTable.Entry(nib, 1, 1, 1) });
+            var area = ScriptableObject.CreateInstance<FieldArea>()
+                .Set("areaId", "town").Set("displayName", "마을").Set("map", TownMap)
+                .Set("encounters", table).Set("words", words).Set("shop", shop);
+
+            var session = GameSession.NewGame(new[] { nib }, 5);
+            session.Inventory.Add(ink, 2);
+            session.Inventory.AddGold(100);
+            int saves = 0;
+
+            var go = new GameObject("TownUnderTest");
+            var field = go.AddComponent<FieldScreen>();
+            field.Configure(area, session, onSave: () => saves++, step: 0.05f, animScale: 0.01f);
+            yield return null;
+            yield return null;
+            var shopView = go.transform.Find("FieldHud/SafeArea/ShopView").gameObject;
+            var evolutionView = go.transform.Find("FieldHud/SafeArea/EvolutionView").gameObject;
+
+            // 1) 위 = 상점
+            yield return HoldPad(field, "Pad_Up", () => shopView.activeSelf);
+            Assert.IsTrue(shopView.activeSelf, "상점에 부딪히면 상점 화면");
+            StringAssert.Contains("테스트 상점", AllText(shopView.transform));
+
+            // 상점이 열려 있는 동안은 움직이지 않음
+            yield return HoldPad(field, "Pad_Left", () => false, maxSeconds: 0.3f);
+            Assert.AreEqual(new Vector2Int(2, 1), field.PlayerCell);
+
+            // 2) 구매: 100G → 40G, 잉크 3개. 이제 60G가 안 되므로 버튼 잠김
+            FindButton(shopView.transform, "BuyButton_0").onClick.Invoke();
+            Assert.AreEqual(40, session.Inventory.Gold);
+            Assert.AreEqual(3, session.Inventory.GetCount(ink));
+            Assert.IsFalse(FindButton(shopView.transform, "BuyButton_0").interactable);
+            StringAssert.Contains("빛나는 잉크를 샀다", AllText(shopView.transform));
+            Assert.Greater(saves, 0, "구매하면 저장");
+            FindButton(shopView.transform, "ShopCloseButton").onClick.Invoke();
+            Assert.IsFalse(shopView.activeSelf);
+
+            // 3) 왼쪽으로 한 칸 → 위 = 진화의 제단
+            yield return WaitFor(() => !field.IsPanelOpen);
+            yield return new WaitForSecondsRealtime(0.6f); // 창을 닫은 직후 대기 시간
+            yield return HoldPad(field, "Pad_Left", () => field.IsMoving);
+            Assert.AreEqual(new Vector2Int(1, 1), field.PlayerCell);
+            yield return HoldPad(field, "Pad_Up", () => evolutionView.activeSelf);
+            Assert.IsTrue(evolutionView.activeSelf, "제단에 부딪히면 진화 화면");
+
+            // 4) 진화는 두 번 눌러야 함
+            var evolve = FindButton(evolutionView.transform, "EvolveButton_0");
+            Assert.IsTrue(evolve.interactable, "Lv5 + 잉크 3개 → 진화 가능");
+            evolve.onClick.Invoke();
+            Assert.AreSame(nib, session.Party[0].Species, "첫 번째 누름은 확인만");
+            StringAssert.Contains("되돌릴 수 없어요", AllText(evolutionView.transform));
+            evolve.onClick.Invoke();
+
+            Assert.AreSame(knight, session.Party[0].Species);
+            Assert.AreEqual(5, session.Party[0].Level, "레벨 유지");
+            Assert.AreEqual(0, session.Inventory.GetCount(ink), "재료 3개 사용");
+            var text = AllText(evolutionView.transform);
+            StringAssert.Contains("펜촉이가 깃펜기사로 진화했다", text);
+            StringAssert.Contains("잉크 폭풍", text);
+            Assert.IsFalse(evolve.interactable, "최종 형태");
+
+            FindButton(evolutionView.transform, "EvolutionCloseButton").onClick.Invoke();
+            yield return null;
+            StringAssert.Contains("깃펜기사", AllText(go.transform.Find("FieldHud/SafeArea/PartyStrip")), "HUD에 진화한 이름");
+
+            Object.Destroy(go);
+            yield return null;
+        }
+    }
+}

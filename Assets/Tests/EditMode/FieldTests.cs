@@ -101,9 +101,29 @@ namespace WordRPG.Tests
         [Test]
         public void BumpingChestAndFountain()
         {
-            Assert.AreEqual(StepKind.BumpedChest, walker.TryStep(Direction.Down).Kind);
-            Assert.AreEqual(StepKind.BumpedFountain, walker.TryStep(Direction.Right).Kind);
+            var chest = walker.TryStep(Direction.Down);
+            var fountain = walker.TryStep(Direction.Right);
+
+            Assert.AreEqual(StepKind.Interacted, chest.Kind);
+            Assert.AreEqual(FieldTile.Chest, chest.TargetTile);
+            Assert.AreEqual(StepKind.Interacted, fountain.Kind);
+            Assert.AreEqual(FieldTile.Fountain, fountain.TargetTile);
             Assert.AreEqual(new Vector2Int(2, 1), walker.Position, "부딪혀도 제자리");
+        }
+
+        [Test]
+        public void AltarAndShopAreInteractive()
+        {
+            var town = new FieldWalker(FieldMap.Parse("#####\n#ES.#\n#.P.#\n#####"), new Vector2Int(2, 1));
+
+            var shop = town.TryStep(Direction.Up);
+            town.TryStep(Direction.Left);
+            var altar = town.TryStep(Direction.Up);
+
+            Assert.AreEqual(FieldTile.Shop, shop.TargetTile);
+            Assert.AreEqual(StepKind.Interacted, shop.Kind);
+            Assert.AreEqual(FieldTile.Altar, altar.TargetTile);
+            Assert.AreEqual(StepKind.Interacted, altar.Kind);
         }
 
         [Test]
@@ -242,7 +262,7 @@ namespace WordRPG.Tests
                 {
                     var cell = new Vector2Int(x, y);
                     var tile = map.Get(cell);
-                    if (tile != FieldTile.Chest && tile != FieldTile.Fountain) continue;
+                    if (!FieldMap.IsInteractive(tile)) continue;
                     bool adjacent = new[] { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right }
                         .Any(d => reachable.Contains(cell + d));
                     Assert.IsTrue(adjacent, $"{area.name}: {cell}의 {tile}에 갈 수 없음");

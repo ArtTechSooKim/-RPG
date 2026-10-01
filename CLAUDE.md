@@ -35,7 +35,8 @@
 6. **네이밍**: PascalCase 클래스/메서드/프로퍼티, camelCase 필드. SO 필드는 `[SerializeField] private` + 읽기 전용 프로퍼티. 클래스명은 영문, 화면 표시명은 한국어 필드(`displayName = "펜촉이"`). 주석은 한국어
 7. **Git LFS 사용 중**: 이미지·오디오·폰트·네이티브 플러그인. 새 바이너리 타입 추가 시 `.gitattributes` 확인
 8. **입력은 Input System 전용**: EventSystem에 `InputSystemUIInputModule` 사용 (`StandaloneInputModule` 금지)
-9. **세로 화면 기준 UI**: 1080×1920 레퍼런스, 한 손 조작, 4지선다 버튼은 화면 하단
+9. **한국어 조사**: 이름 뒤 조사는 `UiKit.WithJosa(name, "이", "가")`로 (펜촉이가 / 책껍질이, 깃펜기사로 / 백과거북으로)
+10. **세로 화면 기준 UI**: 1080×1920 레퍼런스, 한 손 조작, 4지선다 버튼은 화면 하단
 
 ## 폴더 구조
 
@@ -45,17 +46,18 @@ Assets/
     Core/               CSV 파서 등 공용
     Words/              단어, 숙련도(VocabularyProgress), 출제(WordSelector), 4지선다(QuizGenerator)
     Monsters/           MonsterSpecies·SkillData SO, MonsterInstance, LevelCurve, Evolution
-    Items/              ItemData SO, Inventory
+    Items/              ItemData SO, Inventory, ShopData SO + Shop(구매 규칙)
     Battle/             BattleEngine, BattleFormulas, BattleReward
     Field/              FieldMap(맵 글자→격자), FieldWalker(이동), EncounterCounter(조우), FieldArea(지역 SO), EncounterTable
     Game/               GameSession(진행 상태 전체), GameManager(씬 간 유지 + 자동 저장), GameDatabase(id→에셋), PlayerRecord, Dex(도감 규칙)
     Save/               SaveData(JSON 형식), SaveSystem(임시파일+백업으로 안전 저장)
     UI/                 FieldScreen(필드·HUD·가상 패드), BattleScreen(필드 위에 덮이는 전투, 단독 연습 모드도 있음),
-                        DexView(도감), UnitView, HoldButton, PlaceholderArt(임시 도트 생성), UiKit — 세로 1080x1920, OS 한글 폰트
+                        DexView(도감), EvolutionView(진화의 제단), ShopView(상점), UnitView, HoldButton,
+                        PlaceholderArt(임시 도트 생성), UiKit(+ WithJosa 한국어 조사) — 세로 1080x1920, OS 한글 폰트
     Editor/             WordRPG.Editor.asmdef — CSV 임포터, 샘플 데이터 생성기
   Tests/EditMode/       WordRPG.Tests.EditMode.asmdef (로직)
   Tests/PlayMode/       WordRPG.Tests.PlayMode.asmdef (UI 버튼을 눌러 전투 한 판 진행)
-  Data/                 Words, Monsters, Skills, Items, Encounters, Areas (SO 에셋), GameDatabase.asset
+  Data/                 Words, Monsters, Skills, Items, Encounters, Areas, Shops (SO 에셋), GameDatabase.asset
   Scenes/               Field.unity (메인, 빌드 첫 씬), Battle.unity (전투만 반복하는 연습 씬)
 Docs/                   PRD.txt, GDD.md
 ```

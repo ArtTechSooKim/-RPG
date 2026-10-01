@@ -35,6 +35,8 @@ namespace WordRPG.UI
                 case FieldTile.Water: return Make("water", Water);
                 case FieldTile.Fountain: return Make("fountain", Fountain);
                 case FieldTile.Chest: return openedChest ? Make("chest_open", ChestOpen) : Make("chest", ChestClosed);
+                case FieldTile.Altar: return Make("altar", Altar);
+                case FieldTile.Shop: return Make("shop", ShopStall);
                 default: return Make("floor", Path);
             }
         }
@@ -91,6 +93,28 @@ namespace WordRPG.UI
             if (x == 2 || x == 13 || y == 2 || y == 11) return new Color(0.25f, 0.15f, 0.07f);
             if (y >= 7) return new Color(0.12f, 0.08f, 0.04f);
             return new Color(0.42f, 0.26f, 0.12f);
+        }
+
+        // 진화의 제단: 돌 받침 위에 떠 있는 보라색 수정
+        private static Color Altar(int x, int y)
+        {
+            if (y >= 1 && y <= 5 && x >= 3 && x <= 12) return y == 5 || x == 3 || x == 12 ? new Color(0.45f, 0.45f, 0.52f) : new Color(0.62f, 0.62f, 0.7f);
+            int dx = Math.Abs(x * 2 - 15), dy = Math.Abs(y * 2 - 21);
+            if (dx + dy <= 8) return dx + dy <= 3 ? new Color(0.95f, 0.8f, 1f) : new Color(0.62f, 0.3f, 0.9f);
+            return Path(x, y);
+        }
+
+        // 상점: 빨강·하양 줄무늬 차양 + 나무 진열대 + 금화
+        private static Color ShopStall(int x, int y)
+        {
+            if (y >= 11 && y <= 14 && x >= 1 && x <= 14) return (x / 2) % 2 == 0 ? new Color(0.85f, 0.2f, 0.2f) : Color.white;
+            if (y >= 2 && y <= 7 && x >= 2 && x <= 13)
+            {
+                if (x >= 6 && x <= 9 && y >= 4 && y <= 6) return new Color(1f, 0.85f, 0.25f);
+                return y == 7 ? new Color(0.4f, 0.25f, 0.1f) : new Color(0.6f, 0.4f, 0.2f);
+            }
+            if ((x == 2 || x == 13) && y >= 8 && y <= 10) return new Color(0.4f, 0.25f, 0.1f);
+            return Path(x, y);
         }
 
         private static Color PlayerPixel(int x, int y, Direction facing)

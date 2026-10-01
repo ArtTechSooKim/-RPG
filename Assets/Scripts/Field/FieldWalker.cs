@@ -6,9 +6,8 @@ namespace WordRPG.Field
     public enum StepKind
     {
         Moved,
-        Blocked,        // 나무·물·맵 끝 — 방향만 바뀜
-        BumpedChest,    // 보물상자를 향해 걸음 → 열기
-        BumpedFountain  // 회복의 샘을 향해 걸음 → 회복
+        Blocked,    // 나무·물·맵 끝 — 방향만 바뀜
+        Interacted  // 상자·샘·제단·상점에 부딪힘 — TargetTile로 무엇인지 구분
     }
 
     public readonly struct StepOutcome
@@ -52,12 +51,8 @@ namespace WordRPG.Field
                 case FieldTile.Grass:
                     Position = target;
                     return new StepOutcome(StepKind.Moved, target, tile);
-                case FieldTile.Chest:
-                    return new StepOutcome(StepKind.BumpedChest, target, tile);
-                case FieldTile.Fountain:
-                    return new StepOutcome(StepKind.BumpedFountain, target, tile);
                 default:
-                    return new StepOutcome(StepKind.Blocked, target, tile);
+                    return new StepOutcome(FieldMap.IsInteractive(tile) ? StepKind.Interacted : StepKind.Blocked, target, tile);
             }
         }
 

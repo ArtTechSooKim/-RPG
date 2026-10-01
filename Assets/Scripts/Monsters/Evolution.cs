@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using WordRPG.Items;
 
 namespace WordRPG.Monsters
@@ -21,6 +22,23 @@ namespace WordRPG.Monsters
             if (species.EvolveItem != null && inventory.GetCount(species.EvolveItem) < species.EvolveItemCount)
                 return EvolutionStatus.NotEnoughItems;
             return EvolutionStatus.Ready;
+        }
+
+        // 진화로 새로 생기는 기술 (진화 전에는 없던 것)
+        public static List<SkillData> NewSkills(MonsterSpecies from, MonsterSpecies to)
+        {
+            var added = new List<SkillData>();
+            if (from == null || to == null) return added;
+            foreach (var skill in to.Skills)
+            {
+                bool had = false;
+                foreach (var old in from.Skills)
+                {
+                    if (old == skill) had = true;
+                }
+                if (!had && skill != null) added.Add(skill);
+            }
+            return added;
         }
 
         // 진화하면 레벨은 유지, 종이 바뀌고 HP 완전 회복

@@ -11,7 +11,9 @@ namespace WordRPG.Field
         Wall,     // 나무·바위 (막힘)
         Water,    // 물 (막힘)
         Fountain, // 회복의 샘 (막힘, 부딪히면 파티 회복)
-        Chest     // 보물상자 (막힘, 부딪히면 열기)
+        Chest,    // 보물상자 (막힘, 부딪히면 열기)
+        Altar,    // 진화의 제단 (막힘, 부딪히면 진화 화면)
+        Shop      // 상점 (막힘, 부딪히면 상점 화면)
     }
 
     public enum Direction
@@ -37,7 +39,8 @@ namespace WordRPG.Field
     }
 
     // 맵 텍스트 → 격자.
-    //   '.' 길   ',' 풀숲(조우)   '#' 나무(막힘)   '~' 물(막힘)   'F' 회복의 샘   'C' 보물상자   'P' 시작 위치(길)
+    //   '.' 길   ',' 풀숲(조우)   '#' 나무(막힘)   '~' 물(막힘)   'P' 시작 위치(길)
+    //   부딪혀서 쓰는 칸: 'F' 회복의 샘   'C' 보물상자   'E' 진화의 제단   'S' 상점
     // 좌표: x는 오른쪽, y는 위쪽 (맨 아래 줄이 y=0) — Unity 월드 좌표와 같은 방향
     public class FieldMap
     {
@@ -90,6 +93,8 @@ namespace WordRPG.Field
                         case '#': tiles[x, y] = FieldTile.Wall; break;
                         case '~': tiles[x, y] = FieldTile.Water; break;
                         case 'F': tiles[x, y] = FieldTile.Fountain; break;
+                        case 'E': tiles[x, y] = FieldTile.Altar; break;
+                        case 'S': tiles[x, y] = FieldTile.Shop; break;
                         case 'C':
                             tiles[x, y] = FieldTile.Chest;
                             chests.Add(new Vector2Int(x, y));
@@ -115,6 +120,10 @@ namespace WordRPG.Field
         public FieldTile Get(Vector2Int p) => InBounds(p) ? tiles[p.x, p.y] : FieldTile.Wall;
 
         public static bool IsWalkable(FieldTile tile) => tile == FieldTile.Floor || tile == FieldTile.Grass;
+
+        // 걸을 수는 없지만 부딪히면 무언가 일어나는 칸
+        public static bool IsInteractive(FieldTile tile) =>
+            tile == FieldTile.Chest || tile == FieldTile.Fountain || tile == FieldTile.Altar || tile == FieldTile.Shop;
 
         public bool IsWalkable(Vector2Int p) => IsWalkable(Get(p));
 

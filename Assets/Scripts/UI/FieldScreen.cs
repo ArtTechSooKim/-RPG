@@ -11,7 +11,7 @@ using WordRPG.Game;
 namespace WordRPG.UI
 {
     // 탑다운 필드: 한 칸씩 이동, 풀숲 조우 → 전투(BattleScreen을 위에 덮음) → 원래 자리로 복귀.
-    // 보물상자·회복의 샘은 '부딪혀서' 사용. 입력은 화면 아래 가상 패드 + 키보드(방향키/WASD).
+    // 보물상자·회복의 샘·진화의 제단·상점은 '부딪혀서' 사용. 입력은 화면 아래 가상 패드 + 키보드(방향키/WASD).
     // 이동·조우 규칙은 FieldWalker / EncounterCounter(순수 C#)가 하고 여기서는 화면과 입력만 다룬다
     public class FieldScreen : MonoBehaviour
     {
@@ -54,6 +54,8 @@ namespace WordRPG.UI
         private Image flash;
         private HoldButton padUp, padDown, padLeft, padRight;
         private DexView dexView;
+        private EvolutionView evolutionView;
+        private ShopView shopView;
         private Text[] badgeNames;
         private RectTransform[] badgeFills;
         private Image[] badgeFillImages;
@@ -64,6 +66,7 @@ namespace WordRPG.UI
         public bool IsInBattle => inBattle || transitioning;
         public BattleScreen Battle => battle;
         public GameSession Session => session;
+        public bool IsPanelOpen => dexView.IsOpen || evolutionView.IsOpen || shopView.IsOpen;
         public string ToastMessage => toastPanel != null && toastPanel.activeSelf ? toastText.text : "";
 
         // 코드로 만들 때(테스트) Start 전에 호출. session을 안 주면 GameManager 것을 쓴다
@@ -126,7 +129,7 @@ namespace WordRPG.UI
             RefreshHud();
 
             if (!string.IsNullOrEmpty(statusMessage)) ShowToast(statusMessage, 3f);
-            if (!loadedFromSave) ShowToast("진한 풀숲을 걸으면 야생 몬스터가 나타나요!\n보물상자·회복의 샘은 부딪혀서 사용", 4f);
+            if (!loadedFromSave) ShowToast("진한 풀숲을 걸으면 야생 몬스터가 나타나요!\n상자·샘·제단·상점은 부딪혀서 사용", 4f);
             return true;
         }
 
@@ -136,7 +139,12 @@ namespace WordRPG.UI
             UpdateToast();
             UpdateCamera();
 
-            if (inBattle || transitioning || dexView.IsOpen) return;
+            if (inBattle || transitioning) return;
+            if (IsPanelOpen)
+            {
+                interactCooldown = 0.5f; // 창을 닫은 직후 같은 방향을 누르고 있어도 바로 다시 열리지 않게
+                return;
+            }
 
             if (moving)
             {
@@ -171,13 +179,32 @@ namespace WordRPG.UI
                     moveFrom = player.position;
                     moveTo = CellCenter(outcome.Target);
                     break;
-                case StepKind.BumpedChest:
-                    if (interactCooldown <= 0f) OpenChest(outcome.Target);
-                    break;
-                case StepKind.BumpedFountain:
-                    if (interactCooldown <= 0f) UseFountain();
+                case StepKind.Interacted:
+                    if (interactCooldown <= 0f) Interact(outcome);
                     break;
             }
+        }
+
+        private void Interact(StepOutcome outcome)
+        {
+            interactCooldown = 0.6f;
+            switch (outcome.TargetTile)
+            {
+                case FieldTile.Chest: OpenChest(outcome.Target); break;
+                case FieldTile.Fountain: UseFountain(); break;
+                case FieldTile.Altar: evolutionView.Show(session, OnTownChanged); break;
+                case FieldTile.Shop:
+                    if (area.Shop == null) ShowToast("상점 문이 닫혀 있다.");
+                    else shopView.Show(area.Shop, session, OnTownChanged);
+                    break;
+            }
+        }
+
+        // 진화·구매 직후 저장하고 HUD(파티 이름·골드) 갱신
+        private void OnTownChanged()
+        {
+            saveProgress?.Invoke();
+            RefreshHud();
         }
 
         private void OnStepFinished()
@@ -189,7 +216,6 @@ namespace WordRPG.UI
 
         private void OpenChest(Vector2Int cell)
         {
-            interactCooldown = 0.6f;
             var result = session.OpenChest(area, cell);
             if (result.WasEmpty)
             {
@@ -207,7 +233,6 @@ namespace WordRPG.UI
 
         private void UseFountain()
         {
-            interactCooldown = 0.6f;
             session.RestoreParty();
             saveProgress?.Invoke();
             RefreshHud();
@@ -403,6 +428,8 @@ namespace WordRPG.UI
             flash.gameObject.SetActive(false);
 
             dexView = DexView.Create(hudRoot);
+            evolutionView = EvolutionView.Create(hudRoot);
+            shopView = ShopView.Create(hudRoot);
         }
 
         private static HoldButton PadButton(RectTransform parent, string name, string arrow,
@@ -423,7 +450,7 @@ namespace WordRPG.UI
 
         private void OpenDex()
         {
-            if (inBattle || transitioning || moving) return;
+            if (inBattle || transitioning || moving || IsPanelOpen) return;
             var completed = session.ClaimDexRewards(new[] { area.Words });
             if (completed.Count > 0)
             {

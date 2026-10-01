@@ -96,6 +96,11 @@ namespace WordRPG.EditorTools
                 new ChestContent(sparkleDust, 2), // 가운데 풀밭
                 new ChestContent(null, 0, 100));  // 마을 위 풀밭
 
+            // --- 마을 상점: 진화 재료를 골드로 (도감 외 경로) ---
+            var meadowShop = ShopAsset("meadow_shop", "초원 마을 잡화점",
+                new ShopEntry(shinyInk, 60), new ShopEntry(hardCover, 60), new ShopEntry(sparkleDust, 60));
+            AssignShopIfEmpty("Assets/Data/Areas/meadow.asset", meadowShop);
+
             AssetDatabase.SaveAssets();
             GameDatabaseBuilder.Refresh();
             Debug.Log("[WordRPG] 샘플 데이터 생성 완료 (기존 에셋은 유지)");
@@ -121,7 +126,7 @@ namespace WordRPG.EditorTools
                 "#,,,,,,,.,,,,,,,,,#\n" +
                 "########.##########\n" +
                 "#.................#\n" +
-                "#.#.#...F.....#.#.#\n" +
+                "#.#.#.E.F..S..#.#.#\n" +
                 "#.................#\n" +
                 "#.#.#...P.....#.#.#\n" +
                 "#.................#\n" +
@@ -147,6 +152,32 @@ namespace WordRPG.EditorTools
                     element.FindPropertyRelative("gold").intValue = chests[i].Gold;
                 }
             });
+        }
+
+        private static ShopData ShopAsset(string id, string name, params ShopEntry[] entries)
+        {
+            return CreateIfMissing<ShopData>($"{Root}/Shops/{id}.asset", so =>
+            {
+                Prop(so, "displayName").stringValue = name;
+                var list = Prop(so, "entries");
+                list.arraySize = entries.Length;
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    var element = list.GetArrayElementAtIndex(i);
+                    element.FindPropertyRelative("item").objectReferenceValue = entries[i].Item;
+                    element.FindPropertyRelative("price").intValue = entries[i].Price;
+                }
+            });
+        }
+
+        // 이미 있는 지역 에셋에 상점이 비어 있을 때만 연결 (인스펙터에서 바꾼 값은 유지)
+        private static void AssignShopIfEmpty(string areaPath, ShopData shop)
+        {
+            var area = AssetDatabase.LoadAssetAtPath<FieldArea>(areaPath);
+            if (area == null || area.Shop != null) return;
+            var so = new SerializedObject(area);
+            Prop(so, "shop").objectReferenceValue = shop;
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static void ConfigureRegion(string wordBookPath, string regionId, string regionName, ItemData keepsake, int gold)

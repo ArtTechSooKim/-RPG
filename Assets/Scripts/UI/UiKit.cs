@@ -129,5 +129,17 @@ namespace WordRPG.UI
             rt.anchorMin = new Vector2(safe.xMin / Screen.width, safe.yMin / Screen.height);
             rt.anchorMax = new Vector2(safe.xMax / Screen.width, safe.yMax / Screen.height);
         }
+
+        // 한국어 조사: 받침 있으면 withBatchim, 없으면 withoutBatchim. ("으로/로"는 ㄹ받침이면 "로")
+        //   WithJosa("펜촉이", "이", "가") → "펜촉이가",  WithJosa("백과거북", "으로", "로") → "백과거북으로"
+        public static string WithJosa(string word, string withBatchim, string withoutBatchim)
+        {
+            if (string.IsNullOrEmpty(word)) return word;
+            char last = word[word.Length - 1];
+            if (last < 0xAC00 || last > 0xD7A3) return word + withoutBatchim; // 한글이 아니면 받침 없는 쪽
+            int batchim = (last - 0xAC00) % 28;
+            bool useFirst = batchim != 0 && !(withBatchim == "으로" && batchim == 8);
+            return word + (useFirst ? withBatchim : withoutBatchim);
+        }
     }
 }
