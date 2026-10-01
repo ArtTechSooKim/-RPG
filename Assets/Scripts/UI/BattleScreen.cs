@@ -161,6 +161,7 @@ namespace WordRPG.UI
         {
             while (true)
             {
+                Sound.PlayMusic(Music.Battle);
                 StartNewBattle(encounter.Roll(rng));
                 yield return PlayBattle();
                 yield return ShowResult();
@@ -261,6 +262,7 @@ namespace WordRPG.UI
 
                 // 4. 정답/오답 표시. 틀리면 정답을 꼭 보여줘서 학습 순간으로 만든다
                 MarkChoices(question, choice);
+                Sound.Play(correct ? Sfx.Correct : Sfx.Wrong);
                 if (!correct && settings != null && settings.Vibration) Haptics.Vibrate();
                 yield return Wait(0.8f);
                 if (!correct)
@@ -375,6 +377,7 @@ namespace WordRPG.UI
             cardBorder.color = titleColor == Palette.Gold ? Palette.Gold : Palette.PanelLight;
             cardConfirmed = false;
             ShowPanel(cardPanel);
+            if (titleColor == Palette.Gold) Sound.Play(Sfx.NewWord);
 
             while (!cardConfirmed) yield return null;
         }
@@ -398,6 +401,7 @@ namespace WordRPG.UI
                     case BattleEventType.SkillFailed:
                         Log($"{e.Actor.DisplayName}의 {e.Skill.DisplayName} 실패…");
                         Float(e.Actor, "실패", Palette.TextDim, 44);
+                        Sound.Play(Sfx.Fail);
                         yield return Wait(0.7f);
                         break;
 
@@ -406,6 +410,7 @@ namespace WordRPG.UI
                         shown[e.Target] = (Mathf.Max(0, d.hp - e.Amount), Mathf.Max(0, d.shield - e.Absorbed));
                         Sync(e.Target);
                         string dmgText = e.Amount > 0 ? $"-{e.Amount}" : "막음!";
+                        Sound.Play(e.Amount <= 0 ? Sfx.Shield : e.IsCritical ? Sfx.Critical : Sfx.Hit);
                         Float(e.Target, e.IsCritical ? $"크리티컬! {dmgText}" : dmgText,
                             e.Amount > 0 ? Palette.Bad : Palette.Info, e.IsCritical ? 58 : 48);
                         Log(e.Absorbed > 0
@@ -419,6 +424,7 @@ namespace WordRPG.UI
                         shown[e.Target] = (h.hp + e.Amount, h.shield);
                         Sync(e.Target);
                         Float(e.Target, $"+{e.Amount}", Palette.Good, 48);
+                        Sound.Play(Sfx.Heal);
                         Log($"{e.Target.DisplayName} HP +{e.Amount}" + (e.IsCritical ? " — 크리티컬!" : ""));
                         yield return Wait(0.6f);
                         break;
@@ -428,12 +434,14 @@ namespace WordRPG.UI
                         shown[e.Target] = (s.hp, s.shield + e.Amount);
                         Sync(e.Target);
                         Float(e.Target, $"보호막 +{e.Amount}", Palette.Info, 40);
+                        Sound.Play(Sfx.Shield);
                         Log($"{e.Target.DisplayName} 보호막 +{e.Amount}");
                         yield return Wait(0.6f);
                         break;
 
                     case BattleEventType.Defeated:
                         Log($"{e.Target.DisplayName} 쓰러졌다!");
+                        Sound.Play(Sfx.Faint);
                         yield return Wait(0.5f);
                         break;
 
@@ -455,6 +463,8 @@ namespace WordRPG.UI
             bool victory = engine.Phase == BattlePhase.Victory;
             var body = new StringBuilder();
             ClearResultLines();
+            Sound.PlayMusic(Music.None); // 결과 음악(징글)이 잘 들리게 전투 음악을 멈춘다
+            bool leveledUp = false;
 
             if (victory)
             {
@@ -470,6 +480,7 @@ namespace WordRPG.UI
                 for (int i = 0; i < session.Party.Count; i++)
                     if (levels[i] > 0) leveled.Add($"{session.Party[i].DisplayName} Lv{session.Party[i].Level}");
                 if (leveled.Count > 0) AddResultLine(UiKit.Icon("star_full"), $"레벨 업!  {string.Join(" · ", leveled)}", Palette.Gold);
+                leveledUp = leveled.Count > 0;
             }
             else
             {
@@ -480,7 +491,10 @@ namespace WordRPG.UI
             resultBorder.color = victory ? Palette.Gold : Palette.PanelLight;
             UiKit.SetColor(resultPrimary, victory ? Palette.Button : Palette.Neutral);
 
-            foreach (var completion in session.ClaimDexRewards(new[] { words })) AddDexBanner(completion);
+            var completions = session.ClaimDexRewards(new[] { words });
+            foreach (var completion in completions) AddDexBanner(completion);
+            // 결과 소리: 도감 완성 > 레벨 업 > 승리, 지면 패배
+            Sound.Play(completions.Count > 0 ? Sfx.DexComplete : leveledUp ? Sfx.LevelUp : victory ? Sfx.Victory : Sfx.Defeat);
 
             int up = 0, down = 0;
             foreach (var change in engine.MasteryChanges)

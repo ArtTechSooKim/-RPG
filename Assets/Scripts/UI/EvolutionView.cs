@@ -65,7 +65,7 @@ namespace WordRPG.UI
                 card.Swatch = UiKit.RoundPanel("Swatch", panel.transform, Palette.PanelLight, UiKit.RadiusMd, 0.025f, 0.1f, 0.2f, 0.9f);
                 card.Initial = UiKit.Display(UiKit.Label("Initial", card.Swatch.transform, "", 80, Palette.Text, 0, 0, 1, 1,
                     TextAnchor.MiddleCenter, FontStyle.Normal, true, 24));
-                card.Sprite = UiKit.IconImage("Sprite", card.Swatch.transform, null, 0.05f, 0.05f, 0.95f, 0.95f);
+                card.Sprite = UiKit.IconImage("Sprite", card.Swatch.transform, null, 0.12f, 0.12f, 0.88f, 0.88f);
                 card.RoleIcon = UiKit.IconImage("Role", panel.transform, null, 0.23f, 0.7f, 0.28f, 0.94f);
                 card.Name = UiKit.Display(UiKit.Label("Name", panel.transform, "", 42, Palette.Text, 0.29f, 0.68f, 0.98f, 0.96f,
                     TextAnchor.MiddleLeft, FontStyle.Normal, true, 20));
@@ -127,7 +127,7 @@ namespace WordRPG.UI
 
                 var monster = session.Party[i];
                 var species = monster.Species;
-                card.Swatch.color = Color.Lerp(Palette.PanelLight, species.PlaceholderColor, 0.65f);
+                card.Swatch.color = UiKit.ArtColor(species);
                 card.Initial.text = species.DisplayName.Length > 0 ? species.DisplayName.Substring(0, 1) : "?";
                 card.Sprite.sprite = species.Sprite;
                 card.Sprite.enabled = species.Sprite != null;

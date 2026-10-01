@@ -85,6 +85,7 @@ namespace WordRPG.EditorTools
         {
             SampleDataBuilder.Build();
             WordCsvImporter.ImportAll();
+            MonsterArtLinker.LinkAll();
         }
 
         private static void AddCamera(Color background)

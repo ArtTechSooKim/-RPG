@@ -115,6 +115,7 @@ namespace WordRPG.UI
             switch (Shop.TryBuy(session.Inventory, entry))
             {
                 case PurchaseResult.Bought:
+                    Sound.Play(Sfx.Coin);
                     messageText.text = $"{UiKit.WithJosa(entry.Item.DisplayName, "을", "를")} 샀다! (보유 {session.Inventory.GetCount(entry.Item)}개)";
                     onChanged?.Invoke();
                     break;

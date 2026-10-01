@@ -116,6 +116,7 @@ namespace WordRPG.UI
         {
             if (settings == null) return;
             apply(settings);
+            Sound.ApplyVolumes(settings);
             onSettingsChanged?.Invoke();
         }
 

@@ -46,7 +46,7 @@ namespace WordRPG.UI
             view.art.raycastTarget = false;
             view.initial = UiKit.Display(UiKit.Label("Initial", view.art.transform, "", 96, Palette.Text, 0, 0, 1, 1,
                 TextAnchor.MiddleCenter, FontStyle.Normal, true, 30));
-            view.artSprite = UiKit.IconImage("Sprite", view.art.transform, null, 0.04f, 0.04f, 0.96f, 0.96f);
+            view.artSprite = UiKit.IconImage("Sprite", view.art.transform, null, 0.1f, 0.08f, 0.9f, 0.92f);
 
             view.title = UiKit.Display(UiKit.Label("Title", card.transform, "", 40, Palette.Text, 0.04f, 0.26f, 0.96f, 0.41f,
                 TextAnchor.MiddleCenter, FontStyle.Normal, true, 18));
@@ -79,7 +79,7 @@ namespace WordRPG.UI
         {
             Unit = unit;
             var species = unit.Monster.Species;
-            baseColor = Color.Lerp(Palette.PanelLight, species.PlaceholderColor, 0.65f);
+            baseColor = UiKit.ArtColor(species);
             string name = species.DisplayName;
             initial.text = name.Length > 0 ? name.Substring(0, 1) : "?";
             title.text = $"{name}  Lv{unit.Monster.Level}";

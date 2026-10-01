@@ -44,6 +44,7 @@ namespace WordRPG.UI
         private bool inBattle;
         private bool transitioning;
         private float moveT;
+        private float walkTime; // 걷기 애니메이션 시계 (멈추면 서 있는 모습)
         private Vector3 moveFrom, moveTo;
         private float interactCooldown;
 
@@ -184,6 +185,8 @@ namespace WordRPG.UI
             {
                 moveT += Time.deltaTime / Mathf.Max(0.001f, stepDuration);
                 player.position = Vector3.Lerp(moveFrom, moveTo, Mathf.Clamp01(moveT));
+                walkTime += Time.deltaTime;
+                playerRenderer.sprite = PlayerArt.Get(walker.Facing, Mathf.FloorToInt(walkTime * PlayerArt.FramesPerSecond));
                 if (moveT >= 1f)
                 {
                     moving = false;
@@ -196,6 +199,11 @@ namespace WordRPG.UI
             interactCooldown -= Time.deltaTime;
             var direction = ReadDirection();
             if (direction.HasValue) TryStep(direction.Value);
+            else if (walkTime > 0f)
+            {
+                walkTime = 0f;
+                playerRenderer.sprite = PlayerArt.Get(walker.Facing, 0);
+            }
         }
 
         // ------------------------------------------------------------------ 이동·상호작용
@@ -203,7 +211,7 @@ namespace WordRPG.UI
         private void TryStep(Direction direction)
         {
             var outcome = walker.TryStep(direction);
-            playerRenderer.sprite = PlaceholderArt.Player(walker.Facing);
+            playerRenderer.sprite = PlayerArt.Get(walker.Facing, 0);
 
             switch (outcome.Kind)
             {
@@ -288,6 +296,7 @@ namespace WordRPG.UI
             }
 
             transitioning = true;
+            Sound.Play(Sfx.Door);
             flash.gameObject.SetActive(true);
             float half = 0.25f * animationScale;
             for (float t = 0; t < half; t += Time.unscaledDeltaTime)
@@ -319,6 +328,7 @@ namespace WordRPG.UI
             }
 
             tilemap.SetTile(new Vector3Int(cell.x, cell.y, 0), TileFor(FieldTile.Chest, true));
+            Sound.Play(Sfx.Coin);
             string loot = result.Item != null ? $"{result.Item.DisplayName} x{result.Count}" : "";
             if (result.Gold > 0) loot += (loot.Length > 0 ? " + " : "") + $"{result.Gold} 골드";
             ShowToast($"보물상자를 열었다!\n{loot} 획득", 2.5f);
@@ -331,12 +341,15 @@ namespace WordRPG.UI
             session.RestoreParty();
             saveProgress?.Invoke();
             RefreshHud();
+            Sound.Play(Sfx.Fountain);
             ShowToast("회복의 샘 — 파티가 모두 회복되었다!");
         }
 
         private IEnumerator Encounter(List<MonsterInstance> enemies = null, string intro = null, bool boss = false)
         {
             transitioning = true;
+            Sound.Play(Sfx.Encounter);
+            Sound.PlayMusic(boss ? Music.Boss : Music.Battle);
             flash.gameObject.SetActive(true);
             float duration = 0.4f * animationScale;
             for (float t = 0; t < duration; t += Time.unscaledDeltaTime)
@@ -355,9 +368,12 @@ namespace WordRPG.UI
             battle.BeginBattle(enemies, area.Words, OnBattleFinished, intro);
         }
 
+        private Music AreaMusic => area.Theme == FieldTheme.Library ? Music.Library : Music.Meadow;
+
         private void OnBattleFinished(bool won)
         {
             inBattle = false;
+            Sound.PlayMusic(AreaMusic);
             encounterCounter.Reset();
             bool wasBoss = bossBattle;
             bossBattle = false;
@@ -407,7 +423,7 @@ namespace WordRPG.UI
         {
             moving = false;
             player.position = CellCenter(walker.Position);
-            playerRenderer.sprite = PlaceholderArt.Player(walker.Facing);
+            playerRenderer.sprite = PlayerArt.Get(walker.Facing, 0);
         }
 
         // 지역을 바꿔 그린다 (처음 시작할 때, 출입구를 지날 때)
@@ -431,6 +447,7 @@ namespace WordRPG.UI
             }
 
             cam.backgroundColor = PlaceholderArt.OutsideColor(area.Theme);
+            if (!inBattle) Sound.PlayMusic(AreaMusic);
             SnapPlayer();
             UpdateCamera();
             RefreshHud();
@@ -441,7 +458,7 @@ namespace WordRPG.UI
             string key = $"{area.Theme}_{kind}_{done}";
             if (!tileCache.TryGetValue(key, out var tile))
             {
-                tile = MakeTile(PlaceholderArt.ForTile(kind, area.Theme, done));
+                tile = MakeTile(FieldArt.ForTile(kind, area.Theme, done));
                 tileCache[key] = tile;
             }
             return tile;

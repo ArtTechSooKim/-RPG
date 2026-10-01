@@ -278,6 +278,26 @@ namespace WordRPG.Tests
             }
         }
 
+        // Art/NinjaAdventure/Monsters/{speciesId}.png 를 넣고 연결을 잊으면 임시 도형으로 나오므로 여기서 잡는다
+        [Test]
+        public void MonsterArtFilesAreLinkedToTheirSpecies()
+        {
+            const string folder = "Assets/Resources/Art/NinjaAdventure/Monsters";
+            var species = All<MonsterSpecies>();
+            int count = 0;
+            foreach (var guid in AssetDatabase.FindAssets("t:Sprite", new[] { folder }))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                string id = System.IO.Path.GetFileNameWithoutExtension(path);
+                var owner = species.Find(s => s.SpeciesId == id);
+                Assert.IsNotNull(owner, $"{path}: '{id}' 몬스터가 없습니다 (파일 이름 = speciesId)");
+                Assert.AreSame(AssetDatabase.LoadAssetAtPath<Sprite>(path), owner.Sprite,
+                    $"{id} 그림이 연결되지 않았습니다 (WordRPG > Data > Link Monster Art)");
+                count++;
+            }
+            Assert.Greater(count, 0, "몬스터 그림이 하나도 없습니다 (Tools/import_ninja_art.py)");
+        }
+
         [Test]
         public void WordIdsAreUniqueAcrossAllWordBooks()
         {

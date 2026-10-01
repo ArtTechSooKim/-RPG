@@ -73,6 +73,7 @@ namespace WordRPG.Tests
             yield return null;
             yield return null;
             var hud = field.transform.Find("FieldHud/SafeArea");
+            Assert.AreEqual(Music.Meadow, Sound.CurrentMusic, "초원에 들어가면 초원 음악");
 
             FindButton(hud, "BagButton").onClick.Invoke();
             var bag = hud.Find("InventoryView").gameObject;

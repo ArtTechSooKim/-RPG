@@ -43,7 +43,7 @@ namespace WordRPG.UI
         private void Build(RectTransform root)
         {
             // 화면 아무 데나 누르면 결과로 건너뛰기 (맨 뒤에 깔아 둔다)
-            var skipArea = UiKit.AddButton(UiKit.Panel("EvolutionSkipArea", root, Color.clear));
+            var skipArea = UiKit.AddButton(UiKit.Panel("EvolutionSkipArea", root, Color.clear), clickSound: false);
             skipArea.transition = Selectable.Transition.None;
             skipArea.onClick.AddListener(() => skip = true);
 
@@ -59,7 +59,7 @@ namespace WordRPG.UI
             card = cardImage.rectTransform;
             card.sizeDelta = new Vector2(CardSize, CardSize);
             cardInitial = UiKit.Display(UiKit.Label("Initial", card, "", 176, Palette.Text, 0, 0, 1, 1));
-            cardSprite = UiKit.IconImage("Sprite", card, null, 0.06f, 0.06f, 0.94f, 0.94f);
+            cardSprite = UiKit.IconImage("Sprite", card, null, 0.12f, 0.12f, 0.88f, 0.88f);
             cardBorder = UiKit.Outline(UiKit.Panel("Border", card, Palette.Gold), UiKit.RadiusLg, 8);
             cardBorder.raycastTarget = false;
 
@@ -195,6 +195,7 @@ namespace WordRPG.UI
             if (!skip)
             {
                 message.text = $"빛이 {UiKit.WithJosa(from.DisplayName, "을", "를")} 감싸고 있어요…";
+                Sound.Play(Sfx.EvolveLight);
                 raysImage.enabled = true;
                 cardInitial.enabled = false;
                 cardSprite.enabled = false;
@@ -234,6 +235,7 @@ namespace WordRPG.UI
         private void ShowResult()
         {
             ShowingResult = true;
+            Sound.Play(Sfx.Evolve);
             messageBox.SetActive(false);
             resultGroup.SetActive(true);
             card.localScale = Vector3.one;
@@ -248,7 +250,7 @@ namespace WordRPG.UI
             foreach (var rt in new[] { card, glow, rays })
                 rt.anchorMin = rt.anchorMax = anchor;
             card.sizeDelta = new Vector2(size, size);
-            cardImage.color = Color.Lerp(Palette.PanelLight, species.PlaceholderColor, 0.65f);
+            cardImage.color = UiKit.ArtColor(species);
             cardInitial.text = species.DisplayName.Length > 0 ? species.DisplayName.Substring(0, 1) : "?";
             cardInitial.fontSize = Mathf.RoundToInt(size * 0.42f);
             cardSprite.sprite = species.Sprite;

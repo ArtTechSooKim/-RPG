@@ -4,6 +4,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using WordRPG.Items;
+using WordRPG.Monsters;
 
 namespace WordRPG.UI
 {
@@ -179,11 +180,12 @@ namespace WordRPG.UI
             return button;
         }
 
-        // 그림(판)에 버튼 동작과 누름 색을 붙인다
-        public static Button AddButton(Image image)
+        // 그림(판)에 버튼 동작과 누름 색을 붙인다. 누르면 '딸깍' (clickSound=false면 소리 없음)
+        public static Button AddButton(Image image, bool clickSound = true)
         {
             var button = image.gameObject.AddComponent<Button>();
             button.targetGraphic = image;
+            if (clickSound) button.onClick.AddListener(() => Sound.Play(Sfx.Click));
             var colors = button.colors;
             colors.highlightedColor = new Color(1.08f, 1.08f, 1.08f);
             colors.pressedColor = new Color(0.72f, 0.72f, 0.72f);
@@ -265,6 +267,10 @@ namespace WordRPG.UI
             if (item == null) return null;
             return item.Icon != null ? item.Icon : LoadSprite("UI/Icons/Items/" + item.ItemId);
         }
+
+        // 몬스터 그림 칸의 바탕색: 그림이 있으면 옅게(그림이 잘 보이게), 없으면 몬스터 색을 진하게(임시 도형)
+        public static Color ArtColor(MonsterSpecies species) =>
+            Color.Lerp(Palette.PanelLight, species.PlaceholderColor, species.Sprite != null ? 0.22f : 0.65f);
 
         public static Image IconImage(string name, Transform parent, Sprite sprite,
             float minX, float minY, float maxX, float maxY)

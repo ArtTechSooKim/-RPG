@@ -45,6 +45,12 @@
     - 글꼴: 제목·숫자·버튼 = Jua(`UiKit.Display`, `MakeButton` 기본), 본문 = Noto Sans KR(`Label`, Bold 지원). `Assets/Resources/UI/Fonts/` (OFL)
     - 아이콘: `UiKit.Icon("gold")`, 아이템은 `UiKit.ItemIcon(item)`. PNG를 `Assets/Resources/UI/Icons/`에 넣으면 `UiAssetImporter`가 스프라이트로 설정
     - 새 화면은 Figma에 먼저 그리고 같은 컴포넌트로 조립. 기호(✓ ✕ ▲ ◀ 등)는 Jua에 없을 수 있으니 Noto 글꼴로 쓰고 `font.HasCharacter`로 확인
+12. **도트 그림·소리는 Ninja Adventure 팩(CC0)**: `python Tools/import_ninja_art.py` 가 쓸 파일만 골라 복사·가공한다 (원본 팩 경로는 스크립트 안)
+    - 몬스터: `Assets/Resources/Art/NinjaAdventure/Monsters/{speciesId}.png` → `WordRPG > Data > Link Monster Art`(Create All Scenes에도 포함)가 Sprite 칸에 연결. 그림 없는 몬스터(펜촉이·깃펜기사)는 임시 도형
+    - 필드 타일 `FieldArt`(Tiles/{테마}_{종류}[_done].png), 주인공 `PlayerArt`(4방향×걷기 4프레임 시트를 코드로 자름). 없으면 `PlaceholderArt`
+    - `Assets/Resources/Art/` 그림은 가져올 때 16px = 1칸, Point 필터 (`UiAssetImporter`)
+    - 소리: `Sound.PlayMusic(Music.X)` / `Sound.Play(Sfx.X)`, 파일 = `Resources/Audio/Music|Sfx/{열거형 소문자}`. 음량은 설정을 따름.
+      `UiKit.AddButton`/`MakeButton`은 누르면 딸깍 소리 (`clickSound: false`로 끔). 새 소리를 쓰면 열거형 + 스크립트 표에 같이 추가 (AudioArtTests가 검사)
 
 ## 폴더 구조
 
@@ -65,14 +71,19 @@ Assets/
                         DexView(도감), EvolutionView(진화의 제단) + EvolutionCutscene(진화 연출), ShopView(상점),
                         InventoryView(소지품: 재료·징표), SettingsView(설정) + ConfirmDialog(확인 창), SwitchView,
                         TitleScreen(타이틀), Haptics(진동), UnitView, HoldButton,
-                        PlaceholderArt(임시 도트 생성), UiKit(Palette·글꼴·둥근 패널·아이콘 + WithJosa 한국어 조사), AutoPill — 세로 1080x1920
-    Editor/             WordRPG.Editor.asmdef — CSV 임포터, 샘플 데이터 생성기, UiAssetImporter(아이콘 PNG → 스프라이트)
+                        FieldArt(필드 타일) · PlayerArt(주인공) · PlaceholderArt(그림이 없을 때 임시 도트), Sound(음악·효과음),
+                        UiKit(Palette·글꼴·둥근 패널·아이콘 + WithJosa 한국어 조사), AutoPill — 세로 1080x1920
+    Editor/             WordRPG.Editor.asmdef — CSV 임포터, 샘플 데이터 생성기, UiAssetImporter(아이콘·도트·소리 가져오기 설정),
+                        MonsterArtLinker(몬스터 그림 연결)
   Resources/UI/         Fonts(Jua, Noto Sans KR + OFL 라이선스), Icons(UI 아이콘 128px), Icons/Items(아이템 256px, 파일명 = itemId)
+  Resources/Art/NinjaAdventure/  Monsters(speciesId.png), Player(Boy 시트), Tiles(합성 타일), LICENSE.txt(CC0)
+  Resources/Audio/      Music(5곡 ogg), Sfx(20개 wav) — Ninja Adventure
   Tests/EditMode/       WordRPG.Tests.EditMode.asmdef (로직)
   Tests/PlayMode/       WordRPG.Tests.PlayMode.asmdef (UI 버튼을 눌러 전투 한 판 진행)
   Data/                 Words, Monsters, Skills, Items, Encounters, Areas, Shops (SO 에셋), GameDatabase.asset
   Scenes/               Title.unity (빌드 첫 씬) → Field.unity (본 게임), Battle.unity (전투만 반복하는 연습 씬)
-Docs/                   PRD.txt, GDD.md
+Docs/                   PRD.txt, GDD.md, 아트에셋목록.md
+Tools/                  import_ninja_art.py (에셋 팩 → 프로젝트, Pillow 필요)
 ```
 
 ## 명령어

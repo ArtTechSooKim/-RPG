@@ -17,7 +17,7 @@ MonoBehaviour:
   description: "\uACF5\uCC45 \uADC0\uD241\uC774 \uB099\uC11C\uC5D0\uC11C \uD0DC\uC5B4\uB09C
     \uBC15\uC950."
   role: 0
-  sprite: {fileID: 0}
+  sprite: {fileID: 21300000, guid: 45a13ea9e96b46f43b826dd483f2c7b4, type: 3}
   placeholderColor: {r: 0.5, g: 0.5, b: 0.55, a: 1}
   baseStats:
     maxHp: 18

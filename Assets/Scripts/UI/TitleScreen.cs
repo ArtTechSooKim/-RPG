@@ -42,6 +42,7 @@ namespace WordRPG.UI
             }
             Build();
             Refresh();
+            Sound.PlayMusic(Music.Title);
         }
 
         private void Update()
@@ -113,7 +114,7 @@ namespace WordRPG.UI
                 card.rectTransform.sizeDelta = new Vector2(size, size);
                 Place(card.rectTransform, x, y);
                 var initial = UiKit.Display(UiKit.Label("Initial", card.transform, "", Mathf.RoundToInt(size * 0.42f), Palette.Text, 0, 0, 1, 1));
-                var sprite = UiKit.IconImage("Sprite", card.transform, null, 0.06f, 0.06f, 0.94f, 0.94f);
+                var sprite = UiKit.IconImage("Sprite", card.transform, null, 0.12f, 0.12f, 0.88f, 0.88f);
                 cards.Add((card, initial, sprite));
             }
             foreach (var (x, y, size) in new (float, float, float)[] { (350, 760, 44), (760, 800, 36), (116, 840, 32), (980, 850, 40), (580, 740, 28) })
@@ -186,7 +187,7 @@ namespace WordRPG.UI
                 if (!has) continue;
                 var species = party[i].Species;
                 string initial = species.DisplayName.Length > 0 ? species.DisplayName.Substring(0, 1) : "?";
-                var color = Color.Lerp(Palette.PanelLight, species.PlaceholderColor, 0.65f);
+                var color = UiKit.ArtColor(species);
                 cards[i].card.color = color;
                 cards[i].initial.text = initial;
                 cards[i].initial.enabled = species.Sprite == null;
