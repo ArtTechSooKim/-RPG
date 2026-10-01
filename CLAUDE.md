@@ -31,7 +31,8 @@
    - 이미 출시된 id는 바꾸지 말 것. SaveData에 필드 추가는 자유(예전 세이브는 기본값), 기존 필드 의미를 바꿀 때만 version 올리고 변환
    - 게임 진행 상태는 `GameManager.Instance.Session`에서 얻고, 바뀌면 `GameManager.Save()` 호출
    - 새 지역(단어장)은 regionId·regionName·징표 아이템(종류 Keepsake)·골드를 지정해야 함 (RegionDataTests가 검사)
-   - 필드 맵은 FieldArea의 글자 맵 (GDD 7장). 상자 수 = 내용물 수, 모든 상자·샘 도달 가능 (AreaDataTests가 검사)
+   - 필드 맵은 FieldArea의 글자 맵 (GDD 7·9장). 상자 수 = 내용물 수, 출입구 수 = 연결 수(서로 왕복), B ↔ 보스 지정,
+     모든 상자·샘·출입구 도달 가능 (AreaDataTests·DungeonDataTests가 검사). 지역을 새로 만들면 Refresh Game Database
 6. **네이밍**: PascalCase 클래스/메서드/프로퍼티, camelCase 필드. SO 필드는 `[SerializeField] private` + 읽기 전용 프로퍼티. 클래스명은 영문, 화면 표시명은 한국어 필드(`displayName = "펜촉이"`). 주석은 한국어
 7. **Git LFS 사용 중**: 이미지·오디오·폰트·네이티브 플러그인. 새 바이너리 타입 추가 시 `.gitattributes` 확인
 8. **입력은 Input System 전용**: EventSystem에 `InputSystemUIInputModule` 사용 (`StandaloneInputModule` 금지)
@@ -48,10 +49,11 @@ Assets/
     Monsters/           MonsterSpecies·SkillData SO, MonsterInstance, LevelCurve, Evolution
     Items/              ItemData SO, Inventory, ShopData SO + Shop(구매 규칙)
     Battle/             BattleEngine, BattleFormulas, BattleReward
-    Field/              FieldMap(맵 글자→격자), FieldWalker(이동), EncounterCounter(조우), FieldArea(지역 SO), EncounterTable
+    Field/              FieldMap(맵 글자→격자), FieldWalker(이동), EncounterCounter(조우),
+                        FieldArea(지역 SO: 테마·출입구 연결·보스·상자·상점), EncounterTable
     Game/               GameSession(진행 상태 전체), GameManager(씬 간 유지 + 자동 저장), GameDatabase(id→에셋), PlayerRecord, Dex(도감 규칙)
     Save/               SaveData(JSON 형식), SaveSystem(임시파일+백업으로 안전 저장)
-    UI/                 FieldScreen(필드·HUD·가상 패드), BattleScreen(필드 위에 덮이는 전투, 단독 연습 모드도 있음),
+    UI/                 FieldScreen(필드·지역 이동·HUD·가상 패드), BattleScreen(필드 위에 덮이는 전투, 단독 연습 모드도 있음),
                         DexView(도감), EvolutionView(진화의 제단), ShopView(상점), UnitView, HoldButton,
                         PlaceholderArt(임시 도트 생성), UiKit(+ WithJosa 한국어 조사) — 세로 1080x1920, OS 한글 폰트
     Editor/             WordRPG.Editor.asmdef — CSV 임포터, 샘플 데이터 생성기

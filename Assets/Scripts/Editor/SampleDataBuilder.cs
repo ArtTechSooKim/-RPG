@@ -43,6 +43,7 @@ namespace WordRPG.EditorTools
             var splat = Skill("slime_splat", "끈적 공격", "끈적한 잉크를 튀긴다.", SkillKind.Damage, SkillTarget.SingleEnemy, 14, QuizDirection.EnglishToMeaning);
             var scratch = Skill("bat_scratch", "낙서 할퀴기", "삐뚤빼뚤한 발톱으로 할퀸다.", SkillKind.Damage, SkillTarget.SingleEnemy, 16, QuizDirection.EnglishToMeaning);
             var forgetFog = Skill("goblin_forget_fog", "망각의 안개", "기억을 흐리는 안개로 파티 전체를 공격한다.", SkillKind.Damage, SkillTarget.AllEnemies, 10, QuizDirection.EnglishToMeaning);
+            var memoryDrain = Skill("boss_memory_drain", "기억 흡수", "빼앗은 기억으로 자신의 HP를 회복한다.", SkillKind.Heal, SkillTarget.Self, 8, QuizDirection.EnglishToMeaning);
             var blankBonk = Skill("goblin_blank_bonk", "깜빡 방망이", "머리를 하얗게 만드는 방망이질.", SkillKind.Damage, SkillTarget.SingleEnemy, 18, QuizDirection.EnglishToMeaning);
 
             // --- 아군 몬스터 (진화형 먼저 만들어야 참조 가능) ---
@@ -75,11 +76,17 @@ namespace WordRPG.EditorTools
                 new Color(0.2f, 0.7f, 0.6f), new MonsterStats(40, 12, 10), new MonsterStats(8, 3, 2), new[] { forgetFog, blankBonk },
                 enemyExp: 15, enemyGold: 20, drops: new[] { new ItemDrop(hardCover, 0.6f), new ItemDrop(sparkleDust, 0.3f) });
 
+            // --- 보스: 잊혀진 서고 꼭대기의 까먹대왕. 진화 재료 3종을 반드시 떨어뜨린다 ---
+            var forgetKing = Monster("boss_forget_king", "까먹대왕", "까먹깨비들의 우두머리. 서고의 기억을 몽땅 먹어 치우고 있다.", MonsterRole.Attacker,
+                new Color(0.15f, 0.6f, 0.55f), new MonsterStats(50, 14, 12), new MonsterStats(8, 3, 2), new[] { forgetFog, blankBonk, memoryDrain },
+                enemyExp: 25, enemyGold: 30,
+                drops: new[] { new ItemDrop(shinyInk, 1f), new ItemDrop(hardCover, 1f), new ItemDrop(sparkleDust, 1f) });
+
             // --- 출현표 ---
             var meadowEncounters = Encounters("meadow_field", 1, 2,
                 new EncounterTable.Entry(inkSlime, 1, 3, 10),
                 new EncounterTable.Entry(scribbleBat, 1, 3, 8));
-            Encounters("word_dungeon", 1, 3,
+            var dungeonEncounters = Encounters("word_dungeon", 1, 3,
                 new EncounterTable.Entry(forgetGoblin, 3, 5, 5),
                 new EncounterTable.Entry(inkSlime, 2, 4, 5),
                 new EncounterTable.Entry(scribbleBat, 2, 4, 5));
@@ -101,6 +108,21 @@ namespace WordRPG.EditorTools
                 new ShopEntry(shinyInk, 60), new ShopEntry(hardCover, 60), new ShopEntry(sparkleDust, 60));
             AssignShopIfEmpty("Assets/Data/Areas/meadow.asset", meadowShop);
 
+            // --- 던전: 잊혀진 서고 (초원 북쪽 동굴 입구로 연결). MVP는 난이도 하나라 단어장은 초원과 같음 ---
+            Area("library", "잊혀진 서고", LibraryMap, dungeonEncounters,
+                AssetDatabase.LoadAssetAtPath<WordDatabase>("Assets/Data/Words/tier1_meadow.asset"),
+                new ChestContent(null, 0, 200),    // 왼쪽 위 열람실
+                new ChestContent(sparkleDust, 1)); // 오른쪽 위 열람실
+            ConfigureAreaIfNew("Assets/Data/Areas/library.asset", so =>
+            {
+                Prop(so, "theme").enumValueIndex = (int)FieldTheme.Library;
+                Prop(so, "encounterRate").floatValue = 0.14f;
+                var boss = Prop(so, "boss");
+                boss.FindPropertyRelative("species").objectReferenceValue = forgetKing;
+                boss.FindPropertyRelative("level").intValue = 7;
+            });
+            LinkDoorsIfEmpty("Assets/Data/Areas/meadow.asset", "Assets/Data/Areas/library.asset");
+
             AssetDatabase.SaveAssets();
             GameDatabaseBuilder.Refresh();
             Debug.Log("[WordRPG] 샘플 데이터 생성 완료 (기존 에셋은 유지)");
@@ -108,7 +130,7 @@ namespace WordRPG.EditorTools
 
         // . 길  , 풀숲(조우)  # 나무  ~ 물  F 회복의 샘  C 보물상자  P 시작 위치 (아래쪽 마을에서 출발해 북쪽으로 탐험)
         private const string MeadowMap =
-                "###################\n" +
+                "###########D#######\n" +
                 "#,,,,,,#,,,,,,,,,C#\n" +
                 "#,,C,,,#,,,,~~~,,,#\n" +
                 "#,,,,,,.,,,,~~~,,,#\n" +
@@ -177,6 +199,65 @@ namespace WordRPG.EditorTools
             if (area == null || area.Shop != null) return;
             var so = new SerializedObject(area);
             Prop(so, "shop").objectReferenceValue = shop;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        // . 길  , 흩어진 책장(조우)  # 책장  ~ 잉크 웅덩이  F 회복의 샘  C 보물상자  B 보스  D 출입구(초원으로)  P 시작 위치
+        // 아래 출입구에서 들어와 위로: 책장 미로 → 샘 → 큰 열람실(상자 2개) → 꼭대기 보스 방
+        private const string LibraryMap =
+                "#################\n" +
+                "######..B..######\n" +
+                "######.....######\n" +
+                "########.########\n" +
+                "#C,,,,,,.,,,,,,C#\n" +
+                "#,,~~~,,.,,~~~,,#\n" +
+                "#,,~~~,,.,,~~~,,#\n" +
+                "#,,,,,,,.,,,,,,,#\n" +
+                "########.########\n" +
+                "#...F...........#\n" +
+                "#.#####.#.#####.#\n" +
+                "#.#,,,,,,,,,,,#.#\n" +
+                "#.#,#########,#.#\n" +
+                "#.#,,,,,,,,,,,#.#\n" +
+                "#.#####,#,#####.#\n" +
+                "#...,,,,,,,,,...#\n" +
+                "#...,,,,,,,,,...#\n" +
+                "########.########\n" +
+                "#,,,,,,,.,,,,,,,#\n" +
+                "#,,#,,#,.,#,,#,,#\n" +
+                "#,,,,,,,.,,,,,,,#\n" +
+                "#######...#######\n" +
+                "#######.P.#######\n" +
+                "########D########\n";
+
+        // 새로 만든 지역에만 추가 설정 (보스가 아직 없을 때 = 처음 만들 때). 인스펙터에서 바꾼 값은 유지
+        private static void ConfigureAreaIfNew(string areaPath, Action<SerializedObject> configure)
+        {
+            var area = AssetDatabase.LoadAssetAtPath<FieldArea>(areaPath);
+            if (area == null || area.Boss != null) return;
+            var so = new SerializedObject(area);
+            configure(so);
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        // 두 지역의 첫 번째 출입구(D)를 서로 연결. 출입구 설정이 비어 있을 때만
+        private static void LinkDoorsIfEmpty(string pathA, string pathB)
+        {
+            var a = AssetDatabase.LoadAssetAtPath<FieldArea>(pathA);
+            var b = AssetDatabase.LoadAssetAtPath<FieldArea>(pathB);
+            if (a == null || b == null) return;
+            SetFirstExit(a, b);
+            SetFirstExit(b, a);
+        }
+
+        private static void SetFirstExit(FieldArea from, FieldArea to)
+        {
+            if (from.Exits.Count > 0) return;
+            var so = new SerializedObject(from);
+            var exits = Prop(so, "exits");
+            exits.arraySize = 1;
+            exits.GetArrayElementAtIndex(0).FindPropertyRelative("target").objectReferenceValue = to;
+            exits.GetArrayElementAtIndex(0).FindPropertyRelative("targetDoorIndex").intValue = 0;
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 

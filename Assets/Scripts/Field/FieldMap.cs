@@ -13,7 +13,16 @@ namespace WordRPG.Field
         Fountain, // 회복의 샘 (막힘, 부딪히면 파티 회복)
         Chest,    // 보물상자 (막힘, 부딪히면 열기)
         Altar,    // 진화의 제단 (막힘, 부딪히면 진화 화면)
-        Shop      // 상점 (막힘, 부딪히면 상점 화면)
+        Shop,     // 상점 (막힘, 부딪히면 상점 화면)
+        Door,     // 출입구 — 걸어 들어가면 다른 지역으로 이동
+        Boss      // 보스 (막힘, 부딪히면 보스 전투)
+    }
+
+    // 지역 분위기에 따라 같은 칸도 다르게 그린다 (초원: 나무·풀숲·물 / 서고: 책장·흩어진 책장·잉크 웅덩이)
+    public enum FieldTheme
+    {
+        Meadow,
+        Library
     }
 
     public enum Direction
@@ -40,22 +49,29 @@ namespace WordRPG.Field
 
     // 맵 텍스트 → 격자.
     //   '.' 길   ',' 풀숲(조우)   '#' 나무(막힘)   '~' 물(막힘)   'P' 시작 위치(길)
-    //   부딪혀서 쓰는 칸: 'F' 회복의 샘   'C' 보물상자   'E' 진화의 제단   'S' 상점
+    //   부딪혀서 쓰는 칸: 'F' 회복의 샘   'C' 보물상자   'E' 진화의 제단   'S' 상점   'B' 보스
+    //   'D' 출입구 (밟으면 다른 지역으로)
     // 좌표: x는 오른쪽, y는 위쪽 (맨 아래 줄이 y=0) — Unity 월드 좌표와 같은 방향
     public class FieldMap
     {
         private readonly FieldTile[,] tiles;
         private readonly List<Vector2Int> chests; // 위→아래, 왼→오른 순 (보물상자 내용물 배정 순서)
+        private readonly List<Vector2Int> doors;  // 같은 순서 (출입구 연결 배정 순서)
 
         public int Width { get; }
         public int Height { get; }
         public Vector2Int Start { get; }
         public IReadOnlyList<Vector2Int> Chests => chests;
+        public IReadOnlyList<Vector2Int> Doors => doors;
+        public Vector2Int? BossPosition { get; }
 
-        private FieldMap(FieldTile[,] tiles, Vector2Int start, List<Vector2Int> chests)
+        private FieldMap(FieldTile[,] tiles, Vector2Int start, List<Vector2Int> chests, List<Vector2Int> doors,
+            Vector2Int? boss)
         {
             this.tiles = tiles;
             this.chests = chests;
+            this.doors = doors;
+            BossPosition = boss;
             Width = tiles.GetLength(0);
             Height = tiles.GetLength(1);
             Start = start;
@@ -75,7 +91,9 @@ namespace WordRPG.Field
             int height = rows.Count;
             var tiles = new FieldTile[width, height];
             var chests = new List<Vector2Int>();
+            var doors = new List<Vector2Int>();
             Vector2Int? start = null;
+            Vector2Int? boss = null;
 
             for (int r = 0; r < height; r++)
             {
@@ -95,6 +113,15 @@ namespace WordRPG.Field
                         case 'F': tiles[x, y] = FieldTile.Fountain; break;
                         case 'E': tiles[x, y] = FieldTile.Altar; break;
                         case 'S': tiles[x, y] = FieldTile.Shop; break;
+                        case 'D':
+                            tiles[x, y] = FieldTile.Door;
+                            doors.Add(new Vector2Int(x, y));
+                            break;
+                        case 'B':
+                            if (boss.HasValue) throw new FormatException("보스 'B'는 지역마다 하나만 둘 수 있습니다");
+                            tiles[x, y] = FieldTile.Boss;
+                            boss = new Vector2Int(x, y);
+                            break;
                         case 'C':
                             tiles[x, y] = FieldTile.Chest;
                             chests.Add(new Vector2Int(x, y));
@@ -111,7 +138,7 @@ namespace WordRPG.Field
             }
 
             if (!start.HasValue) throw new FormatException("시작 위치 'P'가 없습니다");
-            return new FieldMap(tiles, start.Value, chests);
+            return new FieldMap(tiles, start.Value, chests, doors, boss);
         }
 
         public bool InBounds(Vector2Int p) => p.x >= 0 && p.y >= 0 && p.x < Width && p.y < Height;
@@ -119,14 +146,18 @@ namespace WordRPG.Field
         // 맵 밖은 벽으로 취급
         public FieldTile Get(Vector2Int p) => InBounds(p) ? tiles[p.x, p.y] : FieldTile.Wall;
 
-        public static bool IsWalkable(FieldTile tile) => tile == FieldTile.Floor || tile == FieldTile.Grass;
+        public static bool IsWalkable(FieldTile tile) =>
+            tile == FieldTile.Floor || tile == FieldTile.Grass || tile == FieldTile.Door;
 
         // 걸을 수는 없지만 부딪히면 무언가 일어나는 칸
         public static bool IsInteractive(FieldTile tile) =>
-            tile == FieldTile.Chest || tile == FieldTile.Fountain || tile == FieldTile.Altar || tile == FieldTile.Shop;
+            tile == FieldTile.Chest || tile == FieldTile.Fountain || tile == FieldTile.Altar || tile == FieldTile.Shop
+            || tile == FieldTile.Boss;
 
         public bool IsWalkable(Vector2Int p) => IsWalkable(Get(p));
 
         public int ChestIndex(Vector2Int p) => chests.IndexOf(p);
+
+        public int DoorIndex(Vector2Int p) => doors.IndexOf(p);
     }
 }

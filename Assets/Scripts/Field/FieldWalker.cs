@@ -17,6 +17,7 @@ namespace WordRPG.Field
         public FieldTile TargetTile { get; }
 
         public bool EnteredGrass => Kind == StepKind.Moved && TargetTile == FieldTile.Grass;
+        public bool EnteredDoor => Kind == StepKind.Moved && TargetTile == FieldTile.Door;
 
         public StepOutcome(StepKind kind, Vector2Int target, FieldTile targetTile)
         {
@@ -49,6 +50,7 @@ namespace WordRPG.Field
             {
                 case FieldTile.Floor:
                 case FieldTile.Grass:
+                case FieldTile.Door:
                     Position = target;
                     return new StepOutcome(StepKind.Moved, target, tile);
                 default:

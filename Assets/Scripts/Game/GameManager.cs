@@ -23,6 +23,7 @@ namespace WordRPG.Game
         public bool LoadedFromSave { get; private set; }
         public string StatusMessage { get; private set; } = "";
         public string SaveDirectory => saveSystem?.Directory;
+        public GameDatabase Database => database;
 
         // 코드로 만들 때(테스트) 비활성 오브젝트에 붙이고 Configure → SetActive(true) 순서로 쓴다
         public void Configure(GameDatabase db, MonsterSpecies[] starters, int level)

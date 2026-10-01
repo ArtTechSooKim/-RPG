@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace WordRPG.Game
 {
-    // 필드 진행 상태: 마지막 위치, 열어 본 보물상자. 세이브 파일에 들어간다
+    // 필드 진행 상태: 마지막 위치(지역+칸), 열어 본 보물상자, 쓰러뜨린 보스. 세이브 파일에 들어간다
     [Serializable]
     public class WorldState
     {
@@ -13,6 +13,7 @@ namespace WordRPG.Game
         [SerializeField] private int y;
         [SerializeField] private bool hasPosition;
         [SerializeField] private List<string> openedChests = new List<string>();
+        [SerializeField] private List<string> defeatedBosses = new List<string>();
 
         public string AreaId => hasPosition ? areaId : null;
         public IReadOnlyList<string> OpenedChests => openedChests;
@@ -32,6 +33,13 @@ namespace WordRPG.Game
         }
 
         public void ClearPosition() => hasPosition = false;
+
+        public bool IsBossDefeated(string bossId) => defeatedBosses.Contains(bossId);
+
+        public void MarkBossDefeated(string bossId)
+        {
+            if (!defeatedBosses.Contains(bossId)) defeatedBosses.Add(bossId);
+        }
 
         public bool IsChestOpened(string chestId) => openedChests.Contains(chestId);
 

@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: WordRPG::WordRPG.Field.FieldArea
   areaId: meadow
   displayName: "\uCD08\uC6D0"
-  map: '###################
+  theme: 0
+  map: '###########D#######
 
     #,,,,,,#,,,,,,,,,C#
 
@@ -79,3 +80,9 @@ MonoBehaviour:
   - item: {fileID: 0}
     count: 0
     gold: 100
+  exits:
+  - target: {fileID: 11400000, guid: 2f0f21b4f39acf14fab8b7273b5e1a17, type: 2}
+    targetDoorIndex: 0
+  boss:
+    species: {fileID: 0}
+    level: 7

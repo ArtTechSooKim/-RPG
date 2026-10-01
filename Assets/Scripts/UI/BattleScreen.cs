@@ -136,14 +136,16 @@ namespace WordRPG.UI
         }
 
         // 필드에서 조우했을 때 한 판. 결과 화면의 버튼을 누르면 화면을 닫고 onFinished(승리 여부)
-        public void BeginBattle(List<MonsterInstance> enemies, WordDatabase wordBook, Action<bool> onFinished)
+        // intro: 전투 로그 첫 줄 (보스전 등). 비우면 "야생 몬스터 출현!"
+        public void BeginBattle(List<MonsterInstance> enemies, WordDatabase wordBook, Action<bool> onFinished,
+            string intro = null)
         {
             if (running) throw new InvalidOperationException("이미 전투 중입니다");
             if (!EnsureInitialized()) return;
             words = wordBook;
             running = true;
             canvas.gameObject.SetActive(true);
-            StartCoroutine(SingleBattle(enemies, onFinished));
+            StartCoroutine(SingleBattle(enemies, onFinished, intro));
         }
 
         // ------------------------------------------------------------------ 흐름
@@ -158,9 +160,9 @@ namespace WordRPG.UI
             }
         }
 
-        private IEnumerator SingleBattle(List<MonsterInstance> enemies, Action<bool> onFinished)
+        private IEnumerator SingleBattle(List<MonsterInstance> enemies, Action<bool> onFinished, string intro)
         {
-            StartNewBattle(enemies);
+            StartNewBattle(enemies, intro);
             yield return PlayBattle();
             yield return ShowResult();
             bool victory = engine.Phase == BattlePhase.Victory;
@@ -171,7 +173,7 @@ namespace WordRPG.UI
             onFinished?.Invoke(victory);
         }
 
-        private void StartNewBattle(List<MonsterInstance> enemies)
+        private void StartNewBattle(List<MonsterInstance> enemies, string intro = null)
         {
             if (!session.CanFight) session.RestoreParty();
             if (quizService == null || quizWords != words)
@@ -220,7 +222,7 @@ namespace WordRPG.UI
                 if (names.Length > 0) names.Append(", ");
                 names.Append($"{enemy.DisplayName} Lv{enemy.Monster.Level}");
             }
-            Log($"야생 몬스터 출현! {names}");
+            Log(intro ?? $"야생 몬스터 출현! {names}");
             roundLabel.text = "라운드 1";
             RefreshVocabLabel();
             Snapshot();
@@ -444,7 +446,7 @@ namespace WordRPG.UI
             {
                 resultTitle.text = "패배…";
                 resultTitle.color = Palette.Bad;
-                body.AppendLine(loopBattles ? "파티가 전멸했다. 회복하고 다시 도전하자!" : "파티가 전멸했다… 회복의 샘으로 돌아간다.");
+                body.AppendLine(loopBattles ? "파티가 전멸했다. 회복하고 다시 도전하자!" : "파티가 전멸했다… 시작 지점으로 돌아간다.");
             }
 
             foreach (var completion in session.ClaimDexRewards(new[] { words }))
@@ -468,7 +470,7 @@ namespace WordRPG.UI
             saveProgress?.Invoke();
 
             if (loopBattles) SetResultButtons(victory ? "다음 전투" : "파티 회복 후 재도전", victory ? "파티 회복 후 전투" : null);
-            else SetResultButtons(victory ? "계속 탐험" : "회복의 샘으로", null);
+            else SetResultButtons(victory ? "계속 탐험" : "시작 지점으로", null);
             resultChoice = -1;
             ShowPanel(resultPanel);
             while (resultChoice < 0) yield return null;

@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: WordRPG::WordRPG.Game.GameDatabase
   monsters:
   - {fileID: 11400000, guid: e16212585b6de204ca4fca78b70e330c, type: 2}
+  - {fileID: 11400000, guid: d12a616f9221242458895cf41f4ebaed, type: 2}
   - {fileID: 11400000, guid: 0e41be42d3bea184b864ea57bddb3161, type: 2}
   - {fileID: 11400000, guid: 9507c4de3ec057e4ab55cc3e9121a137, type: 2}
   - {fileID: 11400000, guid: a9849eb4d6ef12c4f99d035f411e7e52, type: 2}
@@ -27,3 +28,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 2dd71ba23711eac418813eea2da4c791, type: 2}
   - {fileID: 11400000, guid: d068093b31fa6bd479a9978022d8bc1f, type: 2}
   - {fileID: 11400000, guid: 83903ba43d39288409cddb3a5f7b0f43, type: 2}
+  areas:
+  - {fileID: 11400000, guid: 2f0f21b4f39acf14fab8b7273b5e1a17, type: 2}
+  - {fileID: 11400000, guid: a2d06106feb91f048ad3b3d9f1f26ff0, type: 2}

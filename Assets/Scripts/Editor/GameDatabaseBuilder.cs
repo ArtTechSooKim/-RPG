@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using WordRPG.Field;
 using WordRPG.Game;
 using WordRPG.Items;
 using WordRPG.Monsters;
@@ -19,8 +20,10 @@ namespace WordRPG.EditorTools
         {
             var monsters = LoadAll<MonsterSpecies>().OrderBy(m => m.SpeciesId).ToList();
             var items = LoadAll<ItemData>().OrderBy(i => i.ItemId).ToList();
+            var areas = LoadAll<FieldArea>().OrderBy(a => a.AreaId).ToList();
             WarnDuplicates(monsters.Select(m => m.SpeciesId), "몬스터");
             WarnDuplicates(items.Select(i => i.ItemId), "아이템");
+            WarnDuplicates(areas.Select(a => a.AreaId), "지역");
 
             var database = AssetDatabase.LoadAssetAtPath<GameDatabase>(DatabasePath);
             if (database == null)
@@ -28,10 +31,10 @@ namespace WordRPG.EditorTools
                 database = ScriptableObject.CreateInstance<GameDatabase>();
                 AssetDatabase.CreateAsset(database, DatabasePath);
             }
-            database.ReplaceContents(monsters, items);
+            database.ReplaceContents(monsters, items, areas);
             EditorUtility.SetDirty(database);
             AssetDatabase.SaveAssets();
-            Debug.Log($"[WordRPG] GameDatabase 갱신: 몬스터 {monsters.Count}, 아이템 {items.Count}");
+            Debug.Log($"[WordRPG] GameDatabase 갱신: 몬스터 {monsters.Count}, 아이템 {items.Count}, 지역 {areas.Count}");
             return database;
         }
 

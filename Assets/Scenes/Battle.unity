@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &188830317
+--- !u!1 &130562984
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,9 +127,118 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 188830320}
-  - component: {fileID: 188830319}
-  - component: {fileID: 188830318}
+  - component: {fileID: 130562986}
+  - component: {fileID: 130562985}
+  m_Layer: 0
+  m_Name: GameManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &130562985
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 130562984}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8f45e50f85290a4789c00160533c843, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: WordRPG::WordRPG.Game.GameManager
+  database: {fileID: 11400000, guid: 373773ea057910f4382b5b5c876913f7, type: 2}
+  starterParty:
+  - {fileID: 11400000, guid: 21e9aad72bff69c42aecd8f3e7abae02, type: 2}
+  - {fileID: 11400000, guid: e16212585b6de204ca4fca78b70e330c, type: 2}
+  - {fileID: 11400000, guid: 631605aa251b1d14bb7087d9076ec491, type: 2}
+  starterLevel: 3
+--- !u!4 &130562986
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 130562984}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &653724167
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 653724169}
+  - component: {fileID: 653724168}
+  m_Layer: 0
+  m_Name: BattleScreen
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &653724168
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 653724167}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08b783a48a6aa374186efe32787365ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: WordRPG::WordRPG.UI.BattleScreen
+  encounter: {fileID: 11400000, guid: bee0782bd39e10b419f0ac25025fd29e, type: 2}
+  words: {fileID: 11400000, guid: 89d1f80701129f84bad1df742f174dae, type: 2}
+  battleConfig:
+    answerTimeLimitSeconds: 10
+    criticalTimeSeconds: 3
+    criticalMultiplier: 1.5
+    variance: 0.1
+    expPerCorrectAnswer: 2
+  masteryRules:
+    learningIntervalMinutes: 5
+    reviewingIntervalMinutes: 1440
+    proficientIntervalMinutes: 4320
+    masteredIntervalMinutes: 10080
+  loopBattles: 1
+  animationScale: 1
+--- !u!4 &653724169
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 653724167}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1493778964
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1493778967}
+  - component: {fileID: 1493778966}
+  - component: {fileID: 1493778965}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -137,21 +246,21 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &188830318
+--- !u!81 &1493778965
 AudioListener:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 188830317}
+  m_GameObject: {fileID: 1493778964}
   m_Enabled: 1
---- !u!20 &188830319
+--- !u!20 &1493778966
 Camera:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 188830317}
+  m_GameObject: {fileID: 1493778964}
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
@@ -196,125 +305,16 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!4 &188830320
+--- !u!4 &1493778967
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 188830317}
+  m_GameObject: {fileID: 1493778964}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: -10}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1087294278
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1087294280}
-  - component: {fileID: 1087294279}
-  m_Layer: 0
-  m_Name: BattleScreen
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1087294279
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1087294278}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 08b783a48a6aa374186efe32787365ad, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: WordRPG::WordRPG.UI.BattleScreen
-  encounter: {fileID: 11400000, guid: bee0782bd39e10b419f0ac25025fd29e, type: 2}
-  words: {fileID: 11400000, guid: 89d1f80701129f84bad1df742f174dae, type: 2}
-  battleConfig:
-    answerTimeLimitSeconds: 10
-    criticalTimeSeconds: 3
-    criticalMultiplier: 1.5
-    variance: 0.1
-    expPerCorrectAnswer: 2
-  masteryRules:
-    learningIntervalMinutes: 5
-    reviewingIntervalMinutes: 1440
-    proficientIntervalMinutes: 4320
-    masteredIntervalMinutes: 10080
-  loopBattles: 1
-  animationScale: 1
---- !u!4 &1087294280
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1087294278}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2120120612
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2120120614}
-  - component: {fileID: 2120120613}
-  m_Layer: 0
-  m_Name: GameManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &2120120613
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2120120612}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f8f45e50f85290a4789c00160533c843, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: WordRPG::WordRPG.Game.GameManager
-  database: {fileID: 11400000, guid: 373773ea057910f4382b5b5c876913f7, type: 2}
-  starterParty:
-  - {fileID: 11400000, guid: 21e9aad72bff69c42aecd8f3e7abae02, type: 2}
-  - {fileID: 11400000, guid: e16212585b6de204ca4fca78b70e330c, type: 2}
-  - {fileID: 11400000, guid: 631605aa251b1d14bb7087d9076ec491, type: 2}
-  starterLevel: 3
---- !u!4 &2120120614
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2120120612}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -324,6 +324,6 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 188830320}
-  - {fileID: 2120120614}
-  - {fileID: 1087294280}
+  - {fileID: 1493778967}
+  - {fileID: 130562986}
+  - {fileID: 653724169}

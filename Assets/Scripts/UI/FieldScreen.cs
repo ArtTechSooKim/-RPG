@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Tilemaps;
@@ -7,11 +8,13 @@ using UnityEngine.UI;
 using WordRPG.Battle;
 using WordRPG.Field;
 using WordRPG.Game;
+using WordRPG.Monsters;
 
 namespace WordRPG.UI
 {
     // 탑다운 필드: 한 칸씩 이동, 풀숲 조우 → 전투(BattleScreen을 위에 덮음) → 원래 자리로 복귀.
-    // 보물상자·회복의 샘·진화의 제단·상점은 '부딪혀서' 사용. 입력은 화면 아래 가상 패드 + 키보드(방향키/WASD).
+    // 출입구(D)를 밟으면 다른 지역으로 (같은 씬에서 맵만 바꿔 그림).
+    // 보물상자·회복의 샘·진화의 제단·상점·보스는 '부딪혀서' 사용. 입력은 화면 아래 가상 패드 + 키보드(방향키/WASD).
     // 이동·조우 규칙은 FieldWalker / EncounterCounter(순수 C#)가 하고 여기서는 화면과 입력만 다룬다
     public class FieldScreen : MonoBehaviour
     {
@@ -25,6 +28,7 @@ namespace WordRPG.UI
         [SerializeField] private float animationScale = 1f;
 
         private GameSession session;
+        private GameDatabase database;
         private Action saveProgress;
         private string statusMessage;
         private bool loadedFromSave;
@@ -44,8 +48,9 @@ namespace WordRPG.UI
         private Transform player;
         private SpriteRenderer playerRenderer;
         private Tilemap tilemap;
-        private Tile openedChestTile;
+        private readonly Dictionary<string, Tile> tileCache = new Dictionary<string, Tile>();
         private BattleScreen battle;
+        private bool bossBattle;
 
         private RectTransform hudRoot;
         private Text areaLabel, dexLabel, toastText;
@@ -66,15 +71,18 @@ namespace WordRPG.UI
         public bool IsInBattle => inBattle || transitioning;
         public BattleScreen Battle => battle;
         public GameSession Session => session;
+        public FieldArea CurrentArea => area;
         public bool IsPanelOpen => dexView.IsOpen || evolutionView.IsOpen || shopView.IsOpen;
         public string ToastMessage => toastPanel != null && toastPanel.activeSelf ? toastText.text : "";
 
         // 코드로 만들 때(테스트) Start 전에 호출. session을 안 주면 GameManager 것을 쓴다
+        // database: 세이브의 마지막 지역이 다른 곳이면 거기서 시작하기 위해 지역을 찾는 데 쓴다
         public void Configure(FieldArea fieldArea, GameSession gameSession = null, Action onSave = null,
-            float step = 0.16f, float animScale = 1f, BattleConfig config = null)
+            float step = 0.16f, float animScale = 1f, BattleConfig config = null, GameDatabase gameDatabase = null)
         {
             area = fieldArea;
             session = gameSession;
+            database = gameDatabase;
             saveProgress = onSave;
             stepDuration = step;
             animationScale = animScale;
@@ -94,6 +102,7 @@ namespace WordRPG.UI
                 saveProgress = manager.Save;
                 statusMessage = manager.StatusMessage;
                 loadedFromSave = manager.LoadedFromSave;
+                if (database == null) database = manager.Database;
             }
             if (session == null || area == null)
             {
@@ -101,32 +110,34 @@ namespace WordRPG.UI
                 return false;
             }
 
+            // 세이브의 마지막 위치가 다른 지역(예: 던전)이면 그 지역에서 시작
+            var startArea = area;
+            string savedAreaId = session.World.AreaId;
+            if (database != null && savedAreaId != null && savedAreaId != area.AreaId)
+                startArea = database.FindArea(savedAreaId) ?? area;
+
             FieldMap map;
             try
             {
-                map = area.Map;
+                map = startArea.Map;
             }
             catch (FormatException e)
             {
-                Debug.LogError($"[FieldScreen] {area.name} 맵 오류: {e.Message}");
+                Debug.LogError($"[FieldScreen] {startArea.name} 맵 오류: {e.Message}");
                 return false;
             }
 
             initialized = true;
             rng = new System.Random();
+            area = startArea;
+
+            CreateWorldObjects();
+            BuildHud();
+            BuildBattle();
 
             // 저장된 위치가 이 지역의 걸을 수 있는 칸이면 거기서, 아니면 시작 위치에서
             var spawn = session.World.TryGetPosition(area.AreaId, out var saved) && map.IsWalkable(saved) ? saved : map.Start;
-            walker = new FieldWalker(map, spawn);
-            encounterCounter = new EncounterCounter(area.EncounterRate, area.MinStepsBetweenEncounters);
-            session.World.SetPosition(area.AreaId, spawn);
-
-            BuildWorld(map);
-            BuildHud();
-            BuildBattle();
-            SnapPlayer();
-            UpdateCamera();
-            RefreshHud();
+            EnterArea(area, spawn);
 
             if (!string.IsNullOrEmpty(statusMessage)) ShowToast(statusMessage, 3f);
             if (!loadedFromSave) ShowToast("진한 풀숲을 걸으면 야생 몬스터가 나타나요!\n상자·샘·제단·상점은 부딪혀서 사용", 4f);
@@ -197,7 +208,26 @@ namespace WordRPG.UI
                     if (area.Shop == null) ShowToast("상점 문이 닫혀 있다.");
                     else shopView.Show(area.Shop, session, OnTownChanged);
                     break;
+                case FieldTile.Boss: ChallengeBoss(); break;
             }
+        }
+
+        private void ChallengeBoss()
+        {
+            var boss = area.Boss;
+            if (boss == null)
+            {
+                ShowToast("아무도 없다.");
+                return;
+            }
+            string name = boss.Species.DisplayName;
+            if (session.World.IsBossDefeated(area.BossId))
+            {
+                ShowToast($"{UiKit.WithJosa(name, "이", "가")} 있던 자리에\n펼쳐진 책이 빛나고 있다.");
+                return;
+            }
+            var enemies = new List<MonsterInstance> { new MonsterInstance(boss.Species, boss.Level) };
+            StartCoroutine(Encounter(enemies, $"보스 출현! {name} Lv{boss.Level} — 정답으로 맞서라!", true));
         }
 
         // 진화·구매 직후 저장하고 HUD(파티 이름·골드) 갱신
@@ -210,8 +240,50 @@ namespace WordRPG.UI
         private void OnStepFinished()
         {
             session.World.SetPosition(area.AreaId, walker.Position);
-            bool onGrass = walker.Map.Get(walker.Position) == FieldTile.Grass;
-            if (encounterCounter.OnStep(onGrass, rng)) StartCoroutine(Encounter());
+            var tile = walker.Map.Get(walker.Position);
+            if (tile == FieldTile.Door)
+            {
+                var exit = area.GetExit(walker.Position);
+                if (exit != null && exit.Target != null) StartCoroutine(UseDoor(exit));
+                else ShowToast("문이 굳게 닫혀 있다.");
+                return;
+            }
+            if (encounterCounter.OnStep(tile == FieldTile.Grass, rng)) StartCoroutine(Encounter());
+        }
+
+        // 출입구: 화면을 어둡게 → 도착 지역의 해당 출입구 칸에 나타남 → 밝게.
+        // 도착은 '걸음'이 아니라서 바로 되돌아가지 않는다 (한 칸 벗어났다 다시 밟아야 이동)
+        private IEnumerator UseDoor(AreaExit exit)
+        {
+            var target = exit.Target;
+            var doors = target.Map.Doors;
+            if (exit.TargetDoorIndex < 0 || exit.TargetDoorIndex >= doors.Count)
+            {
+                Debug.LogError($"[FieldScreen] {area.name}의 출입구가 {target.name}의 {exit.TargetDoorIndex}번 D를 가리키지만 없음");
+                ShowToast("문이 굳게 닫혀 있다.");
+                yield break;
+            }
+
+            transitioning = true;
+            flash.gameObject.SetActive(true);
+            float half = 0.25f * animationScale;
+            for (float t = 0; t < half; t += Time.unscaledDeltaTime)
+            {
+                flash.color = new Color(0, 0, 0, t / half);
+                yield return null;
+            }
+
+            EnterArea(target, doors[exit.TargetDoorIndex]);
+            saveProgress?.Invoke();
+
+            for (float t = 0; t < half; t += Time.unscaledDeltaTime)
+            {
+                flash.color = new Color(0, 0, 0, 1f - t / half);
+                yield return null;
+            }
+            flash.gameObject.SetActive(false);
+            transitioning = false;
+            ShowToast(area.DisplayName, 1.5f);
         }
 
         private void OpenChest(Vector2Int cell)
@@ -223,7 +295,7 @@ namespace WordRPG.UI
                 return;
             }
 
-            tilemap.SetTile(new Vector3Int(cell.x, cell.y, 0), openedChestTile);
+            tilemap.SetTile(new Vector3Int(cell.x, cell.y, 0), TileFor(FieldTile.Chest, true));
             string loot = result.Item != null ? $"{result.Item.DisplayName} x{result.Count}" : "";
             if (result.Gold > 0) loot += (loot.Length > 0 ? " + " : "") + $"{result.Gold} 골드";
             ShowToast($"보물상자를 열었다!\n{loot} 획득", 2.5f);
@@ -239,7 +311,7 @@ namespace WordRPG.UI
             ShowToast("회복의 샘 — 파티가 모두 회복되었다!");
         }
 
-        private IEnumerator Encounter()
+        private IEnumerator Encounter(List<MonsterInstance> enemies = null, string intro = null, bool boss = false)
         {
             transitioning = true;
             flash.gameObject.SetActive(true);
@@ -252,25 +324,38 @@ namespace WordRPG.UI
             }
             flash.gameObject.SetActive(false);
 
-            var enemies = area.Encounters.Roll(rng);
+            enemies = enemies ?? area.Encounters.Roll(rng);
             transitioning = false;
             inBattle = true;
+            bossBattle = boss;
             HideToast();
-            battle.BeginBattle(enemies, area.Words, OnBattleFinished);
+            battle.BeginBattle(enemies, area.Words, OnBattleFinished, intro);
         }
 
         private void OnBattleFinished(bool won)
         {
             inBattle = false;
             encounterCounter.Reset();
-            if (!won)
+            bool wasBoss = bossBattle;
+            bossBattle = false;
+
+            if (won && wasBoss)
             {
-                // 패배: 전투 화면이 이미 파티를 회복시켰다. 시작 위치(회복의 샘 앞)로 돌아간다
+                session.World.MarkBossDefeated(area.BossId);
+                var bossCell = walker.Map.BossPosition.Value;
+                tilemap.SetTile(new Vector3Int(bossCell.x, bossCell.y, 0), TileFor(FieldTile.Boss, true));
+                saveProgress?.Invoke();
+                string name = area.Boss.Species.DisplayName;
+                ShowToast($"★ {UiKit.WithJosa(name, "을", "를")} 물리쳤다!\n{area.DisplayName}에 잊혀진 기억이 돌아왔다", 4f);
+            }
+            else if (!won)
+            {
+                // 패배: 전투 화면이 이미 파티를 회복시켰다. 이 지역의 시작 위치로 돌아간다
                 walker.WarpTo(walker.Map.Start);
                 SnapPlayer();
                 session.World.SetPosition(area.AreaId, walker.Position);
                 saveProgress?.Invoke();
-                ShowToast("회복의 샘으로 돌아왔다. 파티가 회복되었다!");
+                ShowToast($"{area.DisplayName} 시작 지점으로 돌아왔다. 파티가 회복되었다!");
             }
             RefreshHud();
         }
@@ -302,26 +387,50 @@ namespace WordRPG.UI
             playerRenderer.sprite = PlaceholderArt.Player(walker.Facing);
         }
 
-        private void BuildWorld(FieldMap map)
+        // 지역을 바꿔 그린다 (처음 시작할 때, 출입구를 지날 때)
+        private void EnterArea(FieldArea newArea, Vector2Int position)
+        {
+            area = newArea;
+            var map = area.Map;
+            walker = new FieldWalker(map, position);
+            encounterCounter = new EncounterCounter(area.EncounterRate, area.MinStepsBetweenEncounters);
+            session.World.SetPosition(area.AreaId, position);
+
+            tilemap.ClearAllTiles();
+            for (int x = 0; x < map.Width; x++)
+            for (int y = 0; y < map.Height; y++)
+            {
+                var cell = new Vector2Int(x, y);
+                var kind = map.Get(cell);
+                bool done = kind == FieldTile.Chest && session.World.IsChestOpened(area.ChestId(cell))
+                            || kind == FieldTile.Boss && session.World.IsBossDefeated(area.BossId);
+                tilemap.SetTile(new Vector3Int(x, y, 0), TileFor(kind, done));
+            }
+
+            cam.backgroundColor = PlaceholderArt.OutsideColor(area.Theme);
+            SnapPlayer();
+            UpdateCamera();
+            RefreshHud();
+        }
+
+        private Tile TileFor(FieldTile kind, bool done)
+        {
+            string key = $"{area.Theme}_{kind}_{done}";
+            if (!tileCache.TryGetValue(key, out var tile))
+            {
+                tile = MakeTile(PlaceholderArt.ForTile(kind, area.Theme, done));
+                tileCache[key] = tile;
+            }
+            return tile;
+        }
+
+        private void CreateWorldObjects()
         {
             var gridGo = new GameObject("FieldGrid", typeof(Grid));
             gridGo.transform.SetParent(transform, false);
             var tilemapGo = new GameObject("Tiles", typeof(Tilemap), typeof(TilemapRenderer));
             tilemapGo.transform.SetParent(gridGo.transform, false);
             tilemap = tilemapGo.GetComponent<Tilemap>();
-
-            var tiles = new System.Collections.Generic.Dictionary<FieldTile, Tile>();
-            foreach (FieldTile kind in Enum.GetValues(typeof(FieldTile))) tiles[kind] = MakeTile(PlaceholderArt.ForTile(kind));
-            openedChestTile = MakeTile(PlaceholderArt.ForTile(FieldTile.Chest, openedChest: true));
-
-            for (int x = 0; x < map.Width; x++)
-            for (int y = 0; y < map.Height; y++)
-            {
-                var cell = new Vector2Int(x, y);
-                var kind = map.Get(cell);
-                bool opened = kind == FieldTile.Chest && session.World.IsChestOpened(area.ChestId(cell));
-                tilemap.SetTile(new Vector3Int(x, y, 0), opened ? openedChestTile : tiles[kind]);
-            }
 
             var playerGo = new GameObject("Player", typeof(SpriteRenderer));
             playerGo.transform.SetParent(transform, false);
@@ -338,7 +447,6 @@ namespace WordRPG.UI
             }
             cam.orthographic = true;
             cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = PlaceholderArt.OutsideMap;
         }
 
         private static Tile MakeTile(Sprite sprite)

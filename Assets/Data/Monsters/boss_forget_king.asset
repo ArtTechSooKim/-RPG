@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ec416e140bfc414b93cb9aa6306ba85, type: 3}
+  m_Name: boss_forget_king
+  m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.MonsterSpecies
+  speciesId: boss_forget_king
+  displayName: "\uAE4C\uBA39\uB300\uC655"
+  description: "\uAE4C\uBA39\uAE68\uBE44\uB4E4\uC758 \uC6B0\uB450\uBA38\uB9AC. \uC11C\uACE0\uC758
+    \uAE30\uC5B5\uC744 \uBABD\uB545 \uBA39\uC5B4 \uCE58\uC6B0\uACE0 \uC788\uB2E4."
+  role: 0
+  sprite: {fileID: 0}
+  placeholderColor: {r: 0.15, g: 0.6, b: 0.55, a: 1}
+  baseStats:
+    maxHp: 50
+    attack: 14
+    defense: 12
+  growthPerLevel:
+    maxHp: 8
+    attack: 3
+    defense: 2
+  skills:
+  - {fileID: 11400000, guid: c644652d41a6995438e8245b66821e74, type: 2}
+  - {fileID: 11400000, guid: 670ad0cfd8c625745b6664b21ad56436, type: 2}
+  - {fileID: 11400000, guid: d959ca86eeb682240a0450da7c8514ce, type: 2}
+  evolvesTo: {fileID: 0}
+  evolveLevel: 5
+  evolveItem: {fileID: 0}
+  evolveItemCount: 3
+  expReward: 25
+  goldReward: 30
+  drops:
+  - item: {fileID: 11400000, guid: d068093b31fa6bd479a9978022d8bc1f, type: 2}
+    chance: 1
+    count: 1
+  - item: {fileID: 11400000, guid: 4ef0a20b2f82e9c4c8ea2a134a013bf4, type: 2}
+    chance: 1
+    count: 1
+  - item: {fileID: 11400000, guid: 83903ba43d39288409cddb3a5f7b0f43, type: 2}
+    chance: 1
+    count: 1

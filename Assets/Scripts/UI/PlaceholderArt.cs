@@ -25,21 +25,38 @@ namespace WordRPG.UI
 
         public static readonly Color OutsideMap = new Color(0.10f, 0.22f, 0.12f);
 
-        public static Sprite ForTile(FieldTile tile, bool openedChest = false)
+        public static Color OutsideColor(FieldTheme theme) =>
+            theme == FieldTheme.Library ? new Color(0.12f, 0.08f, 0.06f) : OutsideMap;
+
+        // opened: 보물상자는 연 상태, 보스는 쓰러뜨린 뒤 모습
+        public static Sprite ForTile(FieldTile tile, FieldTheme theme = FieldTheme.Meadow, bool opened = false)
         {
+            bool library = theme == FieldTheme.Library;
+            Func<int, int, Color> ground = library ? (Func<int, int, Color>)Planks : Path;
+            string t = theme + "_";
             switch (tile)
             {
-                case FieldTile.Floor: return Make("floor", Path);
-                case FieldTile.Grass: return Make("grass", Grass);
-                case FieldTile.Wall: return Make("tree", Tree);
-                case FieldTile.Water: return Make("water", Water);
-                case FieldTile.Fountain: return Make("fountain", Fountain);
-                case FieldTile.Chest: return openedChest ? Make("chest_open", ChestOpen) : Make("chest", ChestClosed);
-                case FieldTile.Altar: return Make("altar", Altar);
-                case FieldTile.Shop: return Make("shop", ShopStall);
-                default: return Make("floor", Path);
+                case FieldTile.Grass: return library ? Make(t + "grass", Pages) : Make(t + "grass", Grass);
+                case FieldTile.Wall: return library ? Make(t + "wall", Bookshelf) : Make(t + "wall", Tree);
+                case FieldTile.Water: return library ? Make(t + "water", InkPool) : Make(t + "water", Water);
+                case FieldTile.Door: return Make(t + "door", (x, y) => DoorPixel(x, y, library));
+                case FieldTile.Fountain: return Make(t + "fountain", Layer(Fountain, ground));
+                case FieldTile.Chest:
+                    return opened ? Make(t + "chest_open", Layer(ChestOpen, ground)) : Make(t + "chest", Layer(ChestClosed, ground));
+                case FieldTile.Altar: return Make(t + "altar", Layer(Altar, ground));
+                case FieldTile.Shop: return Make(t + "shop", Layer(ShopStall, ground));
+                case FieldTile.Boss:
+                    return opened ? Make(t + "boss_cleared", Layer(OpenBook, ground)) : Make(t + "boss", Layer(BossPixel, ground));
+                default: return Make(t + "floor", ground);
             }
         }
+
+        private static Func<int, int, Color> Layer(Func<int, int, Color> top, Func<int, int, Color> bottom) =>
+            (x, y) =>
+            {
+                var c = top(x, y);
+                return c.a > 0f ? c : bottom(x, y);
+            };
 
         public static Sprite Player(Direction facing) => Make("player_" + facing, (x, y) => PlayerPixel(x, y, facing));
 
@@ -75,12 +92,12 @@ namespace WordRPG.UI
             if (d <= 1.8f) return Color.white;
             if (d <= 5f) return new Color(0.3f, 0.75f, 0.95f);
             if (d <= 7f) return new Color(0.62f, 0.62f, 0.68f);
-            return Path(x, y);
+            return Color.clear;
         }
 
         private static Color ChestClosed(int x, int y)
         {
-            if (x < 2 || x > 13 || y < 2 || y > 11) return Path(x, y);
+            if (x < 2 || x > 13 || y < 2 || y > 11) return Color.clear;
             if (x == 2 || x == 13 || y == 2 || y == 11) return new Color(0.32f, 0.18f, 0.08f);
             if (x >= 7 && x <= 8 && y >= 5 && y <= 8) return new Color(1f, 0.85f, 0.3f);
             if (y == 7) return new Color(0.95f, 0.75f, 0.25f);
@@ -89,7 +106,7 @@ namespace WordRPG.UI
 
         private static Color ChestOpen(int x, int y)
         {
-            if (x < 2 || x > 13 || y < 2 || y > 11) return Path(x, y);
+            if (x < 2 || x > 13 || y < 2 || y > 11) return Color.clear;
             if (x == 2 || x == 13 || y == 2 || y == 11) return new Color(0.25f, 0.15f, 0.07f);
             if (y >= 7) return new Color(0.12f, 0.08f, 0.04f);
             return new Color(0.42f, 0.26f, 0.12f);
@@ -101,7 +118,7 @@ namespace WordRPG.UI
             if (y >= 1 && y <= 5 && x >= 3 && x <= 12) return y == 5 || x == 3 || x == 12 ? new Color(0.45f, 0.45f, 0.52f) : new Color(0.62f, 0.62f, 0.7f);
             int dx = Math.Abs(x * 2 - 15), dy = Math.Abs(y * 2 - 21);
             if (dx + dy <= 8) return dx + dy <= 3 ? new Color(0.95f, 0.8f, 1f) : new Color(0.62f, 0.3f, 0.9f);
-            return Path(x, y);
+            return Color.clear;
         }
 
         // 상점: 빨강·하양 줄무늬 차양 + 나무 진열대 + 금화
@@ -114,7 +131,91 @@ namespace WordRPG.UI
                 return y == 7 ? new Color(0.4f, 0.25f, 0.1f) : new Color(0.6f, 0.4f, 0.2f);
             }
             if ((x == 2 || x == 13) && y >= 8 && y <= 10) return new Color(0.4f, 0.25f, 0.1f);
-            return Path(x, y);
+            return Color.clear;
+        }
+
+        // ------------------------------------------------------------ 서고(던전) 테마
+
+        private static Color Planks(int x, int y)
+        {
+            if (y % 4 == 0) return new Color(0.34f, 0.22f, 0.12f);
+            if ((x + (y / 4) * 5) % 8 == 0) return new Color(0.38f, 0.25f, 0.14f);
+            return Noise(x, y, 3) < 0.08f ? new Color(0.41f, 0.27f, 0.16f) : new Color(0.46f, 0.31f, 0.19f);
+        }
+
+        // 흩어진 책장(종이) — 조우 칸
+        private static Color Pages(int x, int y)
+        {
+            bool sheetA = x >= 1 && x <= 6 && y >= 8 && y <= 13;
+            bool sheetB = x >= 8 && x <= 14 && y >= 2 && y <= 7;
+            bool sheetC = x >= 9 && x <= 13 && y >= 10 && y <= 14;
+            if (sheetA || sheetB || sheetC)
+            {
+                bool line = y % 2 == 0 && x % 6 != 0;
+                return line ? new Color(0.62f, 0.6f, 0.68f) : new Color(0.93f, 0.9f, 0.8f);
+            }
+            return Planks(x, y);
+        }
+
+        private static readonly Color[] Spines =
+        {
+            new Color(0.7f, 0.2f, 0.2f), new Color(0.2f, 0.35f, 0.7f), new Color(0.2f, 0.55f, 0.3f),
+            new Color(0.8f, 0.65f, 0.2f), new Color(0.5f, 0.25f, 0.6f)
+        };
+
+        private static Color Bookshelf(int x, int y)
+        {
+            var frame = new Color(0.25f, 0.15f, 0.08f);
+            if (x == 0 || x == 15 || y <= 1 || y == 8 || y >= 15) return frame;
+            int shelf = y < 8 ? 0 : 1;
+            int book = (x - 1) / 2;
+            var spine = Spines[(book + shelf * 2) % Spines.Length];
+            int top = shelf == 0 ? 7 : 14;
+            if (y == top && (book % 3 == 1)) return new Color(0.18f, 0.1f, 0.05f); // 키 작은 책
+            return (x - 1) % 2 == 1 ? spine * 0.8f : spine;
+        }
+
+        private static Color InkPool(int x, int y)
+        {
+            if ((x * 7 + y * 3) % 13 == 0) return new Color(0.32f, 0.28f, 0.58f);
+            return new Color(0.11f, 0.09f, 0.24f);
+        }
+
+        // 출입구: 초원은 바위 동굴 입구, 서고는 나무 문틀 — 안쪽이 어둡다
+        private static Color DoorPixel(int x, int y, bool library)
+        {
+            var wall = library ? new Color(0.25f, 0.15f, 0.08f) : new Color(0.45f, 0.45f, 0.5f);
+            var rim = library ? new Color(0.55f, 0.38f, 0.2f) : new Color(0.32f, 0.32f, 0.36f);
+            float dx = x - 7.5f;
+            bool inside = x >= 3 && x <= 12 && (y <= 9 || dx * dx + (y - 9f) * (y - 9f) <= 22f);
+            bool edge = x >= 2 && x <= 13 && (y <= 10 || dx * dx + (y - 9f) * (y - 9f) <= 34f);
+            if (inside) return y <= 1 ? new Color(0.9f, 0.8f, 0.45f) : new Color(0.05f, 0.04f, 0.06f);
+            if (edge) return rim;
+            return wall;
+        }
+
+        // 보스 까먹대왕: 뿔 달린 청록 도깨비
+        private static Color BossPixel(int x, int y)
+        {
+            if ((x == 4 || x == 11) && y >= 13 && y <= 15) return new Color(1f, 0.92f, 0.6f);
+            if ((x == 5 || x == 10) && y == 13) return new Color(1f, 0.92f, 0.6f);
+            float dx = x - 7.5f, dy = y - 7f;
+            float d = Mathf.Sqrt(dx * dx + dy * dy);
+            if (d > 6.8f) return Color.clear;
+            if (d > 5.8f) return new Color(0.08f, 0.35f, 0.3f);
+            if ((x == 5 || x == 10) && (y == 8 || y == 9)) return new Color(0.95f, 0.15f, 0.15f);
+            if (y == 4 && x >= 5 && x <= 10) return new Color(0.1f, 0.1f, 0.12f);
+            return new Color(0.2f, 0.72f, 0.62f);
+        }
+
+        // 보스를 쓰러뜨린 자리: 빛나는 펼친 책 (되찾은 기억)
+        private static Color OpenBook(int x, int y)
+        {
+            bool page = y >= 4 && y <= 10 && x >= 1 && x <= 14 && x != 7 && x != 8;
+            if (page) return y % 2 == 0 && x % 5 != 0 ? new Color(0.7f, 0.68f, 0.75f) : new Color(1f, 0.98f, 0.9f);
+            if ((x == 7 || x == 8) && y >= 3 && y <= 10) return new Color(0.55f, 0.35f, 0.2f);
+            if (Distance(x, y) <= 7.5f) return new Color(1f, 0.9f, 0.45f, 1f);
+            return Color.clear;
         }
 
         private static Color PlayerPixel(int x, int y, Direction facing)

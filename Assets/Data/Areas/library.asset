@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c9f8fed8fbccf14ab8116f85f927188, type: 3}
+  m_Name: library
+  m_EditorClassIdentifier: WordRPG::WordRPG.Field.FieldArea
+  areaId: library
+  displayName: "\uC78A\uD600\uC9C4 \uC11C\uACE0"
+  theme: 1
+  map: '#################
+
+    ######..B..######
+
+    ######.....######
+
+    ########.########
+
+    #C,,,,,,.,,,,,,C#
+
+    #,,~~~,,.,,~~~,,#
+
+    #,,~~~,,.,,~~~,,#
+
+    #,,,,,,,.,,,,,,,#
+
+    ########.########
+
+    #...F...........#
+
+    #.#####.#.#####.#
+
+    #.#,,,,,,,,,,,#.#
+
+    #.#,#########,#.#
+
+    #.#,,,,,,,,,,,#.#
+
+    #.#####,#,#####.#
+
+    #...,,,,,,,,,...#
+
+    #...,,,,,,,,,...#
+
+    ########.########
+
+    #,,,,,,,.,,,,,,,#
+
+    #,,#,,#,.,#,,#,,#
+
+    #,,,,,,,.,,,,,,,#
+
+    #######...#######
+
+    #######.P.#######
+
+    ########D########
+
+'
+  encounters: {fileID: 11400000, guid: f2cdfe93005f98f4997321e9c7852d3f, type: 2}
+  words: {fileID: 11400000, guid: 89d1f80701129f84bad1df742f174dae, type: 2}
+  encounterRate: 0.14
+  minStepsBetweenEncounters: 4
+  shop: {fileID: 0}
+  chests:
+  - item: {fileID: 0}
+    count: 0
+    gold: 200
+  - item: {fileID: 11400000, guid: 83903ba43d39288409cddb3a5f7b0f43, type: 2}
+    count: 1
+    gold: 0
+  exits:
+  - target: {fileID: 11400000, guid: a2d06106feb91f048ad3b3d9f1f26ff0, type: 2}
+    targetDoorIndex: 0
+  boss:
+    species: {fileID: 11400000, guid: d12a616f9221242458895cf41f4ebaed, type: 2}
+    level: 7
