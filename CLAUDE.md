@@ -20,7 +20,8 @@
 5. **저장 데이터는 id 문자열로 참조**: wordId, itemId, speciesId. 에셋 이름이 바뀌어도 세이브가 깨지지 않게
 6. **네이밍**: PascalCase 클래스/메서드/프로퍼티, camelCase 필드. SO 필드는 `[SerializeField] private` + 읽기 전용 프로퍼티. 클래스명은 영문, 화면 표시명은 한국어 필드(`displayName = "펜촉이"`). 주석은 한국어
 7. **Git LFS 사용 중**: 이미지·오디오·폰트·네이티브 플러그인. 새 바이너리 타입 추가 시 `.gitattributes` 확인
-8. **세로 화면 기준 UI**: 1080×1920 레퍼런스, 한 손 조작, 4지선다 버튼은 화면 하단
+8. **입력은 Input System 전용**: EventSystem에 `InputSystemUIInputModule` 사용 (`StandaloneInputModule` 금지)
+9. **세로 화면 기준 UI**: 1080×1920 레퍼런스, 한 손 조작, 4지선다 버튼은 화면 하단
 
 ## 폴더 구조
 
@@ -33,8 +34,10 @@ Assets/
     Items/              ItemData SO, Inventory
     Battle/             BattleEngine, BattleFormulas, BattleReward
     Field/              EncounterTable (이후 이동·조우)
+    UI/                 BattleScreen(코드로 uGUI 구성), UnitView, UiKit — 세로 1080x1920, OS 한글 폰트
     Editor/             WordRPG.Editor.asmdef — CSV 임포터, 샘플 데이터 생성기
-  Tests/EditMode/       WordRPG.Tests.EditMode.asmdef
+  Tests/EditMode/       WordRPG.Tests.EditMode.asmdef (로직)
+  Tests/PlayMode/       WordRPG.Tests.PlayMode.asmdef (UI 버튼을 눌러 전투 한 판 진행)
   Data/                 Words, Monsters, Skills, Items, Encounters (SO 에셋)
   Scenes/
 Docs/                   PRD.txt, GDD.md
@@ -42,13 +45,15 @@ Docs/                   PRD.txt, GDD.md
 
 ## 명령어
 
-에디터 메뉴: `WordRPG > Data > Import Word CSVs`, `WordRPG > Data > Create Sample Data` (없는 에셋만 생성)
+에디터 메뉴: `WordRPG > Data > Import Word CSVs`, `WordRPG > Data > Create Sample Data` (없는 에셋만 생성), `WordRPG > Scenes > Create Battle Scene`
+
+전투 화면 확인: `Assets/Scenes/Battle.unity`를 열고 Play (Game 뷰를 세로 비율로, 예: 1080x1920)
 
 배치모드 (Unity 에디터가 이 프로젝트를 열고 있으면 실행 불가):
 
 ```bash
 UNITY="C:/Program Files/Unity/Hub/Editor/6000.3.11f1/Editor/Unity.exe"
-# EditMode 테스트
+# 테스트 (-testPlatform EditMode 또는 PlayMode)
 "$UNITY" -batchmode -nographics -projectPath . -runTests -testPlatform EditMode -testResults results.xml -logFile tests.log
 # 샘플 데이터 생성
 "$UNITY" -batchmode -quit -nographics -projectPath . -executeMethod WordRPG.EditorTools.SampleDataBuilder.Build -logFile build.log

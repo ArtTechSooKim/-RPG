@@ -1,0 +1,146 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Reflection;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
+using UnityEngine.UI;
+using WordRPG.Battle;
+using WordRPG.Field;
+using WordRPG.Monsters;
+using WordRPG.UI;
+using WordRPG.Words;
+
+namespace WordRPG.Tests
+{
+    // 실제 UI 버튼의 onClick을 눌러서 전투 한 판이 끝까지 진행되는지 확인하는 통합 테스트
+    public class BattleScreenTests
+    {
+        private static T Set<T>(T obj, string field, object value) where T : class
+        {
+            var info = obj.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            info.SetValue(obj, value);
+            return obj;
+        }
+
+        private static Button FindButton(Transform root, string name)
+        {
+            foreach (var button in root.GetComponentsInChildren<Button>(true))
+            {
+                if (button.name == name) return button;
+            }
+            return null;
+        }
+
+        private static Button ActiveButton(Transform root, string name)
+        {
+            var button = FindButton(root, name);
+            return button != null && button.gameObject.activeInHierarchy && button.interactable ? button : null;
+        }
+
+        private BattleScreen CreateScreen(MonsterSpecies hero, MonsterSpecies enemy, int partySize)
+        {
+            var table = ScriptableObject.CreateInstance<EncounterTable>();
+            Set(table, "entries", new List<EncounterTable.Entry> { new EncounterTable.Entry(enemy, 1, 1, 1) });
+            Set(table, "minGroupSize", 1);
+            Set(table, "maxGroupSize", 1);
+
+            var db = ScriptableObject.CreateInstance<WordDatabase>();
+            db.ReplaceWords(TestData.SampleWords());
+
+            var species = new MonsterSpecies[partySize];
+            for (int i = 0; i < partySize; i++) species[i] = hero;
+
+            var go = new GameObject("BattleScreenUnderTest");
+            var screen = go.AddComponent<BattleScreen>();
+            screen.Configure(species, 1, table, db, animScale: 0.01f);
+            return screen;
+        }
+
+        // 화면에 보이는 버튼만 눌러서 결과 패널이 뜰 때까지 진행. answerCorrectly=false면 항상 틀린다
+        private IEnumerator PlayUntilResult(BattleScreen screen, bool answerCorrectly)
+        {
+            var root = screen.transform;
+            for (int frame = 0; frame < 3000 && !screen.IsResultVisible; frame++)
+            {
+                var engine = screen.Engine;
+                var confirm = ActiveButton(root, "CardConfirmButton");
+                if (confirm != null)
+                {
+                    confirm.onClick.Invoke();
+                }
+                else if (engine != null && engine.Phase == BattlePhase.AnsweringQuiz && engine.CurrentQuestion != null)
+                {
+                    int index = engine.CurrentQuestion.CorrectIndex;
+                    if (!answerCorrectly) index = (index + 1) % engine.CurrentQuestion.Choices.Count;
+                    ActiveButton(root, $"Choice_{index}")?.onClick.Invoke();
+                }
+                else if (engine != null && engine.Phase == BattlePhase.ChoosingSkill)
+                {
+                    ActiveButton(root, "SkillButton_0")?.onClick.Invoke();
+                }
+                yield return null;
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator WinningABattleThroughTheUi()
+        {
+            LogAssert.ignoreFailingMessages = false;
+            var strike = TestData.Skill("strike", SkillKind.Damage, SkillTarget.SingleEnemy, 40);
+            var hero = TestData.Species("hero", new MonsterStats(100, 30, 10), new MonsterStats(0, 0, 0), strike);
+            var enemy = TestData.Species("enemy", new MonsterStats(40, 1, 50), new MonsterStats(0, 0, 0), strike)
+                .Set("expReward", 20).Set("goldReward", 7);
+            var screen = CreateScreen(hero, enemy, partySize: 2);
+
+            yield return null;
+            yield return null;
+            yield return PlayUntilResult(screen, answerCorrectly: true);
+
+            Assert.IsTrue(screen.IsResultVisible, "결과 패널이 떠야 함");
+            Assert.AreEqual("승리!", screen.ResultTitle);
+            Assert.AreEqual(BattlePhase.Victory, screen.Engine.Phase);
+            Assert.Greater(screen.Engine.CorrectAnswers, 0);
+            Assert.Greater(screen.Party[0].Exp + screen.Party[0].Level, 1, "경험치가 지급돼야 함");
+            Assert.Greater(screen.Vocabulary.Entries.Count, 0, "맞힌 단어가 학습 기록에 남아야 함");
+
+            // 결과 버튼을 누르면 다음 전투가 시작된다
+            var next = ActiveButton(screen.transform, "ResultButton_Primary");
+            Assert.IsNotNull(next);
+            var firstEngine = screen.Engine;
+            next.onClick.Invoke();
+            for (int i = 0; i < 30 && screen.Engine == firstEngine; i++) yield return null;
+            Assert.AreNotSame(firstEngine, screen.Engine);
+            Assert.IsFalse(screen.IsResultVisible);
+
+            Object.Destroy(screen.gameObject);
+        }
+
+        [UnityTest]
+        public IEnumerator LosingABattleThroughTheUi()
+        {
+            var weak = TestData.Skill("weak", SkillKind.Damage, SkillTarget.SingleEnemy, 1);
+            var smash = TestData.Skill("smash", SkillKind.Damage, SkillTarget.SingleEnemy, 500);
+            var hero = TestData.Species("hero", new MonsterStats(10, 5, 1), new MonsterStats(0, 0, 0), weak);
+            var enemy = TestData.Species("enemy", new MonsterStats(500, 50, 50), new MonsterStats(0, 0, 0), smash);
+            var screen = CreateScreen(hero, enemy, partySize: 1);
+
+            yield return null;
+            yield return null;
+            yield return PlayUntilResult(screen, answerCorrectly: false);
+
+            Assert.IsTrue(screen.IsResultVisible);
+            Assert.AreEqual("패배…", screen.ResultTitle);
+            Assert.Greater(screen.Engine.WrongAnswers, 0);
+            var wrongWord = screen.Vocabulary.Entries[0];
+            Assert.IsTrue(wrongWord.InWrongNote, "틀린 단어는 오답 노트에 있어야 함");
+
+            // 재도전하면 파티가 회복된다
+            ActiveButton(screen.transform, "ResultButton_Primary").onClick.Invoke();
+            for (int i = 0; i < 30 && screen.IsResultVisible; i++) yield return null;
+            Assert.AreEqual(screen.Party[0].Stats.MaxHp, screen.Party[0].CurrentHp);
+
+            Object.Destroy(screen.gameObject);
+        }
+    }
+}

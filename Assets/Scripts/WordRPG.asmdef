@@ -1,7 +1,10 @@
 {
     "name": "WordRPG",
     "rootNamespace": "WordRPG",
-    "references": [],
+    "references": [
+        "UnityEngine.UI",
+        "Unity.InputSystem"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
