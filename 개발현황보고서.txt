@@ -68,9 +68,12 @@
      (바꾼 뒤 Claude에게 알려주면 git 원격 주소 갱신)
  [ ] Field.unity 직접 플레이 후 피드백: 이동 속도, 조우 빈도(풀숲 12%), 문제 난이도,
      타이머(10초/크리티컬 3초), 데미지 — 숫자는 인스펙터에서 바로 바꿀 수 있음
+ [ ] Figma UI 키트 확인·수정: https://www.figma.com/design/UUDRmdKgisU6B59saw5gJr
+     (Components 페이지에서 색·버튼을 바꾸면 Screens의 모든 화면에 반영됨. 색은 변수라 한 곳만 고치면 됨)
  [ ] 아트 에셋 제작 (Midjourney / Figma) — 목록·규격·파일 이름: Docs/아트에셋목록.md
      먼저 스타일 결정(도트 크기 16/32, 몬스터 컨셉 유지 여부), P1부터: 몬스터 10장 · 타일 · 전투 배경 · UI 기본 키트
      만든 파일을 Assets/Art/ 에 넣고 "아트 적용해줘" 라고 하면 코드 연결
+     남은 것: 몬스터 10장·주인공·타일·전투 배경 (Midjourney/도트 툴), UI 결과 화면·아이콘 (Figma)
  [ ] 단어 CSV 뜻 검수: Assets/Data/Words/tier1_meadow.csv (엑셀로 열어 수정 → 저장하면 자동 반영)
  [ ] (모바일 빌드 때) Unity Hub → Installs → Android Build Support 설치
 
@@ -97,6 +100,18 @@
 ==================================================================
  [작업 로그]  (최신이 위)
 ==================================================================
+
+[2026-10-01] #12 Figma UI 키트 제작  (코드 변경 없음)
+ - Figma 파일 "WordRPG UI Kit" 생성 (SOO KIM의 팀 drafts): https://www.figma.com/design/UUDRmdKgisU6B59saw5gJr
+ - Foundations: 게임에서 쓰는 색 그대로 변수화(원색 19 + 용도별 31), 간격·모서리 11, 텍스트 스타일 10,
+   효과 3 (카드 그림자, 금색 빛, 글자 외곽선). 글꼴: 제목·숫자 Jua, 본문 Noto Sans KR (둘 다 무료 OFL)
+ - Components 10종: Button(3스타일×3상태), Answer Choice(기본·누름·정답·오답·비활성),
+   Skill Button(공격·회복·보호막), HP Bar, Timer Bar(크리티컬·보통·위험), D-Pad Button, Toast,
+   Monster Card(적/아군 × 없음·차례·대상), Party Badge, Word Card(새 단어/오답)
+ - Screens 5장면(1080×1920): 전투-스킬 선택, 전투-문제, 전투-정답 피드백(크리티컬 숫자), 전투-새 단어, 필드 HUD
+ - 검증: 화면마다 스크린샷 확인. 문제 화면 넘침(4번째 보기 잘림), 오답 카드 제목, 강조 카드 높이,
+   방향 패드 불투명·화살표 사라짐, 필드 맵 위치를 찾아서 고침
+ - 아직: 몬스터 그림(Midjourney 몫), 결과 화면, 아이콘, 버튼 9-slice 내보내기, Unity에 적용
 
 [2026-10-01] #11 아트 에셋 목록 작성
  - Midjourney / Figma로 만들 디자인 요소 전체 목록: Docs/아트에셋목록.md
