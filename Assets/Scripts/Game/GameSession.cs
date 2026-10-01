@@ -42,6 +42,25 @@ namespace WordRPG.Game
             foreach (var monster in party) monster.RestoreFully();
         }
 
+        // 도감을 모두 채운 지역의 보상(징표 + 골드)을 지급한다. 지역당 한 번만 — 이미 받은 지역은 건너뜀.
+        // 나중에 단어가 추가돼 완성률이 내려가도 받은 보상은 그대로 유지
+        public List<DexCompletion> ClaimDexRewards(IEnumerable<WordDatabase> regions)
+        {
+            var completed = new List<DexCompletion>();
+            foreach (var region in regions)
+            {
+                if (region == null || string.IsNullOrEmpty(region.RegionId)) continue;
+                if (Record.HasClaimedRegion(region.RegionId)) continue;
+                if (!Dex.GetProgress(region, Vocabulary).IsComplete) continue;
+
+                Record.MarkRegionClaimed(region.RegionId);
+                if (region.CompletionKeepsake != null) Inventory.Add(region.CompletionKeepsake);
+                if (region.CompletionGold > 0) Inventory.AddGold(region.CompletionGold);
+                completed.Add(new DexCompletion(region));
+            }
+            return completed;
+        }
+
         public SaveData ToSaveData(DateTime nowUtc)
         {
             var partyData = new List<MonsterSaveData>();

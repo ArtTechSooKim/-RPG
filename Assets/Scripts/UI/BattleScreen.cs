@@ -50,6 +50,8 @@ namespace WordRPG.UI
         private readonly List<string> logLines = new List<string>();
 
         private Text roundLabel, vocabLabel, logLabel;
+        private Button dexButton;
+        private DexView dexView;
         private GameObject skillPanel, quizPanel, cardPanel, resultPanel;
 
         private Text skillTitle;
@@ -195,7 +197,8 @@ namespace WordRPG.UI
 
                 // 2. 처음 보는 단어면 뜻부터 보여준다
                 if (question.IsNewWord)
-                    yield return ShowWordCard("새 단어!", question.Word, "확인", Palette.Gold);
+                    yield return ShowWordCard($"새 단어! 도감 등록 ({LearnedCount() + 1}/{words.Words.Count})",
+                        question.Word, "확인", Palette.Gold);
 
                 // 3. 문제
                 float secondsTaken = 0f;
@@ -402,6 +405,12 @@ namespace WordRPG.UI
                 resultTitle.text = "패배…";
                 resultTitle.color = Palette.Bad;
                 body.AppendLine("파티가 전멸했다. 마을에서 회복하고 다시 도전하자!");
+            }
+
+            foreach (var completion in session.ClaimDexRewards(new[] { words }))
+            {
+                body.AppendLine();
+                body.AppendLine(CompletionText(completion));
             }
 
             int up = 0, down = 0;
@@ -631,8 +640,28 @@ namespace WordRPG.UI
 
         // ------------------------------------------------------------------ 패널 전환
 
+        private static string CompletionText(DexCompletion completion)
+        {
+            string keepsake = completion.Keepsake != null ? $"징표 '{completion.Keepsake.DisplayName}' + " : "";
+            return $"★ {completion.Region.RegionName} 도감 완성!  {keepsake}{completion.Gold} 골드 획득";
+        }
+
+        private void OnDexClicked()
+        {
+            if (!dexButton.interactable) return;
+            var completed = session.ClaimDexRewards(new[] { words });
+            if (completed.Count > 0)
+            {
+                Log(CompletionText(completed[0]));
+                saveProgress?.Invoke();
+            }
+            dexView.Show(words, session, DateTime.UtcNow);
+        }
+
         private void ShowPanel(GameObject panel)
         {
+            // 도감은 전투 연출·문제 풀이 중에는 열 수 없다 (스킬 선택 또는 결과 화면일 때만)
+            dexButton.interactable = panel == skillPanel || panel == resultPanel;
             skillPanel.SetActive(panel == skillPanel);
             quizPanel.SetActive(panel == quizPanel);
             cardPanel.SetActive(panel == cardPanel);
@@ -674,10 +703,12 @@ namespace WordRPG.UI
             ApplySafeArea(root);
 
             // 상단 바
-            roundLabel = UiKit.Label("Round", root, "라운드 1", 36, Palette.Gold, 0.03f, 0.945f, 0.4f, 1f,
+            roundLabel = UiKit.Label("Round", root, "라운드 1", 36, Palette.Gold, 0.03f, 0.945f, 0.3f, 1f,
                 TextAnchor.MiddleLeft, FontStyle.Bold);
-            vocabLabel = UiKit.Label("Vocab", root, "", 32, Palette.TextDim, 0.4f, 0.945f, 0.97f, 1f,
+            vocabLabel = UiKit.Label("Vocab", root, "", 30, Palette.TextDim, 0.3f, 0.945f, 0.78f, 1f,
                 TextAnchor.MiddleRight);
+            dexButton = UiKit.MakeButton("DexButton", root, "도감", Palette.Button, 34, 0.8f, 0.948f, 0.97f, 0.998f);
+            dexButton.onClick.AddListener(OnDexClicked);
 
             enemyArea = UiKit.Rect("EnemyArea", root, 0, 0.62f, 1, 0.94f);
 
@@ -701,6 +732,8 @@ namespace WordRPG.UI
             BuildCardPanel(bottom);
             BuildResultPanel(bottom);
             HideAllPanels();
+
+            dexView = DexView.Create(root); // 맨 마지막에 만들어 모든 화면 위에 덮는다
         }
 
         private void BuildSkillPanel(Transform parent)

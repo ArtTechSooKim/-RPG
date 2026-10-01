@@ -5,7 +5,8 @@ namespace WordRPG.Items
     public enum ItemKind
     {
         EvolutionMaterial, // 진화 재료
-        Consumable         // 소모품 (MVP 이후)
+        Consumable,        // 소모품 (MVP 이후)
+        Keepsake           // 지역 도감 완성 징표 (기념물). 모으는 용도
     }
 
     [CreateAssetMenu(fileName = "NewItem", menuName = "WordRPG/Item", order = 20)]

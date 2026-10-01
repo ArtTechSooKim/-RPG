@@ -23,6 +23,10 @@ namespace WordRPG.EditorTools
             var hardCover = Item("hard_cover", "단단한 표지", "책껍질을 진화시키는 두꺼운 가죽 표지.", new Color(0.55f, 0.35f, 0.2f));
             var sparkleDust = Item("sparkle_dust", "반짝 가루", "등불이를 진화시키는 빛나는 가루.", new Color(1f, 0.9f, 0.4f));
 
+            // --- 지역 도감 완성 징표 (지역 특색에 맞는 기념물) ---
+            var meadowKeepsake = Item("keepsake_meadow", "네잎클로버 책갈피",
+                "초원 도감을 완성한 증표. 행운을 부르는 네잎클로버가 곱게 눌려 있다.", new Color(0.35f, 0.8f, 0.35f), ItemKind.Keepsake);
+
             // --- 스킬: 기본기는 쉬운 영→한, 필살기는 어려운 한→영 ---
             var poke = Skill("nib_poke", "찌르기", "펜촉으로 콕 찌른다.", SkillKind.Damage, SkillTarget.SingleEnemy, 20, QuizDirection.EnglishToMeaning);
             var inkSplash = Skill("nib_ink_splash", "잉크 뿌리기", "적 전체에 잉크를 뿌린다.", SkillKind.Damage, SkillTarget.AllEnemies, 14, QuizDirection.MeaningToEnglish);
@@ -80,19 +84,42 @@ namespace WordRPG.EditorTools
                 new EncounterTable.Entry(inkSlime, 2, 4, 5),
                 new EncounterTable.Entry(scribbleBat, 2, 4, 5));
 
+            // 단어장(CSV에서 만들어짐)에 지역 정보와 도감 완성 보상 지정. 이미 지정돼 있으면 건드리지 않음
+            WordCsvImporter.ImportAll();
+            ConfigureRegion("Assets/Data/Words/tier1_meadow.asset", "meadow", "초원", meadowKeepsake, 500);
+
             AssetDatabase.SaveAssets();
             GameDatabaseBuilder.Refresh();
             Debug.Log("[WordRPG] 샘플 데이터 생성 완료 (기존 에셋은 유지)");
         }
 
-        private static ItemData Item(string id, string name, string description, Color color)
+        private static void ConfigureRegion(string wordBookPath, string regionId, string regionName, ItemData keepsake, int gold)
+        {
+            var book = AssetDatabase.LoadAssetAtPath<WordDatabase>(wordBookPath);
+            if (book == null)
+            {
+                Debug.LogWarning($"[WordRPG] 단어장이 없어 지역 설정을 건너뜀: {wordBookPath}");
+                return;
+            }
+            if (!string.IsNullOrEmpty(book.RegionId)) return;
+
+            var so = new SerializedObject(book);
+            Prop(so, "regionId").stringValue = regionId;
+            Prop(so, "regionName").stringValue = regionName;
+            Prop(so, "completionKeepsake").objectReferenceValue = keepsake;
+            Prop(so, "completionGold").intValue = gold;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static ItemData Item(string id, string name, string description, Color color,
+            ItemKind kind = ItemKind.EvolutionMaterial)
         {
             return CreateIfMissing<ItemData>($"{Root}/Items/{id}.asset", so =>
             {
                 Prop(so, "itemId").stringValue = id;
                 Prop(so, "displayName").stringValue = name;
                 Prop(so, "description").stringValue = description;
-                Prop(so, "kind").enumValueIndex = (int)ItemKind.EvolutionMaterial;
+                Prop(so, "kind").enumValueIndex = (int)kind;
                 Prop(so, "placeholderColor").colorValue = color;
             });
         }

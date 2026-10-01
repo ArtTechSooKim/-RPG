@@ -222,5 +222,85 @@ namespace WordRPG.Tests
                 if (System.IO.Directory.Exists(dir)) System.IO.Directory.Delete(dir, true);
             }
         }
+
+        private static string AllText(Component root) =>
+            string.Join(" | ", System.Array.ConvertAll(root.GetComponentsInChildren<Text>(true), t => t.text));
+
+        // 도감 화면: 미발견은 ???, 목록 개수, 닫기. 스킬 선택 중에만 열린다
+        [UnityTest]
+        public IEnumerator DexShowsUndiscoveredWordsAsHidden()
+        {
+            var strike = TestData.Skill("strike", SkillKind.Damage, SkillTarget.SingleEnemy, 40);
+            var hero = TestData.Species("hero", new MonsterStats(100, 30, 10), new MonsterStats(0, 0, 0), strike);
+            var enemy = TestData.Species("enemy", new MonsterStats(40, 1, 50), new MonsterStats(0, 0, 0), strike);
+            var screen = CreateScreen(hero, enemy, partySize: 1);
+            yield return null;
+            yield return null;
+
+            var open = FindButton(screen.transform, "DexButton");
+            Assert.IsTrue(open.interactable, "스킬 선택 중에는 도감을 열 수 있다");
+            open.onClick.Invoke();
+            yield return null;
+
+            int rowCount = 0;
+            foreach (var button in screen.GetComponentsInChildren<Button>(true))
+            {
+                if (button.name.StartsWith("DexRow_")) rowCount++;
+            }
+            Assert.AreEqual(TestData.SampleWords().Count, rowCount);
+
+            var firstRow = FindButton(screen.transform, "DexRow_0");
+            StringAssert.Contains("???", AllText(firstRow));
+            firstRow.onClick.Invoke();
+            StringAssert.Contains("아직 발견하지 못한", AllText(screen.transform.Find("BattleCanvas/SafeArea/DexView")));
+
+            FindButton(screen.transform, "DexCloseButton").onClick.Invoke();
+            Assert.IsFalse(screen.transform.Find("BattleCanvas/SafeArea/DexView").gameObject.activeSelf);
+
+            // 문제를 푸는 중에는 도감 버튼이 잠긴다
+            ActiveButton(screen.transform, "SkillButton_0").onClick.Invoke();
+            yield return null;
+            Assert.IsFalse(FindButton(screen.transform, "DexButton").interactable);
+
+            Object.Destroy(screen.gameObject);
+        }
+
+        // 단어장을 전부 발견하면 징표와 골드가 지급되고 결과 화면에 표시, 도감에서도 완료 표시
+        [UnityTest]
+        public IEnumerator CompletingDexGivesKeepsakeAndGold()
+        {
+            var strike = TestData.Skill("strike", SkillKind.Damage, SkillTarget.SingleEnemy, 40);
+            var hero = TestData.Species("hero", new MonsterStats(100, 30, 10), new MonsterStats(0, 0, 0), strike);
+            var enemy = TestData.Species("enemy", new MonsterStats(40, 1, 50), new MonsterStats(0, 0, 0), strike)
+                .Set("goldReward", 0);
+            var keepsake = TestData.Item("keepsake_test").Set("displayName", "시험 징표");
+            var oneWord = ScriptableObject.CreateInstance<WordDatabase>()
+                .Set("regionId", "test").Set("regionName", "시험 지역")
+                .Set("completionKeepsake", keepsake).Set("completionGold", 777);
+            oneWord.ReplaceWords(new List<WordEntry> { new WordEntry("", "abandon", "버리다, 포기하다", "v") });
+
+            var session = GameSession.NewGame(new[] { hero }, 1);
+            var go = new GameObject("DexCompletionTest");
+            var screen = go.AddComponent<BattleScreen>();
+            screen.Configure(Table(enemy), oneWord, session, animScale: 0.01f);
+            yield return null;
+            yield return null;
+            yield return PlayUntilResult(screen, answerCorrectly: true);
+
+            Assert.IsTrue(screen.IsResultVisible);
+            Assert.AreEqual(777, session.Inventory.Gold);
+            Assert.AreEqual(1, session.Inventory.GetCount(keepsake));
+            var resultText = AllText(screen.transform.Find("BattleCanvas/SafeArea/Bottom/ResultPanel"));
+            StringAssert.Contains("도감 완성", resultText);
+            StringAssert.Contains("시험 징표", resultText);
+
+            // 결과 화면에서 도감을 열면 '획득 완료'
+            FindButton(screen.transform, "DexButton").onClick.Invoke();
+            yield return null;
+            StringAssert.Contains("획득 완료", AllText(screen.transform.Find("BattleCanvas/SafeArea/DexView")));
+            Assert.AreEqual(777, session.Inventory.Gold, "도감을 열어도 중복 지급 없음");
+
+            Object.Destroy(go);
+        }
     }
 }
