@@ -44,6 +44,7 @@ namespace WordRPG.Save
         [SerializeField] private Inventory inventory = new Inventory();
         [SerializeField] private VocabularyProgress vocabulary = new VocabularyProgress();
         [SerializeField] private PlayerRecord record = new PlayerRecord();
+        [SerializeField] private WorldState world = new WorldState();
 
         public int Version => version;
         public DateTime SavedAtUtc => new DateTime(savedAtTicks, DateTimeKind.Utc);
@@ -51,17 +52,19 @@ namespace WordRPG.Save
         public Inventory Inventory => inventory;
         public VocabularyProgress Vocabulary => vocabulary;
         public PlayerRecord Record => record;
+        public WorldState World => world;
 
         public SaveData() { }
 
         public SaveData(DateTime savedAtUtc, List<MonsterSaveData> party, Inventory inventory,
-            VocabularyProgress vocabulary, PlayerRecord record)
+            VocabularyProgress vocabulary, PlayerRecord record, WorldState world = null)
         {
             savedAtTicks = savedAtUtc.Ticks;
             this.party = party;
             this.inventory = inventory;
             this.vocabulary = vocabulary;
             this.record = record;
+            this.world = world ?? new WorldState();
         }
 
         public string ToJson() => JsonUtility.ToJson(this, true);
@@ -78,6 +81,7 @@ namespace WordRPG.Save
             data.inventory = data.inventory ?? new Inventory();
             data.vocabulary = data.vocabulary ?? new VocabularyProgress();
             data.record = data.record ?? new PlayerRecord();
+            data.world = data.world ?? new WorldState();
             return data;
         }
     }

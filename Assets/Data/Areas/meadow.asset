@@ -1,0 +1,80 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c9f8fed8fbccf14ab8116f85f927188, type: 3}
+  m_Name: meadow
+  m_EditorClassIdentifier: WordRPG::WordRPG.Field.FieldArea
+  areaId: meadow
+  displayName: "\uCD08\uC6D0"
+  map: '###################
+
+    #,,,,,,#,,,,,,,,,C#
+
+    #,,C,,,#,,,,~~~,,,#
+
+    #,,,,,,.,,,,~~~,,,#
+
+    #,,,,,,#,,,,,,,,,,#
+
+    ###.#######.#######
+
+    #.....,,,,,.......#
+
+    #.~~~.,,,,,.,,,,,.#
+
+    #.~~~.,,,,,.,,C,,.#
+
+    #.....,,,,,.,,,,,.#
+
+    #####.......#######
+
+    #,,,,,,,.,,,,,,,,,#
+
+    #,,,,,,,.,,,,,,,,,#
+
+    #,,,##,,.,,##,,,,,#
+
+    #,,,##,,.,,##,,,C,#
+
+    #,,,,,,,.,,,,,,,,,#
+
+    ########.##########
+
+    #.................#
+
+    #.#.#...F.....#.#.#
+
+    #.................#
+
+    #.#.#...P.....#.#.#
+
+    #.................#
+
+    ###################
+
+'
+  encounters: {fileID: 11400000, guid: bee0782bd39e10b419f0ac25025fd29e, type: 2}
+  words: {fileID: 11400000, guid: 89d1f80701129f84bad1df742f174dae, type: 2}
+  encounterRate: 0.12
+  minStepsBetweenEncounters: 4
+  chests:
+  - item: {fileID: 11400000, guid: 4ef0a20b2f82e9c4c8ea2a134a013bf4, type: 2}
+    count: 2
+    gold: 0
+  - item: {fileID: 11400000, guid: d068093b31fa6bd479a9978022d8bc1f, type: 2}
+    count: 2
+    gold: 0
+  - item: {fileID: 11400000, guid: 83903ba43d39288409cddb3a5f7b0f43, type: 2}
+    count: 2
+    gold: 0
+  - item: {fileID: 0}
+    count: 0
+    gold: 100

@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
 namespace WordRPG.UI
@@ -112,5 +114,20 @@ namespace WordRPG.UI
         public static Text LabelOf(Button button) => button.GetComponentInChildren<Text>();
 
         public static void SetColor(Button button, Color color) => button.targetGraphic.color = color;
+
+        public static void EnsureEventSystem()
+        {
+            if (Object.FindFirstObjectByType<EventSystem>() != null) return;
+            // 이 프로젝트는 Input System 전용이라 StandaloneInputModule이 아닌 InputSystemUIInputModule을 쓴다
+            new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+        }
+
+        public static void ApplySafeArea(RectTransform rt)
+        {
+            var safe = Screen.safeArea;
+            if (Screen.width <= 0 || Screen.height <= 0) return;
+            rt.anchorMin = new Vector2(safe.xMin / Screen.width, safe.yMin / Screen.height);
+            rt.anchorMax = new Vector2(safe.xMax / Screen.width, safe.yMax / Screen.height);
+        }
     }
 }

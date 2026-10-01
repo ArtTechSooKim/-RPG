@@ -27,6 +27,9 @@ namespace WordRPG.UI
         [SerializeField] private BattleConfig battleConfig = new BattleConfig();
         [SerializeField] private MasteryRules masteryRules = new MasteryRules();
 
+        [Tooltip("켜면 전투가 끝나도 다음 전투가 계속 이어짐 (전투 연습 씬). 필드에서는 끄고 BeginBattle로 한 판씩")]
+        [SerializeField] private bool loopBattles = true;
+
         [Header("연출")]
         [Tooltip("연출 대기 시간 배율. 테스트에서는 아주 작게")]
         [SerializeField] private float animationScale = 1f;
@@ -37,8 +40,10 @@ namespace WordRPG.UI
         private Action saveProgress;
         private string pendingStatusMessage;
         private WordQuizService quizService;
+        private WordDatabase quizWords;
         private BattleEngine engine;
-        private bool started;
+        private bool initialized;
+        private bool running; // 필드 모드에서 전투 중인지
 
         private Canvas canvas;
         private RectTransform root;
@@ -81,13 +86,14 @@ namespace WordRPG.UI
         public bool IsResultVisible => resultPanel != null && resultPanel.activeSelf;
         public string ResultTitle => resultTitle != null ? resultTitle.text : "";
         public GameSession Session => session;
+        public bool IsRunning => running;
         public IReadOnlyList<MonsterInstance> Party => session.Party;
         public VocabularyProgress Vocabulary => session.Vocabulary;
 
         // 코드로 만든 BattleScreen(테스트 등)이 Start 전에 데이터를 넣는 용도.
         // session을 안 주면 Start에서 GameManager.Instance의 세션을 쓴다
         public void Configure(EncounterTable table, WordDatabase database, GameSession gameSession = null,
-            float animScale = 1f, BattleConfig config = null, Action onProgress = null)
+            float animScale = 1f, BattleConfig config = null, Action onProgress = null, bool loop = true)
         {
             encounter = table;
             words = database;
@@ -95,32 +101,49 @@ namespace WordRPG.UI
             animationScale = animScale;
             if (config != null) battleConfig = config;
             saveProgress = onProgress;
+            loopBattles = loop;
         }
 
         private void Start()
         {
-            if (started) return;
-            started = true;
+            if (!EnsureInitialized()) return;
+            if (loopBattles) StartCoroutine(MainLoop());
+        }
+
+        private bool EnsureInitialized()
+        {
+            if (initialized) return true;
 
             if (session == null && GameManager.Instance != null)
             {
                 var manager = GameManager.Instance;
                 session = manager.Session;
                 saveProgress = manager.Save;
-                pendingStatusMessage = manager.StatusMessage;
+                if (loopBattles) pendingStatusMessage = manager.StatusMessage; // 필드에서는 필드가 보여줌
             }
 
-            if (session == null || encounter == null || words == null)
+            if (session == null || (loopBattles && (encounter == null || words == null)))
             {
                 Debug.LogError("[BattleScreen] GameManager(또는 Configure의 session) / encounter / words 가 비어 있습니다");
-                return;
+                return false;
             }
 
+            initialized = true;
             rng = new System.Random();
-            quizService = new WordQuizService(words.Words, session.Vocabulary, masteryRules, rng);
-
             BuildUi();
-            StartCoroutine(MainLoop());
+            if (!loopBattles) canvas.gameObject.SetActive(false);
+            return true;
+        }
+
+        // 필드에서 조우했을 때 한 판. 결과 화면의 버튼을 누르면 화면을 닫고 onFinished(승리 여부)
+        public void BeginBattle(List<MonsterInstance> enemies, WordDatabase wordBook, Action<bool> onFinished)
+        {
+            if (running) throw new InvalidOperationException("이미 전투 중입니다");
+            if (!EnsureInitialized()) return;
+            words = wordBook;
+            running = true;
+            canvas.gameObject.SetActive(true);
+            StartCoroutine(SingleBattle(enemies, onFinished));
         }
 
         // ------------------------------------------------------------------ 흐름
@@ -129,16 +152,33 @@ namespace WordRPG.UI
         {
             while (true)
             {
-                StartNewBattle();
+                StartNewBattle(encounter.Roll(rng));
                 yield return PlayBattle();
                 yield return ShowResult();
             }
         }
 
-        private void StartNewBattle()
+        private IEnumerator SingleBattle(List<MonsterInstance> enemies, Action<bool> onFinished)
+        {
+            StartNewBattle(enemies);
+            yield return PlayBattle();
+            yield return ShowResult();
+            bool victory = engine.Phase == BattlePhase.Victory;
+            HideAllPanels();
+            if (dexView.IsOpen) dexView.Hide();
+            canvas.gameObject.SetActive(false);
+            running = false;
+            onFinished?.Invoke(victory);
+        }
+
+        private void StartNewBattle(List<MonsterInstance> enemies)
         {
             if (!session.CanFight) session.RestoreParty();
-            var enemies = encounter.Roll(rng);
+            if (quizService == null || quizWords != words)
+            {
+                quizWords = words;
+                quizService = new WordQuizService(words.Words, session.Vocabulary, masteryRules, rng);
+            }
             engine = new BattleEngine(session.Party, enemies, quizService, battleConfig, rng);
 
             foreach (var view in enemyViews) Destroy(view.Root.gameObject);
@@ -404,7 +444,7 @@ namespace WordRPG.UI
             {
                 resultTitle.text = "패배…";
                 resultTitle.color = Palette.Bad;
-                body.AppendLine("파티가 전멸했다. 마을에서 회복하고 다시 도전하자!");
+                body.AppendLine(loopBattles ? "파티가 전멸했다. 회복하고 다시 도전하자!" : "파티가 전멸했다… 회복의 샘으로 돌아간다.");
             }
 
             foreach (var completion in session.ClaimDexRewards(new[] { words }))
@@ -427,7 +467,8 @@ namespace WordRPG.UI
             session.Record.RecordBattle(victory, engine.CorrectAnswers, engine.WrongAnswers);
             saveProgress?.Invoke();
 
-            SetResultButtons(victory ? "다음 전투" : "파티 회복 후 재도전", victory ? "파티 회복 후 전투" : null);
+            if (loopBattles) SetResultButtons(victory ? "다음 전투" : "파티 회복 후 재도전", victory ? "파티 회복 후 전투" : null);
+            else SetResultButtons(victory ? "계속 탐험" : "회복의 샘으로", null);
             resultChoice = -1;
             ShowPanel(resultPanel);
             while (resultChoice < 0) yield return null;
@@ -685,11 +726,12 @@ namespace WordRPG.UI
 
         private void BuildUi()
         {
-            EnsureEventSystem();
+            UiKit.EnsureEventSystem();
 
             var canvasGo = new GameObject("BattleCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvasGo.transform.SetParent(transform, false);
             canvas = canvasGo.GetComponent<Canvas>();
+            canvas.sortingOrder = 10; // 필드 HUD 위에 덮는다
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             var scaler = canvasGo.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -700,7 +742,7 @@ namespace WordRPG.UI
             UiKit.Panel("Background", canvasGo.transform, Palette.Background);
 
             root = UiKit.Stretch("SafeArea", canvasGo.transform);
-            ApplySafeArea(root);
+            UiKit.ApplySafeArea(root);
 
             // 상단 바
             roundLabel = UiKit.Label("Round", root, "라운드 1", 36, Palette.Gold, 0.03f, 0.945f, 0.3f, 1f,
@@ -817,19 +859,5 @@ namespace WordRPG.UI
             resultSecondary.onClick.AddListener(() => resultChoice = 1);
         }
 
-        private static void EnsureEventSystem()
-        {
-            if (FindFirstObjectByType<EventSystem>() != null) return;
-            // 이 프로젝트는 Input System 전용이라 StandaloneInputModule이 아닌 InputSystemUIInputModule을 쓴다
-            new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
-        }
-
-        private static void ApplySafeArea(RectTransform rt)
-        {
-            var safe = Screen.safeArea;
-            if (Screen.width <= 0 || Screen.height <= 0) return;
-            rt.anchorMin = new Vector2(safe.xMin / Screen.width, safe.yMin / Screen.height);
-            rt.anchorMax = new Vector2(safe.xMax / Screen.width, safe.yMax / Screen.height);
-        }
     }
 }

@@ -76,7 +76,7 @@ namespace WordRPG.EditorTools
                 enemyExp: 15, enemyGold: 20, drops: new[] { new ItemDrop(hardCover, 0.6f), new ItemDrop(sparkleDust, 0.3f) });
 
             // --- 출현표 ---
-            Encounters("meadow_field", 1, 2,
+            var meadowEncounters = Encounters("meadow_field", 1, 2,
                 new EncounterTable.Entry(inkSlime, 1, 3, 10),
                 new EncounterTable.Entry(scribbleBat, 1, 3, 8));
             Encounters("word_dungeon", 1, 3,
@@ -88,9 +88,65 @@ namespace WordRPG.EditorTools
             WordCsvImporter.ImportAll();
             ConfigureRegion("Assets/Data/Words/tier1_meadow.asset", "meadow", "초원", meadowKeepsake, 500);
 
+            // --- 필드: 초원. 보물상자는 맵의 C를 위→아래, 왼→오른 순으로 대응 (진화 재료를 얻는 도감 외 경로) ---
+            Area("meadow", "초원", MeadowMap, meadowEncounters,
+                AssetDatabase.LoadAssetAtPath<WordDatabase>("Assets/Data/Words/tier1_meadow.asset"),
+                new ChestContent(hardCover, 2),   // 오른쪽 위 구석
+                new ChestContent(shinyInk, 2),    // 왼쪽 위 방
+                new ChestContent(sparkleDust, 2), // 가운데 풀밭
+                new ChestContent(null, 0, 100));  // 마을 위 풀밭
+
             AssetDatabase.SaveAssets();
             GameDatabaseBuilder.Refresh();
             Debug.Log("[WordRPG] 샘플 데이터 생성 완료 (기존 에셋은 유지)");
+        }
+
+        // . 길  , 풀숲(조우)  # 나무  ~ 물  F 회복의 샘  C 보물상자  P 시작 위치 (아래쪽 마을에서 출발해 북쪽으로 탐험)
+        private const string MeadowMap =
+                "###################\n" +
+                "#,,,,,,#,,,,,,,,,C#\n" +
+                "#,,C,,,#,,,,~~~,,,#\n" +
+                "#,,,,,,.,,,,~~~,,,#\n" +
+                "#,,,,,,#,,,,,,,,,,#\n" +
+                "###.#######.#######\n" +
+                "#.....,,,,,.......#\n" +
+                "#.~~~.,,,,,.,,,,,.#\n" +
+                "#.~~~.,,,,,.,,C,,.#\n" +
+                "#.....,,,,,.,,,,,.#\n" +
+                "#####.......#######\n" +
+                "#,,,,,,,.,,,,,,,,,#\n" +
+                "#,,,,,,,.,,,,,,,,,#\n" +
+                "#,,,##,,.,,##,,,,,#\n" +
+                "#,,,##,,.,,##,,,C,#\n" +
+                "#,,,,,,,.,,,,,,,,,#\n" +
+                "########.##########\n" +
+                "#.................#\n" +
+                "#.#.#...F.....#.#.#\n" +
+                "#.................#\n" +
+                "#.#.#...P.....#.#.#\n" +
+                "#.................#\n" +
+                "###################\n";
+
+        private static void Area(string id, string name, string map, EncounterTable encounters, WordDatabase words,
+            params ChestContent[] chests)
+        {
+            CreateIfMissing<FieldArea>($"{Root}/Areas/{id}.asset", so =>
+            {
+                Prop(so, "areaId").stringValue = id;
+                Prop(so, "displayName").stringValue = name;
+                Prop(so, "map").stringValue = map;
+                Prop(so, "encounters").objectReferenceValue = encounters;
+                Prop(so, "words").objectReferenceValue = words;
+                var list = Prop(so, "chests");
+                list.arraySize = chests.Length;
+                for (int i = 0; i < chests.Length; i++)
+                {
+                    var element = list.GetArrayElementAtIndex(i);
+                    element.FindPropertyRelative("item").objectReferenceValue = chests[i].Item;
+                    element.FindPropertyRelative("count").intValue = chests[i].Count;
+                    element.FindPropertyRelative("gold").intValue = chests[i].Gold;
+                }
+            });
         }
 
         private static void ConfigureRegion(string wordBookPath, string regionId, string regionName, ItemData keepsake, int gold)
@@ -177,9 +233,9 @@ namespace WordRPG.EditorTools
             });
         }
 
-        private static void Encounters(string id, int minGroup, int maxGroup, params EncounterTable.Entry[] entries)
+        private static EncounterTable Encounters(string id, int minGroup, int maxGroup, params EncounterTable.Entry[] entries)
         {
-            CreateIfMissing<EncounterTable>($"{Root}/Encounters/{id}.asset", so =>
+            return CreateIfMissing<EncounterTable>($"{Root}/Encounters/{id}.asset", so =>
             {
                 Prop(so, "minGroupSize").intValue = minGroup;
                 Prop(so, "maxGroupSize").intValue = maxGroup;

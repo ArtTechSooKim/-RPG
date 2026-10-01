@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
+using WordRPG.Field;
 using WordRPG.Items;
 using WordRPG.Monsters;
 using WordRPG.Save;
@@ -7,7 +9,23 @@ using WordRPG.Words;
 
 namespace WordRPG.Game
 {
-    // 플레이어 한 명의 게임 진행 상태 전체: 파티, 소지품, 단어 학습 기록, 전적.
+    public class ChestResult
+    {
+        public bool WasEmpty { get; }  // 이미 연 상자 (또는 내용물 미지정)
+        public ItemData Item { get; }
+        public int Count { get; }
+        public int Gold { get; }
+
+        public ChestResult(bool wasEmpty, ItemData item, int count, int gold)
+        {
+            WasEmpty = wasEmpty;
+            Item = item;
+            Count = count;
+            Gold = gold;
+        }
+    }
+
+    // 플레이어 한 명의 게임 진행 상태 전체: 파티, 소지품, 단어 학습 기록, 전적, 필드 위치·연 상자.
     // 세이브 파일(SaveData)과 서로 변환된다. MonoBehaviour가 아니라 테스트에서 바로 만들 수 있다
     public class GameSession
     {
@@ -20,21 +38,25 @@ namespace WordRPG.Game
         public Inventory Inventory { get; }
         public VocabularyProgress Vocabulary { get; }
         public PlayerRecord Record { get; }
+        public WorldState World { get; }
         public IReadOnlyList<string> LoadWarnings => loadWarnings;
 
         public bool CanFight => party.Exists(m => !m.IsFainted);
 
-        private GameSession(List<MonsterInstance> party, Inventory inventory, VocabularyProgress vocabulary, PlayerRecord record)
+        private GameSession(List<MonsterInstance> party, Inventory inventory, VocabularyProgress vocabulary,
+            PlayerRecord record, WorldState world)
         {
             this.party = party;
             Inventory = inventory;
             Vocabulary = vocabulary;
             Record = record;
+            World = world;
         }
 
         public static GameSession NewGame(IReadOnlyList<MonsterSpecies> starters, int level)
         {
-            return new GameSession(CreateParty(starters, level), new Inventory(), new VocabularyProgress(), new PlayerRecord());
+            return new GameSession(CreateParty(starters, level), new Inventory(), new VocabularyProgress(),
+                new PlayerRecord(), new WorldState());
         }
 
         public void RestoreParty()
@@ -61,12 +83,27 @@ namespace WordRPG.Game
             return completed;
         }
 
+        // 보물상자는 상자마다 한 번만 열린다 (세이브에 기록). 진화 재료를 얻는 도감 외 경로
+        public ChestResult OpenChest(FieldArea area, Vector2Int position)
+        {
+            string chestId = area.ChestId(position);
+            if (World.IsChestOpened(chestId)) return new ChestResult(true, null, 0, 0);
+
+            var content = area.GetChestContent(position);
+            World.MarkChestOpened(chestId);
+            if (content == null) return new ChestResult(true, null, 0, 0);
+
+            if (content.Item != null && content.Count > 0) Inventory.Add(content.Item, content.Count);
+            if (content.Gold > 0) Inventory.AddGold(content.Gold);
+            return new ChestResult(false, content.Item, content.Count, content.Gold);
+        }
+
         public SaveData ToSaveData(DateTime nowUtc)
         {
             var partyData = new List<MonsterSaveData>();
             foreach (var m in party)
                 partyData.Add(new MonsterSaveData(m.Species.SpeciesId, m.Level, m.Exp, m.CurrentHp));
-            return new SaveData(nowUtc, partyData, Inventory, Vocabulary, Record);
+            return new SaveData(nowUtc, partyData, Inventory, Vocabulary, Record, World);
         }
 
         // 세이브에 있는 몬스터 종을 찾을 수 없으면(삭제·id 변경) 그 몬스터는 빼고 경고를 남긴다.
@@ -94,7 +131,7 @@ namespace WordRPG.Game
                 restored = CreateParty(fallbackStarters, fallbackLevel);
             }
 
-            var session = new GameSession(restored, data.Inventory, data.Vocabulary, data.Record);
+            var session = new GameSession(restored, data.Inventory, data.Vocabulary, data.Record, data.World);
             session.loadWarnings.AddRange(warnings);
 
             // 전멸한 채로 저장됐다면(패배 직후 앱 종료 등) 마을로 돌아온 것으로 보고 회복

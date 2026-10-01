@@ -11,6 +11,7 @@ using WordRPG.Game;
 using WordRPG.Monsters;
 using WordRPG.UI;
 using WordRPG.Words;
+using static WordRPG.Tests.UiDriver;
 
 namespace WordRPG.Tests
 {
@@ -22,21 +23,6 @@ namespace WordRPG.Tests
             var info = obj.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
             info.SetValue(obj, value);
             return obj;
-        }
-
-        private static Button FindButton(Transform root, string name)
-        {
-            foreach (var button in root.GetComponentsInChildren<Button>(true))
-            {
-                if (button.name == name) return button;
-            }
-            return null;
-        }
-
-        private static Button ActiveButton(Transform root, string name)
-        {
-            var button = FindButton(root, name);
-            return button != null && button.gameObject.activeInHierarchy && button.interactable ? button : null;
         }
 
         private static EncounterTable Table(MonsterSpecies enemy)
@@ -64,32 +50,6 @@ namespace WordRPG.Tests
             var screen = go.AddComponent<BattleScreen>();
             screen.Configure(Table(enemy), Words(), GameSession.NewGame(species, 1), animScale: 0.01f);
             return screen;
-        }
-
-        // 화면에 보이는 버튼만 눌러서 결과 패널이 뜰 때까지 진행. answerCorrectly=false면 항상 틀린다
-        private IEnumerator PlayUntilResult(BattleScreen screen, bool answerCorrectly)
-        {
-            var root = screen.transform;
-            for (int frame = 0; frame < 3000 && !screen.IsResultVisible; frame++)
-            {
-                var engine = screen.Engine;
-                var confirm = ActiveButton(root, "CardConfirmButton");
-                if (confirm != null)
-                {
-                    confirm.onClick.Invoke();
-                }
-                else if (engine != null && engine.Phase == BattlePhase.AnsweringQuiz && engine.CurrentQuestion != null)
-                {
-                    int index = engine.CurrentQuestion.CorrectIndex;
-                    if (!answerCorrectly) index = (index + 1) % engine.CurrentQuestion.Choices.Count;
-                    ActiveButton(root, $"Choice_{index}")?.onClick.Invoke();
-                }
-                else if (engine != null && engine.Phase == BattlePhase.ChoosingSkill)
-                {
-                    ActiveButton(root, "SkillButton_0")?.onClick.Invoke();
-                }
-                yield return null;
-            }
         }
 
         [UnityTest]
@@ -222,9 +182,6 @@ namespace WordRPG.Tests
                 if (System.IO.Directory.Exists(dir)) System.IO.Directory.Delete(dir, true);
             }
         }
-
-        private static string AllText(Component root) =>
-            string.Join(" | ", System.Array.ConvertAll(root.GetComponentsInChildren<Text>(true), t => t.text));
 
         // 도감 화면: 미발견은 ???, 목록 개수, 닫기. 스킬 선택 중에만 열린다
         [UnityTest]

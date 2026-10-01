@@ -155,7 +155,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.07, g: 0.08, b: 0.14, a: 1}
+  m_BackGroundColor: {r: 0.1, g: 0.22, b: 0.12, a: 1}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -222,7 +222,7 @@ GameObject:
   - component: {fileID: 1748189449}
   - component: {fileID: 1748189448}
   m_Layer: 0
-  m_Name: BattleScreen
+  m_Name: FieldScreen
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -237,23 +237,18 @@ MonoBehaviour:
   m_GameObject: {fileID: 1748189447}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 08b783a48a6aa374186efe32787365ad, type: 3}
+  m_Script: {fileID: 11500000, guid: 1c40c468dfa186a45b74e4b98875c709, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: WordRPG::WordRPG.UI.BattleScreen
-  encounter: {fileID: 11400000, guid: bee0782bd39e10b419f0ac25025fd29e, type: 2}
-  words: {fileID: 11400000, guid: 89d1f80701129f84bad1df742f174dae, type: 2}
+  m_EditorClassIdentifier: WordRPG::WordRPG.UI.FieldScreen
+  area: {fileID: 11400000, guid: a2d06106feb91f048ad3b3d9f1f26ff0, type: 2}
   battleConfig:
     answerTimeLimitSeconds: 10
     criticalTimeSeconds: 3
     criticalMultiplier: 1.5
     variance: 0.1
     expPerCorrectAnswer: 2
-  masteryRules:
-    learningIntervalMinutes: 5
-    reviewingIntervalMinutes: 1440
-    proficientIntervalMinutes: 4320
-    masteredIntervalMinutes: 10080
-  loopBattles: 1
+  stepDuration: 0.16
+  tilesAcross: 11
   animationScale: 1
 --- !u!4 &1748189449
 Transform:
