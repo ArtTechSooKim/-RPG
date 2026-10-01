@@ -308,6 +308,21 @@ namespace WordRPG.UI
             return MakeSprite(key, size, pixels, Vector4.zero);
         }
 
+        // 아래가 진하고 위로 갈수록 투명한 세로 그라데이션 (전투 배경을 아래 UI 쪽으로 자연스럽게 어둡게)
+        public static Sprite FadeSprite()
+        {
+            const string key = "fade";
+            if (SpriteCache.TryGetValue(key, out var cached) && cached != null) return cached;
+            const int size = 64;
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                float a = 1f - y / (size - 1f);
+                for (int x = 0; x < size; x++) pixels[y * size + x] = new Color(1f, 1f, 1f, a * a);
+            }
+            return MakeSprite(key, size, pixels, Vector4.zero);
+        }
+
         // 가운데에서 사방으로 뻗는 빛줄기 12개 (진화 연출)
         public static Sprite RaysSprite()
         {

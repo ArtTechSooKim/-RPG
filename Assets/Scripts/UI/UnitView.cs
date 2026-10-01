@@ -47,6 +47,7 @@ namespace WordRPG.UI
             view.initial = UiKit.Display(UiKit.Label("Initial", view.art.transform, "", 96, Palette.Text, 0, 0, 1, 1,
                 TextAnchor.MiddleCenter, FontStyle.Normal, true, 30));
             view.artSprite = UiKit.IconImage("Sprite", view.art.transform, null, 0.1f, 0.08f, 0.9f, 0.92f);
+            view.artSprite.gameObject.AddComponent<IdleBob>();
 
             view.title = UiKit.Display(UiKit.Label("Title", card.transform, "", 40, Palette.Text, 0.04f, 0.26f, 0.96f, 0.41f,
                 TextAnchor.MiddleCenter, FontStyle.Normal, true, 18));

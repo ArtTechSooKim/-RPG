@@ -98,6 +98,20 @@ namespace WordRPG.Game
             return new ChestResult(false, content.Item, content.Count, content.Gold);
         }
 
+        // 지도 화면의 '남은 보물상자' — 맵의 상자 칸 중 아직 안 연 것
+        public int RemainingChests(FieldArea area)
+        {
+            var map = area.Map;
+            int remaining = 0;
+            for (int y = 0; y < map.Height; y++)
+            for (int x = 0; x < map.Width; x++)
+            {
+                var cell = new Vector2Int(x, y);
+                if (map.Get(cell) == FieldTile.Chest && !World.IsChestOpened(area.ChestId(cell))) remaining++;
+            }
+            return remaining;
+        }
+
         public SaveData ToSaveData(DateTime nowUtc)
         {
             var partyData = new List<MonsterSaveData>();

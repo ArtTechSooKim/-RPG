@@ -67,6 +67,8 @@ namespace WordRPG.UI
         private ShopView shopView;
         private InventoryView inventoryView;
         private SettingsView settingsView;
+        private MinimapView minimap;
+        private MapView mapView;
         private Text[] badgeNames;
         private Text[] badgeInitials;
         private Image[] badgeSprites;
@@ -81,7 +83,8 @@ namespace WordRPG.UI
         public GameSession Session => session;
         public FieldArea CurrentArea => area;
         public bool IsPanelOpen => dexView.IsOpen || evolutionView.IsOpen || shopView.IsOpen
-                                   || inventoryView.IsOpen || settingsView.IsOpen;
+                                   || inventoryView.IsOpen || settingsView.IsOpen || mapView.IsOpen;
+        public MinimapView Minimap => minimap;
         public string ToastMessage => toastPanel != null && toastPanel.activeSelf ? toastText.text : "";
 
         // 코드로 만들 때(테스트) Start 전에 호출. session을 안 주면 GameManager 것을 쓴다
@@ -271,6 +274,7 @@ namespace WordRPG.UI
         private void OnStepFinished()
         {
             session.World.SetPosition(area.AreaId, walker.Position);
+            minimap.Picture.SetPlayer(walker.Position);
             var tile = walker.Map.Get(walker.Position);
             if (tile == FieldTile.Door)
             {
@@ -329,6 +333,7 @@ namespace WordRPG.UI
 
             tilemap.SetTile(new Vector3Int(cell.x, cell.y, 0), TileFor(FieldTile.Chest, true));
             Sound.Play(Sfx.Coin);
+            minimap.Redraw();
             string loot = result.Item != null ? $"{result.Item.DisplayName} x{result.Count}" : "";
             if (result.Gold > 0) loot += (loot.Length > 0 ? " + " : "") + $"{result.Gold} 골드";
             ShowToast($"보물상자를 열었다!\n{loot} 획득", 2.5f);
@@ -365,7 +370,7 @@ namespace WordRPG.UI
             inBattle = true;
             bossBattle = boss;
             HideToast();
-            battle.BeginBattle(enemies, area.Words, OnBattleFinished, intro);
+            battle.BeginBattle(enemies, area.Words, OnBattleFinished, intro, area.Theme, boss);
         }
 
         private Music AreaMusic => area.Theme == FieldTheme.Library ? Music.Library : Music.Meadow;
@@ -383,6 +388,7 @@ namespace WordRPG.UI
                 session.World.MarkBossDefeated(area.BossId);
                 var bossCell = walker.Map.BossPosition.Value;
                 tilemap.SetTile(new Vector3Int(bossCell.x, bossCell.y, 0), TileFor(FieldTile.Boss, true));
+                minimap.Redraw();
                 saveProgress?.Invoke();
                 string name = area.Boss.Species.DisplayName;
                 ShowToast($"★ {UiKit.WithJosa(name, "을", "를")} 물리쳤다!\n{area.DisplayName}에 잊혀진 기억이 돌아왔다", 4f);
@@ -424,6 +430,7 @@ namespace WordRPG.UI
             moving = false;
             player.position = CellCenter(walker.Position);
             playerRenderer.sprite = PlayerArt.Get(walker.Facing, 0);
+            minimap?.Picture.SetPlayer(walker.Position);
         }
 
         // 지역을 바꿔 그린다 (처음 시작할 때, 출입구를 지날 때)
@@ -448,6 +455,7 @@ namespace WordRPG.UI
 
             cam.backgroundColor = PlaceholderArt.OutsideColor(area.Theme);
             if (!inBattle) Sound.PlayMusic(AreaMusic);
+            minimap.SetArea(map, area.Theme, IsCellDone);
             SnapPlayer();
             UpdateCamera();
             RefreshHud();
@@ -533,6 +541,10 @@ namespace WordRPG.UI
             dexLabel = UiKit.Label("DexProgress", top.transform, "", 30, Palette.Text, 0.4f, 0, 0.97f, 1,
                 TextAnchor.MiddleRight);
 
+            // 왼쪽 위 미니맵 (누르면 큰 지도). 맵 데이터에서 그리므로 지역이 늘어나도 자동
+            minimap = MinimapView.Create(hudRoot);
+            minimap.Button.onClick.AddListener(OpenMap);
+
             // 오른쪽 세로 메뉴 (Figma 'Field — HUD (메뉴 버튼)'): 도감 · 가방 · 설정
             var menu = UiKit.Rect("Menu", hudRoot, 1, 0.865f, 1, 0.865f);
             menu.pivot = new Vector2(1, 1);
@@ -609,6 +621,7 @@ namespace WordRPG.UI
             shopView = ShopView.Create(hudRoot);
             inventoryView = InventoryView.Create(hudRoot);
             settingsView = SettingsView.Create(hudRoot);
+            mapView = MapView.Create(hudRoot);
         }
 
         private static HoldButton PadButton(RectTransform parent, string name, string arrow,
@@ -629,6 +642,22 @@ namespace WordRPG.UI
 
         // 메뉴는 걷는 중·전투 중·다른 창이 열려 있을 때는 열지 않는다
         private bool CanOpenMenu => !(inBattle || transitioning || moving || IsPanelOpen);
+
+        private void OpenMap()
+        {
+            if (CanOpenMenu) mapView.Show(area, minimap.Texture, walker.Position, session);
+        }
+
+        // 미니맵에서 '끝난 곳' (연 상자, 쓰러뜨린 보스)
+        private bool IsCellDone(Vector2Int cell)
+        {
+            switch (walker.Map.Get(cell))
+            {
+                case FieldTile.Chest: return session.World.IsChestOpened(area.ChestId(cell));
+                case FieldTile.Boss: return session.World.IsBossDefeated(area.BossId);
+                default: return false;
+            }
+        }
 
         private void OpenBag()
         {

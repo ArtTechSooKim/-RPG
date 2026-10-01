@@ -64,6 +64,31 @@ SFX = {
 }
 AUDIO_OUT = os.path.join(PROJECT, "Assets", "Resources", "Audio")
 
+# 전투 효과: (시트, 프레임 수). 프레임을 정사각형으로 맞춰 가로로 다시 붙인다 → 게임은 높이 = 한 칸 크기로 자름
+FX = {
+    "slash": ("FX/SlashFx/Slash/SpriteSheet.png", 4),          # 아군 공격
+    "claw": ("FX/SlashFx/Claw/SpriteSheet.png", 4),            # 적 공격
+    "explosion": ("FX/Elemental/Explosion/SpriteSheet.png", 9),  # 크리티컬
+    "heal": ("FX/Magic/Circle/SpriteSheetSpark.png", 6),       # 회복
+    "shield": ("FX/Magic/Shield/SpriteSheetBlue.png", 6),      # 보호막 · 막음
+    "smoke": ("FX/Smoke/Smoke/SpriteSheet.png", 6),            # 쓰러짐
+}
+
+
+def build_fx(pack):
+    folder = os.path.join(OUT, "Fx")
+    os.makedirs(folder, exist_ok=True)
+    for name, (rel, count) in FX.items():
+        sheet = pack.image(rel)
+        fw, fh = sheet.width // count, sheet.height
+        size = max(fw, fh)
+        strip = Image.new("RGBA", (size * count, size), (0, 0, 0, 0))
+        for i in range(count):
+            frame = sheet.crop((i * fw, 0, i * fw + fw, fh))
+            strip.alpha_composite(frame, (i * size + (size - fw) // 2, (size - fh) // 2))
+        strip.save(os.path.join(folder, name + ".png"))
+    print("fx", len(FX), "->", folder)
+
 
 def copy_audio(pack):
     for folder, table in (("Music", MUSIC), ("Sfx", SFX)):
@@ -193,7 +218,9 @@ def main():
     shutil.copyfile(os.path.join(pack, PLAYER), os.path.join(OUT, "Player", "Boy.png"))
     print("player <-", PLAYER)
 
-    build_tiles(Pack(pack))
+    art = Pack(pack)
+    build_tiles(art)
+    build_fx(art)
     copy_audio(pack)
 
     for name in ("LICENSE.txt", "README.md"):

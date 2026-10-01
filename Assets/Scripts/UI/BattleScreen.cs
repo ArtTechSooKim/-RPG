@@ -49,6 +49,7 @@ namespace WordRPG.UI
         private Canvas canvas;
         private RectTransform root;
         private RectTransform enemyArea;
+        private Image backdropFloor, backdropWall, backdropTint;
         private UnitView[] partyViews;
         private readonly List<UnitView> enemyViews = new List<UnitView>();
         private readonly Dictionary<BattleUnit, UnitView> viewOf = new Dictionary<BattleUnit, UnitView>();
@@ -145,10 +146,11 @@ namespace WordRPG.UI
         // 필드에서 조우했을 때 한 판. 결과 화면의 버튼을 누르면 화면을 닫고 onFinished(승리 여부)
         // intro: 전투 로그 첫 줄 (보스전 등). 비우면 "야생 몬스터 출현!"
         public void BeginBattle(List<MonsterInstance> enemies, WordDatabase wordBook, Action<bool> onFinished,
-            string intro = null)
+            string intro = null, FieldTheme theme = FieldTheme.Meadow, bool boss = false)
         {
             if (running) throw new InvalidOperationException("이미 전투 중입니다");
             if (!EnsureInitialized()) return;
+            SetBackdrop(theme, boss);
             words = wordBook;
             running = true;
             canvas.gameObject.SetActive(true);
@@ -402,6 +404,7 @@ namespace WordRPG.UI
                         Log($"{e.Actor.DisplayName}의 {e.Skill.DisplayName} 실패…");
                         Float(e.Actor, "실패", Palette.TextDim, 44);
                         Sound.Play(Sfx.Fail);
+                        PlayFx(e.Actor, Fx.Smoke);
                         yield return Wait(0.7f);
                         break;
 
@@ -411,6 +414,7 @@ namespace WordRPG.UI
                         Sync(e.Target);
                         string dmgText = e.Amount > 0 ? $"-{e.Amount}" : "막음!";
                         Sound.Play(e.Amount <= 0 ? Sfx.Shield : e.IsCritical ? Sfx.Critical : Sfx.Hit);
+                        PlayFx(e.Target, e.Amount <= 0 ? Fx.Shield : e.IsCritical ? Fx.Explosion : e.Target.IsPlayerSide ? Fx.Claw : Fx.Slash);
                         Float(e.Target, e.IsCritical ? $"크리티컬! {dmgText}" : dmgText,
                             e.Amount > 0 ? Palette.Bad : Palette.Info, e.IsCritical ? 58 : 48);
                         Log(e.Absorbed > 0
@@ -425,6 +429,7 @@ namespace WordRPG.UI
                         Sync(e.Target);
                         Float(e.Target, $"+{e.Amount}", Palette.Good, 48);
                         Sound.Play(Sfx.Heal);
+                        PlayFx(e.Target, Fx.Heal);
                         Log($"{e.Target.DisplayName} HP +{e.Amount}" + (e.IsCritical ? " — 크리티컬!" : ""));
                         yield return Wait(0.6f);
                         break;
@@ -435,6 +440,7 @@ namespace WordRPG.UI
                         Sync(e.Target);
                         Float(e.Target, $"보호막 +{e.Amount}", Palette.Info, 40);
                         Sound.Play(Sfx.Shield);
+                        PlayFx(e.Target, Fx.Shield);
                         Log($"{e.Target.DisplayName} 보호막 +{e.Amount}");
                         yield return Wait(0.6f);
                         break;
@@ -442,6 +448,7 @@ namespace WordRPG.UI
                     case BattleEventType.Defeated:
                         Log($"{e.Target.DisplayName} 쓰러졌다!");
                         Sound.Play(Sfx.Faint);
+                        PlayFx(e.Target, Fx.Smoke);
                         yield return Wait(0.5f);
                         break;
 
@@ -823,6 +830,47 @@ namespace WordRPG.UI
             rt.anchorMax = new Vector2(two ? 0.49f : 0.95f, 0.185f);
         }
 
+        // ------------------------------------------------------------------ 전투 배경 (지역 타일)
+
+        // 적이 서는 위쪽에 지역 바닥(초원 = 풀숲, 서고 = 돌바닥)을 깔고 맨 위에 벽 한 줄(덤불·책장), 아래로 갈수록 어둡게
+        private void BuildBackdrop(Transform parent)
+        {
+            var area = UiKit.Rect("Backdrop", parent, 0, 0.6f, 1, 1);
+            backdropFloor = UiKit.Panel("Floor", area, Color.white);
+            backdropWall = UiKit.Panel("Wall", area, Color.white, 0, 0.86f, 1, 1);
+            foreach (var image in new[] { backdropFloor, backdropWall })
+            {
+                image.type = Image.Type.Tiled;
+                image.pixelsPerUnitMultiplier = 100f / 120f; // 한 칸 = 120px
+                image.raycastTarget = false;
+            }
+            backdropTint = UiKit.Panel("Tint", area, new Color(0, 0, 0, 0.72f)); // Linear 색공간이라 알파를 높게 잡아야 눈에 보이는 만큼 어두워진다
+            backdropTint.raycastTarget = false;
+            var topScrim = UiKit.Panel("TopScrim", area, new Color(0, 0, 0, 0.75f), 0, 0.86f, 1, 1); // 위쪽 글자·도감 버튼이 잘 보이게
+            topScrim.raycastTarget = false;
+            var fade = UiKit.Panel("Fade", area, Palette.Background, 0, 0, 1, 0.55f);
+            fade.sprite = UiKit.FadeSprite();
+            fade.raycastTarget = false;
+            SetBackdrop(FieldTheme.Meadow, false);
+        }
+
+        // 보스전은 보랏빛으로 더 어둡게
+        public void SetBackdrop(FieldTheme theme, bool boss)
+        {
+            if (backdropFloor == null) return;
+            backdropFloor.sprite = FieldArt.ForTile(theme == FieldTheme.Library ? FieldTile.Floor : FieldTile.Grass, theme, false);
+            backdropWall.sprite = FieldArt.ForTile(FieldTile.Wall, theme, false);
+            backdropTint.color = boss ? new Color(0.2f, 0.04f, 0.3f, 0.8f) : new Color(0, 0, 0, 0.72f);
+        }
+
+        // 카드 위에 효과 애니메이션 (기다리지 않고 바로 다음 연출로)
+        private void PlayFx(BattleUnit unit, Fx fx)
+        {
+            if (unit == null || !viewOf.TryGetValue(unit, out var view)) return;
+            float size = unit.IsPlayerSide ? 200f : 300f;
+            StartCoroutine(BattleFx.Play(view.Root, fx, size, animationScale));
+        }
+
         // ------------------------------------------------------------------ UI 생성
 
         private void BuildUi()
@@ -841,6 +889,7 @@ namespace WordRPG.UI
             scaler.matchWidthOrHeight = 0.5f;
 
             UiKit.Panel("Background", canvasGo.transform, Palette.Background);
+            BuildBackdrop(canvasGo.transform);
 
             root = UiKit.Stretch("SafeArea", canvasGo.transform);
             UiKit.ApplySafeArea(root);

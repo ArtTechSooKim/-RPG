@@ -18,7 +18,9 @@ namespace WordRPG.Tests
     // 필드 오른쪽 메뉴: 가방(소지품) · 설정(소리·진동·저장 데이터 지우기) — 실제 버튼을 눌러 확인
     public class MenuScreenTests
     {
-        private const string Map = "#####\n#...#\n#.P.#\n#####";
+        //   y=2  #C..#   ← 보물상자 (1,2)
+        //   y=1  #.P.#   ← 시작 (2,1)
+        private const string Map = "#####\n#C..#\n#.P.#\n#####";
 
         private ItemData ink, cover, keepsake;
         private FieldArea area;
@@ -108,6 +110,41 @@ namespace WordRPG.Tests
             FindButton(bag.transform, "InventoryCloseButton").onClick.Invoke();
             Assert.IsFalse(bag.activeSelf);
             Assert.IsFalse(field.IsPanelOpen);
+
+            Object.Destroy(field.gameObject);
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator MinimapFollowsPlayerAndOpensFullMap()
+        {
+            var field = MakeField();
+            yield return null;
+            yield return null;
+            var hud = field.transform.Find("FieldHud/SafeArea");
+
+            // 미니맵은 맵 데이터 크기대로 (한 칸 = 한 점), 내 위치 점이 시작 칸에
+            var texture = field.Minimap.Texture;
+            Assert.AreEqual(5, texture.width);
+            Assert.AreEqual(4, texture.height);
+            Assert.AreEqual((Color)MinimapArt.Chest, (Color)texture.GetPixel(1, 2), "보물상자 점");
+            var before = field.Minimap.Picture.PlayerAnchor;
+
+            // 위로 한 칸 걸으면 점도 따라 움직인다
+            yield return HoldPad(field, "Pad_Up", () => field.IsMoving);
+            Assert.AreEqual(new Vector2Int(2, 2), field.PlayerCell);
+            Assert.Greater(field.Minimap.Picture.PlayerAnchor.y, before.y);
+
+            // 미니맵을 누르면 큰 지도
+            FindButton(hud, "Minimap").onClick.Invoke();
+            var map = hud.Find("MapView").gameObject;
+            Assert.IsTrue(map.activeSelf);
+            Assert.IsTrue(field.IsPanelOpen, "지도가 열려 있는 동안은 걷지 않음");
+            var text = AllText(map.transform);
+            StringAssert.Contains("지도 · 초원", text);
+            StringAssert.Contains("남은 보물상자 1개", text);
+            FindButton(map.transform, "MapCloseButton").onClick.Invoke();
+            Assert.IsFalse(map.activeSelf);
 
             Object.Destroy(field.gameObject);
             yield return null;

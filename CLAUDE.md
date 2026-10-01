@@ -51,6 +51,10 @@
     - `Assets/Resources/Art/` 그림은 가져올 때 16px = 1칸, Point 필터 (`UiAssetImporter`)
     - 소리: `Sound.PlayMusic(Music.X)` / `Sound.Play(Sfx.X)`, 파일 = `Resources/Audio/Music|Sfx/{열거형 소문자}`. 음량은 설정을 따름.
       `UiKit.AddButton`/`MakeButton`은 누르면 딸깍 소리 (`clickSound: false`로 끔). 새 소리를 쓰면 열거형 + 스크립트 표에 같이 추가 (AudioArtTests가 검사)
+    - 전투: 효과 `BattleFx`(Fx 열거형 = Art/NinjaAdventure/Fx/{소문자}.png 정사각 프레임 시트), 배경은 지역 타일(`BattleScreen.SetBackdrop`)
+    - Linear 색공간이라 반투명 검정은 알파를 높게(0.7~0.8) 잡아야 눈에 보이는 만큼 어두워진다
+13. **맵은 글자 데이터로만**: 미니맵·지도(`MapViews.cs`)가 FieldMap에서 자동으로 그려진다. 새 맵 글자(타일 종류)를 추가하면
+    `MinimapArt.ColorOf`·`FieldArt`·`PlaceholderArt`에도 추가 (MinimapTests·AudioArtTests가 빠진 것을 잡음)
 
 ## 폴더 구조
 
@@ -72,6 +76,7 @@ Assets/
                         InventoryView(소지품: 재료·징표), SettingsView(설정) + ConfirmDialog(확인 창), SwitchView,
                         TitleScreen(타이틀), Haptics(진동), UnitView, HoldButton,
                         FieldArt(필드 타일) · PlayerArt(주인공) · PlaceholderArt(그림이 없을 때 임시 도트), Sound(음악·효과음),
+                        BattleFx(전투 효과) + IdleBob, MapViews(미니맵·지도),
                         UiKit(Palette·글꼴·둥근 패널·아이콘 + WithJosa 한국어 조사), AutoPill — 세로 1080x1920
     Editor/             WordRPG.Editor.asmdef — CSV 임포터, 샘플 데이터 생성기, UiAssetImporter(아이콘·도트·소리 가져오기 설정),
                         MonsterArtLinker(몬스터 그림 연결)
