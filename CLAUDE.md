@@ -30,6 +30,8 @@
    - 몬스터·아이템을 새로 만들면 `WordRPG > Data > Refresh Game Database` 실행 (안 하면 세이브에서 불러올 수 없음, DataIntegrityTests가 잡음)
    - 이미 출시된 id는 바꾸지 말 것. SaveData에 필드 추가는 자유(예전 세이브는 기본값), 기존 필드 의미를 바꿀 때만 version 올리고 변환
    - 게임 진행 상태는 `GameManager.Instance.Session`에서 얻고, 바뀌면 `GameManager.Save()` 호출
+   - 세션을 쓰기 시작하는 화면(필드·전투)은 `MarkPlaying()`을 불러야 저장된다 (타이틀에서 시작 전엔 저장 안 함)
+   - 설정(`GameSettings`: 음량·진동)은 세이브가 아니라 PlayerPrefs. `GameManager.Settings` / `SaveSettings()`
    - 새 지역(단어장)은 regionId·regionName·징표 아이템(종류 Keepsake)·골드를 지정해야 함 (RegionDataTests가 검사)
    - 필드 맵은 FieldArea의 글자 맵 (GDD 7·9장). 상자 수 = 내용물 수, 출입구 수 = 연결 수(서로 왕복), B ↔ 보스 지정,
      모든 상자·샘·출입구 도달 가능 (AreaDataTests·DungeonDataTests가 검사). 지역을 새로 만들면 Refresh Game Database
@@ -56,25 +58,28 @@ Assets/
     Battle/             BattleEngine, BattleFormulas, BattleReward
     Field/              FieldMap(맵 글자→격자), FieldWalker(이동), EncounterCounter(조우),
                         FieldArea(지역 SO: 테마·출입구 연결·보스·상자·상점), EncounterTable
-    Game/               GameSession(진행 상태 전체), GameManager(씬 간 유지 + 자동 저장), GameDatabase(id→에셋), PlayerRecord, Dex(도감 규칙)
+    Game/               GameSession(진행 상태 전체), GameManager(씬 간 유지 + 자동 저장 + 설정), GameDatabase(id→에셋), PlayerRecord,
+                        Dex(도감 규칙), Keepsakes(징표 진열장), GameSettings(음량·진동)
     Save/               SaveData(JSON 형식), SaveSystem(임시파일+백업으로 안전 저장)
     UI/                 FieldScreen(필드·지역 이동·HUD·가상 패드), BattleScreen(필드 위에 덮이는 전투, 단독 연습 모드도 있음),
-                        DexView(도감), EvolutionView(진화의 제단), ShopView(상점), UnitView, HoldButton,
+                        DexView(도감), EvolutionView(진화의 제단) + EvolutionCutscene(진화 연출), ShopView(상점),
+                        InventoryView(소지품: 재료·징표), SettingsView(설정) + ConfirmDialog(확인 창), SwitchView,
+                        TitleScreen(타이틀), Haptics(진동), UnitView, HoldButton,
                         PlaceholderArt(임시 도트 생성), UiKit(Palette·글꼴·둥근 패널·아이콘 + WithJosa 한국어 조사), AutoPill — 세로 1080x1920
     Editor/             WordRPG.Editor.asmdef — CSV 임포터, 샘플 데이터 생성기, UiAssetImporter(아이콘 PNG → 스프라이트)
   Resources/UI/         Fonts(Jua, Noto Sans KR + OFL 라이선스), Icons(UI 아이콘 128px), Icons/Items(아이템 256px, 파일명 = itemId)
   Tests/EditMode/       WordRPG.Tests.EditMode.asmdef (로직)
   Tests/PlayMode/       WordRPG.Tests.PlayMode.asmdef (UI 버튼을 눌러 전투 한 판 진행)
   Data/                 Words, Monsters, Skills, Items, Encounters, Areas, Shops (SO 에셋), GameDatabase.asset
-  Scenes/               Field.unity (메인, 빌드 첫 씬), Battle.unity (전투만 반복하는 연습 씬)
+  Scenes/               Title.unity (빌드 첫 씬) → Field.unity (본 게임), Battle.unity (전투만 반복하는 연습 씬)
 Docs/                   PRD.txt, GDD.md
 ```
 
 ## 명령어
 
-에디터 메뉴: `WordRPG > Data > Import Word CSVs`, `WordRPG > Data > Create Sample Data` (없는 에셋만 생성), `WordRPG > Data > Refresh Game Database`, `WordRPG > Scenes > Create All Scenes` (필드·전투 씬 다시 생성), `WordRPG > Save > Delete Save Data / Open Save Folder`
+에디터 메뉴: `WordRPG > Data > Import Word CSVs`, `WordRPG > Data > Create Sample Data` (없는 에셋만 생성), `WordRPG > Data > Refresh Game Database`, `WordRPG > Scenes > Create All Scenes` (타이틀·필드·전투 씬 다시 생성 + 빌드 순서), `WordRPG > Save > Delete Save Data / Open Save Folder`
 
-게임 실행: `Assets/Scenes/Field.unity`를 열고 Play (Game 뷰를 세로 비율로, 예: 1080x1920). 전투만 연습: `Battle.unity`
+게임 실행: `Assets/Scenes/Title.unity`를 열고 Play (Game 뷰를 세로 비율로, 예: 1080x1920). 필드부터 바로: `Field.unity`, 전투만 연습: `Battle.unity`
 
 배치모드 (Unity 에디터가 이 프로젝트를 열고 있으면 실행 불가):
 

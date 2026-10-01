@@ -1,14 +1,20 @@
 using System;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using WordRPG.Monsters;
 using WordRPG.Save;
 
 namespace WordRPG.Game
 {
     // 게임 진행 상태(GameSession)와 저장을 맡는 오브젝트. 씬이 바뀌어도 유지된다.
-    // 자동 저장: 문제에 답할 때마다, 전투 결과 후(화면 쪽에서 Save 호출), 앱이 백그라운드로 갈 때, 종료될 때
+    // 자동 저장: 문제에 답할 때마다, 전투 결과 후(화면 쪽에서 Save 호출), 앱이 백그라운드로 갈 때, 종료될 때.
+    // 단, 타이틀에서 시작하기 전(필드·전투가 MarkPlaying 하기 전)에는 저장하지 않는다 — 켜고 바로 끄면 빈 세이브가 생기지 않게
     public class GameManager : MonoBehaviour
     {
+        public const string TitleSceneName = "Title";
+        public const string FieldSceneName = "Field";
+        private const string SettingsKey = "WordRPG.Settings";
+
         // 테스트가 실제 세이브 파일을 건드리지 않도록 저장 폴더를 바꾸는 용도. 평소에는 null
         public static string SaveDirectoryOverride;
 
@@ -17,10 +23,13 @@ namespace WordRPG.Game
         [SerializeField] private int starterLevel = 3;
 
         private SaveSystem saveSystem;
+        private bool playing;
 
         public static GameManager Instance { get; private set; }
         public GameSession Session { get; private set; }
+        public GameSettings Settings { get; private set; } = new GameSettings();
         public bool LoadedFromSave { get; private set; }
+        public bool HasSave => saveSystem != null && saveSystem.HasSave;
         public string StatusMessage { get; private set; } = "";
         public string SaveDirectory => saveSystem?.Directory;
         public GameDatabase Database => database;
@@ -45,6 +54,8 @@ namespace WordRPG.Game
 
             if (database == null) Debug.LogError("[GameManager] GameDatabase가 비어 있어 세이브의 몬스터를 불러올 수 없습니다");
             saveSystem = new SaveSystem(SaveDirectoryOverride ?? Application.persistentDataPath);
+            // 테스트(저장 폴더를 바꾼 경우)에서는 실제 기기 설정을 읽거나 덮어쓰지 않는다
+            if (SaveDirectoryOverride == null) Settings = GameSettings.FromJson(PlayerPrefs.GetString(SettingsKey, ""));
             LoadOrCreate();
         }
 
@@ -55,6 +66,7 @@ namespace WordRPG.Game
             {
                 Session = GameSession.FromSaveData(result.Data, database, starterParty, starterLevel);
                 LoadedFromSave = true;
+                playing = true;
                 StatusMessage = $"이어하기 — 발견한 단어 {Session.Vocabulary.DiscoveredCount}개, " +
                                 $"전투 {Session.Record.BattlesWon}승 {Session.Record.BattlesLost}패";
                 if (result.UsedBackup)
@@ -76,9 +88,12 @@ namespace WordRPG.Game
             StatusMessage = "새 게임 시작!";
         }
 
+        // 필드·전투 화면이 이 세션으로 게임을 시작했다. 이때부터 자동 저장
+        public void MarkPlaying() => playing = true;
+
         public void Save()
         {
-            if (Session == null) return;
+            if (Session == null || !playing) return;
             try
             {
                 saveSystem.Save(Session.ToSaveData(DateTime.UtcNow));
@@ -89,14 +104,41 @@ namespace WordRPG.Game
             }
         }
 
-        // 세이브를 지우고 처음부터 (설정 화면이 생기면 연결)
-        public void StartNewGame()
+        public void SaveSettings()
+        {
+            if (SaveDirectoryOverride != null) return;
+            PlayerPrefs.SetString(SettingsKey, Settings.ToJson());
+            PlayerPrefs.Save();
+        }
+
+        // 저장 파일을 지우고 새 게임 상태로 돌린다. 다시 시작하기 전까지는 저장하지 않는다 (설정은 그대로)
+        public void DeleteSave()
         {
             saveSystem.Delete();
             Session = GameSession.NewGame(starterParty, starterLevel);
             LoadedFromSave = false;
+            playing = false;
             StatusMessage = "새 게임 시작!";
+        }
+
+        // 세이브를 지우고 바로 처음부터
+        public void StartNewGame()
+        {
+            DeleteSave();
+            playing = true;
             Save();
+        }
+
+        // 저장 데이터를 지운 뒤: 타이틀 씬이 빌드에 있으면 타이틀로, 없으면 지금 씬을 처음부터
+        public static void ReturnToTitle()
+        {
+            if (Application.CanStreamedLevelBeLoaded(TitleSceneName))
+            {
+                SceneManager.LoadScene(TitleSceneName);
+                return;
+            }
+            int current = SceneManager.GetActiveScene().buildIndex;
+            if (current >= 0) SceneManager.LoadScene(current);
         }
 
         private void OnApplicationPause(bool paused)

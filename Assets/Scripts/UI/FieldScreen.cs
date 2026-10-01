@@ -29,7 +29,10 @@ namespace WordRPG.UI
 
         private GameSession session;
         private GameDatabase database;
+        private GameSettings settings;
         private Action saveProgress;
+        private Action saveSettings;
+        private Action deleteSave;
         private string statusMessage;
         private bool loadedFromSave;
 
@@ -61,6 +64,8 @@ namespace WordRPG.UI
         private DexView dexView;
         private EvolutionView evolutionView;
         private ShopView shopView;
+        private InventoryView inventoryView;
+        private SettingsView settingsView;
         private Text[] badgeNames;
         private Text[] badgeInitials;
         private Image[] badgeSprites;
@@ -74,13 +79,16 @@ namespace WordRPG.UI
         public BattleScreen Battle => battle;
         public GameSession Session => session;
         public FieldArea CurrentArea => area;
-        public bool IsPanelOpen => dexView.IsOpen || evolutionView.IsOpen || shopView.IsOpen;
+        public bool IsPanelOpen => dexView.IsOpen || evolutionView.IsOpen || shopView.IsOpen
+                                   || inventoryView.IsOpen || settingsView.IsOpen;
         public string ToastMessage => toastPanel != null && toastPanel.activeSelf ? toastText.text : "";
 
         // 코드로 만들 때(테스트) Start 전에 호출. session을 안 주면 GameManager 것을 쓴다
-        // database: 세이브의 마지막 지역이 다른 곳이면 거기서 시작하기 위해 지역을 찾는 데 쓴다
+        // database: 세이브의 마지막 지역이 다른 곳이면 거기서 시작하기 위해 지역을 찾는 데 쓴다 (소지품 화면의 아이템 찾기에도)
+        // gameSettings / onSettingsChanged / onDeleteSave: 설정 화면용. 안 주면 GameManager 것
         public void Configure(FieldArea fieldArea, GameSession gameSession = null, Action onSave = null,
-            float step = 0.16f, float animScale = 1f, BattleConfig config = null, GameDatabase gameDatabase = null)
+            float step = 0.16f, float animScale = 1f, BattleConfig config = null, GameDatabase gameDatabase = null,
+            GameSettings gameSettings = null, Action onSettingsChanged = null, Action onDeleteSave = null)
         {
             area = fieldArea;
             session = gameSession;
@@ -89,6 +97,9 @@ namespace WordRPG.UI
             stepDuration = step;
             animationScale = animScale;
             if (config != null) battleConfig = config;
+            settings = gameSettings;
+            saveSettings = onSettingsChanged;
+            deleteSave = onDeleteSave;
         }
 
         private void Start() => EnsureInitialized();
@@ -105,7 +116,17 @@ namespace WordRPG.UI
                 statusMessage = manager.StatusMessage;
                 loadedFromSave = manager.LoadedFromSave;
                 if (database == null) database = manager.Database;
+                if (settings == null) settings = manager.Settings;
+                if (saveSettings == null) saveSettings = manager.SaveSettings;
+                // 설정에서 저장 데이터를 지우면 타이틀로 (타이틀 씬이 없으면 이 씬을 처음부터)
+                if (deleteSave == null) deleteSave = () =>
+                {
+                    manager.DeleteSave();
+                    GameManager.ReturnToTitle();
+                };
+                manager.MarkPlaying();
             }
+            if (settings == null) settings = new GameSettings();
             if (session == null || area == null)
             {
                 Debug.LogError("[FieldScreen] GameManager(또는 Configure의 session) / area 가 비어 있습니다");
@@ -487,15 +508,32 @@ namespace WordRPG.UI
             hudRoot = UiKit.Stretch("SafeArea", canvasGo.transform);
             UiKit.ApplySafeArea(hudRoot);
 
-            // 상단: 지역 이름 · 도감 진행 · 도감 버튼
+            // 상단: 지역 이름 · 도감 진행 · 골드
             var top = UiKit.Panel("TopBar", hudRoot, Palette.Scrim, 0, 0.94f, 1, 1);
             top.raycastTarget = false;
             areaLabel = UiKit.Display(UiKit.Label("Area", top.transform, "", 44, Palette.Gold, 0.03f, 0, 0.4f, 1,
                 TextAnchor.MiddleLeft, FontStyle.Normal, true, 24));
-            dexLabel = UiKit.Label("DexProgress", top.transform, "", 30, Palette.Text, 0.4f, 0, 0.78f, 1,
+            dexLabel = UiKit.Label("DexProgress", top.transform, "", 30, Palette.Text, 0.4f, 0, 0.97f, 1,
                 TextAnchor.MiddleRight);
-            var dexButton = UiKit.MakeButton("DexButton", top.transform, "도감", Palette.Button, 34, 0.8f, 0.08f, 0.97f, 0.92f);
-            dexButton.onClick.AddListener(OpenDex);
+
+            // 오른쪽 세로 메뉴 (Figma 'Field — HUD (메뉴 버튼)'): 도감 · 가방 · 설정
+            var menu = UiKit.Rect("Menu", hudRoot, 1, 0.865f, 1, 0.865f);
+            menu.pivot = new Vector2(1, 1);
+            menu.sizeDelta = new Vector2(120, 3 * 120 + 2 * 16);
+            menu.anchoredPosition = new Vector2(-24, 0);
+            var entries = new (string name, string icon, string label, UnityEngine.Events.UnityAction open)[]
+            {
+                ("DexButton", "dex", "도감", OpenDex),
+                ("BagButton", "bag", "가방", OpenBag),
+                ("SettingsButton", "settings", "설정", OpenSettings),
+            };
+            for (int i = 0; i < entries.Length; i++)
+            {
+                float topY = 1f - i * (136f / 392f);
+                var button = UiKit.IconButton(entries[i].name, menu, entries[i].icon, entries[i].label, Palette.Scrim,
+                    0, topY - 120f / 392f, 1, topY);
+                button.onClick.AddListener(entries[i].open);
+            }
 
             // 파티 HP
             var strip = UiKit.Rect("PartyStrip", hudRoot, 0, 0.875f, 1, 0.935f);
@@ -550,8 +588,10 @@ namespace WordRPG.UI
             flash.gameObject.SetActive(false);
 
             dexView = DexView.Create(hudRoot);
-            evolutionView = EvolutionView.Create(hudRoot);
+            evolutionView = EvolutionView.Create(hudRoot, animationScale);
             shopView = ShopView.Create(hudRoot);
+            inventoryView = InventoryView.Create(hudRoot);
+            settingsView = SettingsView.Create(hudRoot);
         }
 
         private static HoldButton PadButton(RectTransform parent, string name, string arrow,
@@ -570,9 +610,22 @@ namespace WordRPG.UI
             battle.Configure(area.Encounters, area.Words, session, animationScale, battleConfig, saveProgress, loop: false);
         }
 
+        // 메뉴는 걷는 중·전투 중·다른 창이 열려 있을 때는 열지 않는다
+        private bool CanOpenMenu => !(inBattle || transitioning || moving || IsPanelOpen);
+
+        private void OpenBag()
+        {
+            if (CanOpenMenu) inventoryView.Show(session, database);
+        }
+
+        private void OpenSettings()
+        {
+            if (CanOpenMenu) settingsView.Show(settings, saveSettings, deleteSave);
+        }
+
         private void OpenDex()
         {
-            if (inBattle || transitioning || moving || IsPanelOpen) return;
+            if (!CanOpenMenu) return;
             var completed = session.ClaimDexRewards(new[] { area.Words });
             if (completed.Count > 0)
             {

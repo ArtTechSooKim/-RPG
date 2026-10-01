@@ -28,6 +28,7 @@ namespace WordRPG.UI
 
         public GameObject Root { get; private set; }
         public bool IsOpen => Root != null && Root.activeSelf;
+        public EvolutionCutscene Cutscene { get; private set; }
 
         private readonly List<Card> cards = new List<Card>();
         private RectTransform materials;
@@ -36,8 +37,8 @@ namespace WordRPG.UI
         private Action onChanged;
         private int confirmIndex = -1;
 
-        // Figma '진화의 제단' 화면 / 'Evolution Card'
-        public static EvolutionView Create(Transform parent)
+        // Figma '진화의 제단' 화면 / 'Evolution Card'. animScale: 진화 연출 시간 배율 (테스트에서는 아주 작게)
+        public static EvolutionView Create(Transform parent, float animScale = 1f)
         {
             var view = new EvolutionView();
             var root = UiKit.Stretch("EvolutionView", parent);
@@ -92,6 +93,7 @@ namespace WordRPG.UI
                 0.05f, 0.015f, 0.95f, 0.095f);
             close.onClick.AddListener(view.Hide);
 
+            view.Cutscene = EvolutionCutscene.Create(root, animScale);
             view.Root.SetActive(false);
             return view;
         }
@@ -109,6 +111,7 @@ namespace WordRPG.UI
         public void Hide()
         {
             confirmIndex = -1;
+            Cutscene.Stop();
             Root.SetActive(false);
         }
 
@@ -244,6 +247,9 @@ namespace WordRPG.UI
                 }
                 resultText.text = text.ToString();
                 onChanged?.Invoke();
+                // 진화 연출 (Figma '진화 연출 1·2·3'). 끝나면 제단 화면으로 돌아온다
+                var lostSkills = Evolution.NewSkills(monster.Species, fromSpecies);
+                Cutscene.Play(fromSpecies, monster.Species, monster.Level, before, after, newSkills, lostSkills, Refresh);
             }
             Refresh();
         }

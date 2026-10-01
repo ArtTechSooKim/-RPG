@@ -1,0 +1,133 @@
+using NUnit.Framework;
+using UnityEngine;
+using WordRPG.Field;
+using WordRPG.Game;
+using WordRPG.Items;
+using WordRPG.Monsters;
+using WordRPG.Words;
+
+namespace WordRPG.Tests
+{
+    // 설정 값 · 징표 진열장 · 소지품 '쓰는 곳' 규칙
+    public class MenuTests
+    {
+        private static MonsterSpecies Hero() =>
+            TestData.Species("hero", new MonsterStats(30, 10, 5), new MonsterStats(3, 2, 1),
+                TestData.Skill("poke", SkillKind.Damage, SkillTarget.SingleEnemy, 10));
+
+        private static WordDatabase Region(string id, string name, ItemData keepsake, int gold = 0)
+        {
+            var region = ScriptableObject.CreateInstance<WordDatabase>()
+                .Set("regionId", id).Set("regionName", name).Set("completionKeepsake", keepsake).Set("completionGold", gold);
+            region.ReplaceWords(TestData.SampleWords());
+            return region;
+        }
+
+        private static ItemData Keepsake(string id) => TestData.Item(id).Set("kind", ItemKind.Keepsake);
+
+        // ------------------------------------------------------------------ 설정
+
+        [Test]
+        public void SettingsHaveFriendlyDefaults()
+        {
+            var settings = new GameSettings();
+            Assert.AreEqual(GameSettings.DefaultMusicVolume, settings.MusicVolume);
+            Assert.AreEqual(GameSettings.DefaultSfxVolume, settings.SfxVolume);
+            Assert.IsTrue(settings.Vibration);
+        }
+
+        [Test]
+        public void VolumeIsClampedToZeroToOne()
+        {
+            var settings = new GameSettings { MusicVolume = 1.5f, SfxVolume = -0.2f };
+            Assert.AreEqual(1f, settings.MusicVolume);
+            Assert.AreEqual(0f, settings.SfxVolume);
+            settings.MusicVolume = float.NaN;
+            Assert.AreEqual(GameSettings.DefaultMusicVolume, settings.MusicVolume, "이상한 값이면 기본값");
+        }
+
+        [Test]
+        public void SettingsSurviveJsonRoundTrip()
+        {
+            var settings = new GameSettings { MusicVolume = 0.2f, SfxVolume = 0.9f, Vibration = false };
+            var loaded = GameSettings.FromJson(settings.ToJson());
+            Assert.AreEqual(0.2f, loaded.MusicVolume, 0.0001f);
+            Assert.AreEqual(0.9f, loaded.SfxVolume, 0.0001f);
+            Assert.IsFalse(loaded.Vibration);
+        }
+
+        [Test]
+        public void BrokenSettingsFallBackToDefaults()
+        {
+            Assert.AreEqual(GameSettings.DefaultMusicVolume, GameSettings.FromJson("").MusicVolume);
+            Assert.AreEqual(GameSettings.DefaultMusicVolume, GameSettings.FromJson("{not json").MusicVolume);
+            Assert.AreEqual(1f, GameSettings.FromJson("{\"musicVolume\":5}").MusicVolume, "범위 밖 값은 잘라냄");
+        }
+
+        // ------------------------------------------------------------------ 징표 진열장
+
+        [Test]
+        public void KeepsakeShelfHasOneSlotPerRegionWithKeepsake()
+        {
+            var meadow = Region("meadow", "초원", Keepsake("keepsake_meadow"), 500);
+            var noKeepsake = Region("plain", "들판", null);
+            var library = Region("library", "서고", Keepsake("keepsake_library"));
+            var session = GameSession.NewGame(new[] { Hero() }, 1);
+
+            var shelf = Keepsakes.Collect(new[] { meadow, meadow, noKeepsake, null, library }, session);
+
+            Assert.AreEqual(2, shelf.Count, "같은 지역은 한 번만, 징표 없는 지역은 제외");
+            Assert.AreEqual("초원", shelf[0].RegionName);
+            Assert.AreEqual("서고", shelf[1].RegionName);
+            Assert.IsFalse(shelf[0].Owned);
+            Assert.AreEqual(TestData.SampleWords().Count, shelf[0].Progress.Total);
+        }
+
+        [Test]
+        public void KeepsakeIsOwnedWhenClaimedOrInInventory()
+        {
+            var meadow = Region("meadow", "초원", Keepsake("keepsake_meadow"));
+            var library = Region("library", "서고", Keepsake("keepsake_library"));
+            var session = GameSession.NewGame(new[] { Hero() }, 1);
+
+            session.Record.MarkRegionClaimed("meadow");
+            session.Inventory.Add(library.CompletionKeepsake);
+            var shelf = Keepsakes.Collect(new[] { meadow, library }, session);
+
+            Assert.IsTrue(shelf[0].Owned, "보상을 받은 지역");
+            Assert.IsTrue(shelf[1].Owned, "소지품에 징표가 있음");
+        }
+
+        [Test]
+        public void AreasSharingWordBookMakeOneShelfSlot()
+        {
+            var meadow = Region("meadow", "초원", Keepsake("keepsake_meadow"));
+            var field = ScriptableObject.CreateInstance<FieldArea>().Set("areaId", "meadow").Set("words", meadow);
+            var dungeon = ScriptableObject.CreateInstance<FieldArea>().Set("areaId", "library").Set("words", meadow);
+            var database = ScriptableObject.CreateInstance<GameDatabase>();
+            database.ReplaceContents(new MonsterSpecies[0], new ItemData[0], new[] { field, dungeon });
+
+            var shelf = Keepsakes.Collect(database, GameSession.NewGame(new[] { Hero() }, 1));
+
+            Assert.AreEqual(1, shelf.Count, "던전이 초원 단어장을 같이 써도 징표 칸은 하나");
+            Assert.AreEqual(0, Keepsakes.Collect((GameDatabase)null, GameSession.NewGame(new[] { Hero() }, 1)).Count);
+        }
+
+        // ------------------------------------------------------------------ 소지품 '쓰는 곳'
+
+        [Test]
+        public void FindUserReturnsPartyMonsterThatEvolvesWithItem()
+        {
+            var ink = TestData.Item("shiny_ink");
+            var cover = TestData.Item("hard_cover");
+            var knight = Hero().Set("speciesId", "knight");
+            var nib = Hero().Set("speciesId", "nib").Set("evolvesTo", knight).Set("evolveItem", ink).Set("evolveItemCount", 3);
+            var shell = Hero().Set("speciesId", "shell"); // 진화 없음
+            var session = GameSession.NewGame(new[] { shell, nib }, 5);
+
+            Assert.AreSame(session.Party[1], Evolution.FindUser(session.Party, ink));
+            Assert.IsNull(Evolution.FindUser(session.Party, cover), "파티에 쓰는 몬스터가 없음");
+            Assert.IsNull(Evolution.FindUser(session.Party, null));
+        }
+    }
+}

@@ -37,6 +37,7 @@ namespace WordRPG.UI
         // --- 런타임 상태 ---
         private System.Random rng;
         private GameSession session;
+        private GameSettings settings; // 진동 여부. GameManager가 없으면(테스트) null
         private Action saveProgress;
         private string pendingStatusMessage;
         private WordQuizService quizService;
@@ -123,6 +124,8 @@ namespace WordRPG.UI
                 var manager = GameManager.Instance;
                 session = manager.Session;
                 saveProgress = manager.Save;
+                settings = manager.Settings;
+                manager.MarkPlaying();
                 if (loopBattles) pendingStatusMessage = manager.StatusMessage; // 필드에서는 필드가 보여줌
             }
 
@@ -258,6 +261,7 @@ namespace WordRPG.UI
 
                 // 4. 정답/오답 표시. 틀리면 정답을 꼭 보여줘서 학습 순간으로 만든다
                 MarkChoices(question, choice);
+                if (!correct && settings != null && settings.Vibration) Haptics.Vibrate();
                 yield return Wait(0.8f);
                 if (!correct)
                 {
@@ -642,7 +646,7 @@ namespace WordRPG.UI
             }
         }
 
-        private static string SkillDetail(SkillData skill)
+        internal static string SkillDetail(SkillData skill)
         {
             string kind = skill.Kind == SkillKind.Damage ? "공격" : skill.Kind == SkillKind.Heal ? "회복" : "보호막";
             string target;
@@ -658,13 +662,23 @@ namespace WordRPG.UI
             return $"{kind} {skill.Power} · {target}  |  문제 {quiz}";
         }
 
-        private static Color SkillColor(SkillData skill)
+        internal static Color SkillColor(SkillData skill)
         {
             switch (skill.Kind)
             {
                 case SkillKind.Damage: return Palette.Attack;
                 case SkillKind.Heal: return Palette.Heal;
                 default: return Palette.Guard;
+            }
+        }
+
+        internal static string SkillIconName(SkillData skill)
+        {
+            switch (skill.Kind)
+            {
+                case SkillKind.Damage: return skill.Target == SkillTarget.AllEnemies ? "skill_attack_all" : "skill_attack";
+                case SkillKind.Heal: return "skill_heal";
+                default: return "skill_guard";
             }
         }
 

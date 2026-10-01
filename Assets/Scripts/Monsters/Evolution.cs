@@ -24,6 +24,18 @@ namespace WordRPG.Monsters
             return EvolutionStatus.Ready;
         }
 
+        // 이 재료로 진화하는 파티 몬스터 (소지품 화면의 '쓰는 곳'). 없으면 null
+        public static MonsterInstance FindUser(IReadOnlyList<MonsterInstance> party, ItemData item)
+        {
+            if (party == null || item == null) return null;
+            foreach (var monster in party)
+            {
+                var species = monster.Species;
+                if (species.EvolvesTo != null && species.EvolveItem == item) return monster;
+            }
+            return null;
+        }
+
         // 진화로 새로 생기는 기술 (진화 전에는 없던 것)
         public static List<SkillData> NewSkills(MonsterSpecies from, MonsterSpecies to)
         {

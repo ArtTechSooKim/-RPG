@@ -9,7 +9,7 @@ using WordRPG.Words;
 
 namespace WordRPG.EditorTools
 {
-    // 씬 생성 (필드 = 메인, 전투 연습). 샘플 데이터가 없으면 먼저 만든다.
+    // 씬 생성 (타이틀 = 빌드 첫 씬, 필드 = 본 게임, 전투 연습). 샘플 데이터가 없으면 먼저 만든다.
     // 배치모드: -executeMethod WordRPG.EditorTools.SceneBuilder.CreateAllScenes
     public static class SceneBuilder
     {
@@ -17,7 +17,24 @@ namespace WordRPG.EditorTools
 
         public const string FieldScenePath = "Assets/Scenes/Field.unity";
 
-        // 메인 씬: 초원 필드 (빌드 첫 번째 씬)
+        public const string TitleScenePath = "Assets/Scenes/Title.unity";
+
+        // 타이틀: 이어하기 / 처음부터 → 필드 씬 (앱을 켜면 처음 나오는 씬)
+        [MenuItem("WordRPG/Scenes/Create Title Scene")]
+        public static void CreateTitleScene()
+        {
+            PrepareData();
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            AddCamera(Palette.Background);
+            AddGameManager();
+            new GameObject("TitleScreen", typeof(TitleScreen));
+
+            EditorSceneManager.SaveScene(scene, TitleScenePath);
+            UpdateBuildSettings();
+            Debug.Log($"[WordRPG] 타이틀 씬 생성: {TitleScenePath}");
+        }
+
+        // 본 게임: 초원 필드. Play로 바로 열어도 동작한다 (GameManager 포함)
         [MenuItem("WordRPG/Scenes/Create Field Scene")]
         public static void CreateFieldScene()
         {
@@ -61,6 +78,7 @@ namespace WordRPG.EditorTools
         {
             CreateBattleScene();
             CreateFieldScene();
+            CreateTitleScene();
         }
 
         private static void PrepareData()
@@ -95,11 +113,11 @@ namespace WordRPG.EditorTools
             manager.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        // 필드가 첫 씬 (앱 실행 시 시작), 전투 연습 씬은 두 번째
+        // 타이틀이 첫 씬 (앱 실행 시 시작), 필드, 전투 연습 순서
         private static void UpdateBuildSettings()
         {
             var scenes = new System.Collections.Generic.List<EditorBuildSettingsScene>();
-            foreach (var path in new[] { FieldScenePath, BattleScenePath })
+            foreach (var path in new[] { TitleScenePath, FieldScenePath, BattleScenePath })
             {
                 if (System.IO.File.Exists(path)) scenes.Add(new EditorBuildSettingsScene(path, true));
             }

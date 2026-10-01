@@ -172,6 +172,16 @@ namespace WordRPG.UI
             float minX, float minY, float maxX, float maxY, bool bestFit = false)
         {
             var image = RoundPanel(name, parent, color, RadiusMd, minX, minY, maxX, maxY);
+            var button = AddButton(image);
+            var label = Display(Label("Label", image.transform, text, fontSize, Palette.Text, 0, 0, 1, 1,
+                TextAnchor.MiddleCenter, FontStyle.Normal, bestFit, 22));
+            Pad(label.rectTransform, 16, 4, 16, 4);
+            return button;
+        }
+
+        // 그림(판)에 버튼 동작과 누름 색을 붙인다
+        public static Button AddButton(Image image)
+        {
             var button = image.gameObject.AddComponent<Button>();
             button.targetGraphic = image;
             var colors = button.colors;
@@ -179,11 +189,45 @@ namespace WordRPG.UI
             colors.pressedColor = new Color(0.72f, 0.72f, 0.72f);
             colors.disabledColor = new Color(0.6f, 0.6f, 0.6f, 0.6f);
             button.colors = colors;
-
-            var label = Display(Label("Label", image.transform, text, fontSize, Palette.Text, 0, 0, 1, 1,
-                TextAnchor.MiddleCenter, FontStyle.Normal, bestFit, 22));
-            Pad(label.rectTransform, 16, 4, 16, 4);
             return button;
+        }
+
+        // 아이콘 + 짧은 이름 버튼 (Figma 'Icon Button' 120×120). 크기는 앵커로 정한다
+        public static Button IconButton(string name, Transform parent, string icon, string label, Color color,
+            float minX, float minY, float maxX, float maxY)
+        {
+            var image = RoundPanel(name, parent, color, RadiusMd, minX, minY, maxX, maxY);
+            var button = AddButton(image);
+            IconImage("Icon", image.transform, Icon(icon), 0.22f, 0.36f, 0.78f, 0.9f);
+            Label("Label", image.transform, label, 24, Palette.Text, 0, 0.04f, 1, 0.36f, TextAnchor.MiddleCenter, FontStyle.Bold);
+            return button;
+        }
+
+        // 음량 슬라이더 (Figma 'Slider'): 양끝 둥근 막대 + 금색 채움 + 흰 동그라미 손잡이
+        public static Slider MakeSlider(string name, Transform parent, float minX, float minY, float maxX, float maxY)
+        {
+            var root = Rect(name, parent, minX, minY, maxX, maxY);
+            Pill(Panel("Track", root, Palette.Track, 0, 0.36f, 1, 0.64f));
+            var fillArea = Rect("FillArea", root, 0, 0.36f, 1, 0.64f);
+            Pad(fillArea, 0, 0, 24, 0); // 채움 끝이 손잡이 가운데 밑에 오게
+            var fill = Pill(Panel("Fill", fillArea, Palette.Gold));
+            fill.raycastTarget = false;
+            var handleArea = Rect("HandleArea", root, 0, 0, 1, 1);
+            Pad(handleArea, 24, 0, 24, 0);
+            var handle = Pill(Panel("Handle", handleArea, Palette.Text, 0, 0, 0, 1));
+            handle.rectTransform.sizeDelta = new Vector2(0, -8);
+            var fitter = handle.gameObject.AddComponent<AspectRatioFitter>();
+            fitter.aspectMode = AspectRatioFitter.AspectMode.HeightControlsWidth;
+            fitter.aspectRatio = 1f;
+
+            var slider = root.gameObject.AddComponent<Slider>();
+            slider.fillRect = fill.rectTransform;
+            slider.handleRect = handle.rectTransform;
+            slider.targetGraphic = handle;
+            slider.direction = Slider.Direction.LeftToRight;
+            slider.minValue = 0f;
+            slider.maxValue = 1f;
+            return slider;
         }
 
         // [아이콘] 제목 — 가운데 정렬 한 줄 (아이콘이 없으면 글자만). 반환: 글자
@@ -241,6 +285,60 @@ namespace WordRPG.UI
             return sprite;
         }
 
+        // 가운데가 밝고 바깥으로 사라지는 흰 원 (빛 번짐 — 타이틀·진화 연출). 색은 Image.color로
+        public static Sprite GlowSprite()
+        {
+            const string key = "glow";
+            if (SpriteCache.TryGetValue(key, out var cached) && cached != null) return cached;
+            const int size = 128;
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float dx = (x + 0.5f) / size * 2f - 1f, dy = (y + 0.5f) / size * 2f - 1f;
+                float a = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy));
+                pixels[y * size + x] = new Color(1f, 1f, 1f, a * a);
+            }
+            return MakeSprite(key, size, pixels, Vector4.zero);
+        }
+
+        // 가운데에서 사방으로 뻗는 빛줄기 12개 (진화 연출)
+        public static Sprite RaysSprite()
+        {
+            const string key = "rays";
+            if (SpriteCache.TryGetValue(key, out var cached) && cached != null) return cached;
+            const int size = 256;
+            const int count = 12;
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float dx = (x + 0.5f) / size * 2f - 1f, dy = (y + 0.5f) / size * 2f - 1f;
+                float d = Mathf.Sqrt(dx * dx + dy * dy);
+                float beam = Mathf.Pow(Mathf.Abs(Mathf.Cos(Mathf.Atan2(dy, dx) * count / 2f)), 10f);
+                float a = beam * Mathf.Clamp01(1f - d) * Mathf.Clamp01(d * 5f);
+                pixels[y * size + x] = new Color(1f, 1f, 1f, a);
+            }
+            return MakeSprite(key, size, pixels, Vector4.zero);
+        }
+
+        private static Sprite MakeSprite(string key, int size, Color[] pixels, Vector4 border)
+        {
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                name = key
+            };
+            texture.SetPixels(pixels);
+            texture.Apply();
+            var sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
+                SpriteMeshType.FullRect, border);
+            sprite.name = key;
+            SpriteCache[key] = sprite;
+            return sprite;
+        }
+
         // 흰색 둥근 사각형(또는 테두리) 텍스처를 코드로 만들어 9-slice 스프라이트로 쓴다. 1픽셀 = 캔버스 1단위
         private static Sprite RoundedSprite(int radius, int thickness)
         {
@@ -249,12 +347,6 @@ namespace WordRPG.UI
 
             int border = radius + 2;
             int size = border * 2 + 2;
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
-            {
-                filterMode = FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Clamp,
-                name = key
-            };
             var pixels = new Color[size * size];
             float lo = border, hi = size - border;
             for (int y = 0; y < size; y++)
@@ -275,14 +367,7 @@ namespace WordRPG.UI
                 }
                 pixels[y * size + x] = new Color(1f, 1f, 1f, alpha);
             }
-            texture.SetPixels(pixels);
-            texture.Apply();
-
-            var sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
-                SpriteMeshType.FullRect, new Vector4(border, border, border, border));
-            sprite.name = key;
-            SpriteCache[key] = sprite;
-            return sprite;
+            return MakeSprite(key, size, pixels, new Vector4(border, border, border, border));
         }
 
         public static void EnsureEventSystem()

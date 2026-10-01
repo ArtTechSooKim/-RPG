@@ -100,6 +100,18 @@ namespace WordRPG.Tests
             StringAssert.Contains("잉크 폭풍", text);
             Assert.IsFalse(evolve.interactable, "최종 형태");
 
+            // 진화 연출: 어라…? → 빛 → 축하해요! (능력치 변화 + 새 기술) → [좋아요!]로 닫힘
+            var cutscene = evolutionView.transform.Find("EvolutionCutscene").gameObject;
+            Assert.IsTrue(cutscene.activeSelf, "진화하면 연출 시작");
+            yield return WaitFor(() => ActiveButton(cutscene.transform, "EvolutionOkButton") != null, 5f);
+            var scene = AllText(cutscene.transform);
+            StringAssert.Contains("축하해요", scene);
+            StringAssert.Contains("잉크 폭풍", scene);
+            StringAssert.Contains("Lv5", scene);
+            FindButton(cutscene.transform, "EvolutionOkButton").onClick.Invoke();
+            Assert.IsFalse(cutscene.activeSelf);
+            Assert.IsTrue(evolutionView.activeSelf, "연출이 끝나면 제단 화면으로");
+
             FindButton(evolutionView.transform, "EvolutionCloseButton").onClick.Invoke();
             yield return null;
             StringAssert.Contains("깃펜기사", AllText(go.transform.Find("FieldHud/SafeArea/PartyStrip")), "HUD에 진화한 이름");
