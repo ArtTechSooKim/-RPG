@@ -13,6 +13,7 @@ namespace WordRPG.Words
         [SerializeField] private int wrongCount;
         [SerializeField] private long nextReviewTicks;
         [SerializeField] private bool inWrongNote;
+        [SerializeField] private long discoveredTicks; // 처음 만난 시각 (단어 도감용). 0이면 기록 없음
 
         public string WordId => wordId;
         public MasteryLevel Level => level;
@@ -20,13 +21,15 @@ namespace WordRPG.Words
         public int WrongCount => wrongCount;
         public DateTime NextReviewUtc => new DateTime(nextReviewTicks, DateTimeKind.Utc);
         public bool InWrongNote => inWrongNote; // 오답 노트: 틀린 뒤 아직 다시 맞히지 못한 단어
+        public DateTime? DiscoveredUtc => discoveredTicks > 0 ? new DateTime(discoveredTicks, DateTimeKind.Utc) : (DateTime?)null;
 
         private WordProgress() { } // Unity 직렬화용
 
-        public WordProgress(string wordId)
+        public WordProgress(string wordId, DateTime discoveredUtc)
         {
             this.wordId = wordId;
             level = MasteryLevel.New;
+            discoveredTicks = discoveredUtc.Ticks;
         }
 
         public bool IsDue(DateTime nowUtc) => level != MasteryLevel.New && nowUtc >= NextReviewUtc;

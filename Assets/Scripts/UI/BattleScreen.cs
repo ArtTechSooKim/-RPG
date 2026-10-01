@@ -8,19 +8,18 @@ using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using WordRPG.Battle;
 using WordRPG.Field;
-using WordRPG.Items;
+using WordRPG.Game;
 using WordRPG.Monsters;
 using WordRPG.Words;
 
 namespace WordRPG.UI
 {
     // 세로 화면 전투 UI. 모든 규칙은 BattleEngine이 처리하고, 여기서는 입력을 넘기고 돌려받은 BattleEvent를 연출만 한다.
-    // UI는 전부 코드로 만든다 (아트 전 플레이스홀더). 씬에는 이 컴포넌트 하나와 카메라만 있으면 된다
+    // UI는 전부 코드로 만든다 (아트 전 플레이스홀더). 파티·단어 기록은 GameManager의 GameSession을 쓰고,
+    // 답할 때마다와 전투가 끝날 때마다 GameManager.Save()로 자동 저장한다
     public class BattleScreen : MonoBehaviour
     {
         [Header("데이터")]
-        [SerializeField] private MonsterSpecies[] partySpecies;
-        [SerializeField] private int partyLevel = 3;
         [SerializeField] private EncounterTable encounter;
         [SerializeField] private WordDatabase words;
 
@@ -34,10 +33,10 @@ namespace WordRPG.UI
 
         // --- 런타임 상태 ---
         private System.Random rng;
-        private VocabularyProgress vocabulary;
+        private GameSession session;
+        private Action saveProgress;
+        private string pendingStatusMessage;
         private WordQuizService quizService;
-        private Inventory inventory;
-        private List<MonsterInstance> party;
         private BattleEngine engine;
         private bool started;
 
@@ -79,19 +78,21 @@ namespace WordRPG.UI
         public BattleEngine Engine => engine;
         public bool IsResultVisible => resultPanel != null && resultPanel.activeSelf;
         public string ResultTitle => resultTitle != null ? resultTitle.text : "";
-        public IReadOnlyList<MonsterInstance> Party => party;
-        public VocabularyProgress Vocabulary => vocabulary;
+        public GameSession Session => session;
+        public IReadOnlyList<MonsterInstance> Party => session.Party;
+        public VocabularyProgress Vocabulary => session.Vocabulary;
 
-        // 코드로 만든 BattleScreen(테스트 등)이 Start 전에 데이터를 넣는 용도
-        public void Configure(MonsterSpecies[] species, int level, EncounterTable table, WordDatabase database,
-            float animScale = 1f, BattleConfig config = null)
+        // 코드로 만든 BattleScreen(테스트 등)이 Start 전에 데이터를 넣는 용도.
+        // session을 안 주면 Start에서 GameManager.Instance의 세션을 쓴다
+        public void Configure(EncounterTable table, WordDatabase database, GameSession gameSession = null,
+            float animScale = 1f, BattleConfig config = null, Action onProgress = null)
         {
-            partySpecies = species;
-            partyLevel = level;
             encounter = table;
             words = database;
+            session = gameSession;
             animationScale = animScale;
             if (config != null) battleConfig = config;
+            saveProgress = onProgress;
         }
 
         private void Start()
@@ -99,21 +100,22 @@ namespace WordRPG.UI
             if (started) return;
             started = true;
 
-            if (partySpecies == null || partySpecies.Length == 0 || encounter == null || words == null)
+            if (session == null && GameManager.Instance != null)
             {
-                Debug.LogError("[BattleScreen] partySpecies / encounter / words 가 비어 있습니다");
+                var manager = GameManager.Instance;
+                session = manager.Session;
+                saveProgress = manager.Save;
+                pendingStatusMessage = manager.StatusMessage;
+            }
+
+            if (session == null || encounter == null || words == null)
+            {
+                Debug.LogError("[BattleScreen] GameManager(또는 Configure의 session) / encounter / words 가 비어 있습니다");
                 return;
             }
 
             rng = new System.Random();
-            vocabulary = new VocabularyProgress();
-            inventory = new Inventory();
-            quizService = new WordQuizService(words.Words, vocabulary, masteryRules, rng);
-            party = new List<MonsterInstance>();
-            foreach (var species in partySpecies)
-            {
-                if (species != null && party.Count < 3) party.Add(new MonsterInstance(species, partyLevel));
-            }
+            quizService = new WordQuizService(words.Words, session.Vocabulary, masteryRules, rng);
 
             BuildUi();
             StartCoroutine(MainLoop());
@@ -133,8 +135,9 @@ namespace WordRPG.UI
 
         private void StartNewBattle()
         {
+            if (!session.CanFight) session.RestoreParty();
             var enemies = encounter.Roll(rng);
-            engine = new BattleEngine(party, enemies, quizService, battleConfig, rng);
+            engine = new BattleEngine(session.Party, enemies, quizService, battleConfig, rng);
 
             foreach (var view in enemyViews) Destroy(view.Root.gameObject);
             enemyViews.Clear();
@@ -164,6 +167,11 @@ namespace WordRPG.UI
             }
 
             logLines.Clear();
+            if (!string.IsNullOrEmpty(pendingStatusMessage))
+            {
+                Log(pendingStatusMessage);
+                pendingStatusMessage = null;
+            }
             var names = new StringBuilder();
             foreach (var enemy in engine.Enemies)
             {
@@ -196,6 +204,7 @@ namespace WordRPG.UI
 
                 Snapshot();
                 var events = engine.SubmitAnswer(choice, secondsTaken);
+                saveProgress?.Invoke(); // 단어 학습 기록은 답할 때마다 저장
                 bool correct = choice >= 0 && question.IsCorrect(choice) && secondsTaken <= battleConfig.AnswerTimeLimitSeconds;
 
                 // 4. 정답/오답 표시. 틀리면 정답을 꼭 보여줘서 학습 순간으로 만든다
@@ -377,14 +386,15 @@ namespace WordRPG.UI
             if (victory)
             {
                 var reward = engine.CalculateReward();
-                var levels = BattleRewardCalculator.Apply(reward, party, inventory);
+                var levels = BattleRewardCalculator.Apply(reward, session.Party, session.Inventory);
                 resultTitle.text = "승리!";
                 resultTitle.color = Palette.Gold;
-                body.AppendLine($"경험치 +{reward.Exp}   골드 +{reward.Gold}  (보유 {inventory.Gold})");
+                body.AppendLine($"경험치 +{reward.Exp}   골드 +{reward.Gold}  (보유 {session.Inventory.Gold})");
                 foreach (var item in reward.Items) body.AppendLine($"획득: {item.Item.DisplayName} x{item.Count}");
-                for (int i = 0; i < party.Count; i++)
+                for (int i = 0; i < session.Party.Count; i++)
                 {
-                    if (levels[i] > 0) body.AppendLine($"{party[i].DisplayName} 레벨 업! → Lv{party[i].Level}");
+                    var member = session.Party[i];
+                    if (levels[i] > 0) body.AppendLine($"{member.DisplayName} 레벨 업! → Lv{member.Level}");
                 }
             }
             else
@@ -402,8 +412,11 @@ namespace WordRPG.UI
             }
             body.AppendLine();
             body.AppendLine($"정답 {engine.CorrectAnswers}   오답 {engine.WrongAnswers}   단어 숙련도 ▲{up} ▼{down}");
-            body.Append($"학습한 단어 {LearnedCount()}/{words.Words.Count}");
+            body.Append($"발견한 단어 {LearnedCount()}/{words.Words.Count}");
             resultBody.text = body.ToString();
+
+            session.Record.RecordBattle(victory, engine.CorrectAnswers, engine.WrongAnswers);
+            saveProgress?.Invoke();
 
             SetResultButtons(victory ? "다음 전투" : "파티 회복 후 재도전", victory ? "파티 회복 후 전투" : null);
             resultChoice = -1;
@@ -413,7 +426,8 @@ namespace WordRPG.UI
             // 패배 후 재도전, 또는 '회복' 선택 시 파티 완전 회복
             if (!victory || resultChoice == 1)
             {
-                foreach (var monster in party) monster.RestoreFully();
+                session.RestoreParty();
+                saveProgress?.Invoke();
             }
         }
 
@@ -550,14 +564,15 @@ namespace WordRPG.UI
             UpdateFrames();
         }
 
-        private void RefreshVocabLabel() => vocabLabel.text = $"학습한 단어 {LearnedCount()}/{words.Words.Count}";
+        private void RefreshVocabLabel() => vocabLabel.text = $"발견한 단어 {LearnedCount()}/{words.Words.Count}";
 
+        // 이 지역 단어장 중 발견한 단어 수
         private int LearnedCount()
         {
             int count = 0;
-            foreach (var entry in vocabulary.Entries)
+            foreach (var word in words.Words)
             {
-                if (entry.Level > MasteryLevel.New) count++;
+                if (session.Vocabulary.GetLevel(word.Id) > MasteryLevel.New) count++;
             }
             return count;
         }

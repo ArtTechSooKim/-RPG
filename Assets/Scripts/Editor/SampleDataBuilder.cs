@@ -81,6 +81,7 @@ namespace WordRPG.EditorTools
                 new EncounterTable.Entry(scribbleBat, 2, 4, 5));
 
             AssetDatabase.SaveAssets();
+            GameDatabaseBuilder.Refresh();
             Debug.Log("[WordRPG] 샘플 데이터 생성 완료 (기존 에셋은 유지)");
         }
 

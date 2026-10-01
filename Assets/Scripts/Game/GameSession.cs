@@ -1,0 +1,100 @@
+using System;
+using System.Collections.Generic;
+using WordRPG.Items;
+using WordRPG.Monsters;
+using WordRPG.Save;
+using WordRPG.Words;
+
+namespace WordRPG.Game
+{
+    // 플레이어 한 명의 게임 진행 상태 전체: 파티, 소지품, 단어 학습 기록, 전적.
+    // 세이브 파일(SaveData)과 서로 변환된다. MonoBehaviour가 아니라 테스트에서 바로 만들 수 있다
+    public class GameSession
+    {
+        public const int MaxPartySize = 3;
+
+        private readonly List<MonsterInstance> party;
+        private readonly List<string> loadWarnings = new List<string>();
+
+        public IReadOnlyList<MonsterInstance> Party => party;
+        public Inventory Inventory { get; }
+        public VocabularyProgress Vocabulary { get; }
+        public PlayerRecord Record { get; }
+        public IReadOnlyList<string> LoadWarnings => loadWarnings;
+
+        public bool CanFight => party.Exists(m => !m.IsFainted);
+
+        private GameSession(List<MonsterInstance> party, Inventory inventory, VocabularyProgress vocabulary, PlayerRecord record)
+        {
+            this.party = party;
+            Inventory = inventory;
+            Vocabulary = vocabulary;
+            Record = record;
+        }
+
+        public static GameSession NewGame(IReadOnlyList<MonsterSpecies> starters, int level)
+        {
+            return new GameSession(CreateParty(starters, level), new Inventory(), new VocabularyProgress(), new PlayerRecord());
+        }
+
+        public void RestoreParty()
+        {
+            foreach (var monster in party) monster.RestoreFully();
+        }
+
+        public SaveData ToSaveData(DateTime nowUtc)
+        {
+            var partyData = new List<MonsterSaveData>();
+            foreach (var m in party)
+                partyData.Add(new MonsterSaveData(m.Species.SpeciesId, m.Level, m.Exp, m.CurrentHp));
+            return new SaveData(nowUtc, partyData, Inventory, Vocabulary, Record);
+        }
+
+        // 세이브에 있는 몬스터 종을 찾을 수 없으면(삭제·id 변경) 그 몬스터는 빼고 경고를 남긴다.
+        // 파티가 통째로 비면 시작 몬스터로 채운다 — 가장 소중한 단어 학습 기록은 그대로 유지
+        public static GameSession FromSaveData(SaveData data, GameDatabase database,
+            IReadOnlyList<MonsterSpecies> fallbackStarters, int fallbackLevel)
+        {
+            var warnings = new List<string>();
+            var restored = new List<MonsterInstance>();
+            foreach (var saved in data.Party)
+            {
+                var species = database != null ? database.FindMonster(saved.SpeciesId) : null;
+                if (species == null)
+                {
+                    warnings.Add($"세이브의 몬스터 '{saved.SpeciesId}'를 찾을 수 없어 제외했습니다");
+                    continue;
+                }
+                if (restored.Count >= MaxPartySize) break;
+                restored.Add(new MonsterInstance(species, saved.Level, saved.Exp, saved.CurrentHp));
+            }
+
+            if (restored.Count == 0)
+            {
+                warnings.Add("파티를 불러오지 못해 시작 몬스터로 채웠습니다 (단어 학습 기록은 유지)");
+                restored = CreateParty(fallbackStarters, fallbackLevel);
+            }
+
+            var session = new GameSession(restored, data.Inventory, data.Vocabulary, data.Record);
+            session.loadWarnings.AddRange(warnings);
+
+            // 전멸한 채로 저장됐다면(패배 직후 앱 종료 등) 마을로 돌아온 것으로 보고 회복
+            if (!session.CanFight) session.RestoreParty();
+            return session;
+        }
+
+        private static List<MonsterInstance> CreateParty(IReadOnlyList<MonsterSpecies> starters, int level)
+        {
+            var list = new List<MonsterInstance>();
+            if (starters != null)
+            {
+                foreach (var species in starters)
+                {
+                    if (species != null && list.Count < MaxPartySize) list.Add(new MonsterInstance(species, level));
+                }
+            }
+            if (list.Count == 0) throw new ArgumentException("시작 몬스터가 없습니다", nameof(starters));
+            return list;
+        }
+    }
+}

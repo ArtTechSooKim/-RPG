@@ -7,6 +7,7 @@ using UnityEngine.TestTools;
 using UnityEngine.UI;
 using WordRPG.Battle;
 using WordRPG.Field;
+using WordRPG.Game;
 using WordRPG.Monsters;
 using WordRPG.UI;
 using WordRPG.Words;
@@ -38,22 +39,30 @@ namespace WordRPG.Tests
             return button != null && button.gameObject.activeInHierarchy && button.interactable ? button : null;
         }
 
-        private BattleScreen CreateScreen(MonsterSpecies hero, MonsterSpecies enemy, int partySize)
+        private static EncounterTable Table(MonsterSpecies enemy)
         {
             var table = ScriptableObject.CreateInstance<EncounterTable>();
             Set(table, "entries", new List<EncounterTable.Entry> { new EncounterTable.Entry(enemy, 1, 1, 1) });
             Set(table, "minGroupSize", 1);
             Set(table, "maxGroupSize", 1);
+            return table;
+        }
 
+        private static WordDatabase Words()
+        {
             var db = ScriptableObject.CreateInstance<WordDatabase>();
             db.ReplaceWords(TestData.SampleWords());
+            return db;
+        }
 
+        private BattleScreen CreateScreen(MonsterSpecies hero, MonsterSpecies enemy, int partySize)
+        {
             var species = new MonsterSpecies[partySize];
             for (int i = 0; i < partySize; i++) species[i] = hero;
 
             var go = new GameObject("BattleScreenUnderTest");
             var screen = go.AddComponent<BattleScreen>();
-            screen.Configure(species, 1, table, db, animScale: 0.01f);
+            screen.Configure(Table(enemy), Words(), GameSession.NewGame(species, 1), animScale: 0.01f);
             return screen;
         }
 
@@ -141,6 +150,77 @@ namespace WordRPG.Tests
             Assert.AreEqual(screen.Party[0].Stats.MaxHp, screen.Party[0].CurrentHp);
 
             Object.Destroy(screen.gameObject);
+        }
+
+        // 실제 흐름: GameManager가 있는 상태로 전투 → 자동 저장 → 앱 재시작(GameManager 새로 생성) → 이어하기
+        [UnityTest]
+        public IEnumerator ProgressIsSavedAndRestoredAfterRestart()
+        {
+            string dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "WordRPG_PlaySave_" + System.Guid.NewGuid().ToString("N"));
+            GameManager.SaveDirectoryOverride = dir;
+            try
+            {
+                var strike = TestData.Skill("strike", SkillKind.Damage, SkillTarget.SingleEnemy, 40);
+                var hero = TestData.Species("hero", new MonsterStats(100, 30, 10), new MonsterStats(5, 1, 1), strike);
+                var enemy = TestData.Species("enemy", new MonsterStats(40, 1, 50), new MonsterStats(0, 0, 0), strike)
+                    .Set("expReward", 20).Set("goldReward", 7);
+                var database = ScriptableObject.CreateInstance<GameDatabase>();
+                database.ReplaceContents(new[] { hero, enemy }, new Items.ItemData[0]);
+
+                GameManager StartManager()
+                {
+                    var managerGo = new GameObject("GameManager");
+                    managerGo.SetActive(false);
+                    managerGo.AddComponent<GameManager>().Configure(database, new[] { hero, hero }, 1);
+                    managerGo.SetActive(true); // 여기서 Awake → 세이브 읽기
+                    return GameManager.Instance;
+                }
+
+                // 1회차: 새 게임 → 전투 승리
+                var manager = StartManager();
+                Assert.IsFalse(manager.LoadedFromSave);
+                var screenGo = new GameObject("BattleScreen");
+                var screen = screenGo.AddComponent<BattleScreen>();
+                screen.Configure(Table(enemy), Words(), animScale: 0.01f); // 세션은 GameManager 것을 사용
+                yield return null;
+                yield return null;
+                Assert.AreSame(manager.Session, screen.Session);
+
+                yield return PlayUntilResult(screen, answerCorrectly: true);
+                Assert.AreEqual("승리!", screen.ResultTitle);
+                Assert.IsTrue(System.IO.File.Exists(System.IO.Path.Combine(dir, "save.json")), "자동 저장 파일");
+
+                int discovered = manager.Session.Vocabulary.DiscoveredCount;
+                int exp = manager.Session.Party[0].Exp;
+                int level = manager.Session.Party[0].Level;
+                int gold = manager.Session.Inventory.Gold;
+                Assert.Greater(discovered, 0);
+                Assert.Greater(gold, 0);
+
+                // 앱 종료
+                Object.Destroy(screenGo);
+                Object.Destroy(manager.gameObject);
+                yield return null;
+                Assert.IsNull(GameManager.Instance);
+
+                // 2회차: 다시 켜면 이어하기
+                var restarted = StartManager();
+                Assert.IsTrue(restarted.LoadedFromSave);
+                StringAssert.Contains("이어하기", restarted.StatusMessage);
+                Assert.AreEqual(discovered, restarted.Session.Vocabulary.DiscoveredCount);
+                Assert.AreEqual(level, restarted.Session.Party[0].Level);
+                Assert.AreEqual(exp, restarted.Session.Party[0].Exp);
+                Assert.AreEqual(gold, restarted.Session.Inventory.Gold);
+                Assert.AreEqual(1, restarted.Session.Record.BattlesWon);
+
+                Object.Destroy(restarted.gameObject);
+                yield return null;
+            }
+            finally
+            {
+                GameManager.SaveDirectoryOverride = null;
+                if (System.IO.Directory.Exists(dir)) System.IO.Directory.Delete(dir, true);
+            }
         }
     }
 }

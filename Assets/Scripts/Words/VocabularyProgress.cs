@@ -41,6 +41,20 @@ namespace WordRPG.Words
             return progress;
         }
 
+        // 한 번이라도 만난 단어 수 (단어 도감 발견 수)
+        public int DiscoveredCount
+        {
+            get
+            {
+                int count = 0;
+                foreach (var entry in entries)
+                {
+                    if (entry.Level > MasteryLevel.New) count++;
+                }
+                return count;
+            }
+        }
+
         public MasteryLevel GetLevel(string wordId)
         {
             var progress = Find(wordId);
@@ -58,7 +72,7 @@ namespace WordRPG.Words
             var progress = Find(wordId);
             if (progress == null)
             {
-                progress = new WordProgress(wordId);
+                progress = new WordProgress(wordId, nowUtc);
                 entries.Add(progress);
                 lookup[wordId] = progress;
             }

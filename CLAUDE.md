@@ -27,6 +27,9 @@
 3. **새 로직에는 EditMode 테스트**: `Assets/Tests/EditMode/`. SO는 `TestData` 도우미로 생성
 4. **시간·랜덤은 주입**: 로직에서 `DateTime.UtcNow`, `UnityEngine.Random` 직접 사용 금지 → `DateTime nowUtc` / `System.Random` 파라미터로 받기 (테스트 결정성)
 5. **저장 데이터는 id 문자열로 참조**: wordId, itemId, speciesId. 에셋 이름이 바뀌어도 세이브가 깨지지 않게
+   - 몬스터·아이템을 새로 만들면 `WordRPG > Data > Refresh Game Database` 실행 (안 하면 세이브에서 불러올 수 없음, DataIntegrityTests가 잡음)
+   - 이미 출시된 id는 바꾸지 말 것. SaveData에 필드 추가는 자유(예전 세이브는 기본값), 기존 필드 의미를 바꿀 때만 version 올리고 변환
+   - 게임 진행 상태는 `GameManager.Instance.Session`에서 얻고, 바뀌면 `GameManager.Save()` 호출
 6. **네이밍**: PascalCase 클래스/메서드/프로퍼티, camelCase 필드. SO 필드는 `[SerializeField] private` + 읽기 전용 프로퍼티. 클래스명은 영문, 화면 표시명은 한국어 필드(`displayName = "펜촉이"`). 주석은 한국어
 7. **Git LFS 사용 중**: 이미지·오디오·폰트·네이티브 플러그인. 새 바이너리 타입 추가 시 `.gitattributes` 확인
 8. **입력은 Input System 전용**: EventSystem에 `InputSystemUIInputModule` 사용 (`StandaloneInputModule` 금지)
@@ -43,18 +46,20 @@ Assets/
     Items/              ItemData SO, Inventory
     Battle/             BattleEngine, BattleFormulas, BattleReward
     Field/              EncounterTable (이후 이동·조우)
+    Game/               GameSession(진행 상태 전체), GameManager(씬 간 유지 + 자동 저장), GameDatabase(id→에셋), PlayerRecord
+    Save/               SaveData(JSON 형식), SaveSystem(임시파일+백업으로 안전 저장)
     UI/                 BattleScreen(코드로 uGUI 구성), UnitView, UiKit — 세로 1080x1920, OS 한글 폰트
     Editor/             WordRPG.Editor.asmdef — CSV 임포터, 샘플 데이터 생성기
   Tests/EditMode/       WordRPG.Tests.EditMode.asmdef (로직)
   Tests/PlayMode/       WordRPG.Tests.PlayMode.asmdef (UI 버튼을 눌러 전투 한 판 진행)
-  Data/                 Words, Monsters, Skills, Items, Encounters (SO 에셋)
+  Data/                 Words, Monsters, Skills, Items, Encounters (SO 에셋), GameDatabase.asset
   Scenes/
 Docs/                   PRD.txt, GDD.md
 ```
 
 ## 명령어
 
-에디터 메뉴: `WordRPG > Data > Import Word CSVs`, `WordRPG > Data > Create Sample Data` (없는 에셋만 생성), `WordRPG > Scenes > Create Battle Scene`
+에디터 메뉴: `WordRPG > Data > Import Word CSVs`, `WordRPG > Data > Create Sample Data` (없는 에셋만 생성), `WordRPG > Data > Refresh Game Database`, `WordRPG > Scenes > Create Battle Scene`, `WordRPG > Save > Delete Save Data / Open Save Folder`
 
 전투 화면 확인: `Assets/Scenes/Battle.unity`를 열고 Play (Game 뷰를 세로 비율로, 예: 1080x1920)
 
