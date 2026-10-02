@@ -343,6 +343,26 @@ namespace WordRPG.UI
             return MakeSprite(key, size, pixels, Vector4.zero);
         }
 
+        // 아래를 가리키는 작은 삼각형 (Figma 'Name Tag'의 꼬리). 정사각 텍스처의 위쪽 절반에 그린다
+        public static Sprite PointerSprite()
+        {
+            const string key = "pointer";
+            if (SpriteCache.TryGetValue(key, out var cached) && cached != null) return cached;
+            const int size = 48;
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                // 꼭짓점이 아래 가운데(y = size/2), 밑변이 맨 위
+                float h = (y + 0.5f - size / 2f) / (size / 2f); // 0(꼭짓점) ~ 1(밑변)
+                float half = h * size / 2f;
+                float edge = half - Mathf.Abs(x + 0.5f - size / 2f);
+                float a = h < 0f ? 0f : Mathf.Clamp01(edge + 0.5f);
+                pixels[y * size + x] = new Color(1f, 1f, 1f, a);
+            }
+            return MakeSprite(key, size, pixels, Vector4.zero);
+        }
+
         private static Sprite MakeSprite(string key, int size, Color[] pixels, Vector4 border)
         {
             var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)

@@ -44,7 +44,7 @@ namespace WordRPG.Tests
             var walker = new FieldWalker(FieldMap.Parse(Map), new Vector2Int(2, 1));
 
             var boss = walker.TryStep(Direction.Up);
-            Assert.AreEqual(StepKind.Interacted, boss.Kind);
+            Assert.AreEqual(StepKind.BlockedByObject, boss.Kind);
             Assert.AreEqual(FieldTile.Boss, boss.TargetTile);
 
             var door = walker.TryStep(Direction.Down);

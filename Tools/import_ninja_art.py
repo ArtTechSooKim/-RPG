@@ -41,7 +41,7 @@ MUSIC = {
     "boss": "Audio/Musics/28 - Tension.ogg",
 }
 SFX = {
-    "click": "Audio/Sounds/Menu/Accept.wav",
+    "click": "Audio/Sounds/Menu/Move2.wav",  # 가벼운 찰칵 (0.04초)
     "correct": "Audio/Sounds/Bonus/Bonus.wav",
     "wrong": "Audio/Sounds/Alert/Alert.wav",
     "hit": "Audio/Sounds/Hit & Impact/Hit1.wav",

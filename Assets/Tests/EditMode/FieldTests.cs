@@ -104,9 +104,9 @@ namespace WordRPG.Tests
             var chest = walker.TryStep(Direction.Down);
             var fountain = walker.TryStep(Direction.Right);
 
-            Assert.AreEqual(StepKind.Interacted, chest.Kind);
+            Assert.AreEqual(StepKind.BlockedByObject, chest.Kind);
             Assert.AreEqual(FieldTile.Chest, chest.TargetTile);
-            Assert.AreEqual(StepKind.Interacted, fountain.Kind);
+            Assert.AreEqual(StepKind.BlockedByObject, fountain.Kind);
             Assert.AreEqual(FieldTile.Fountain, fountain.TargetTile);
             Assert.AreEqual(new Vector2Int(2, 1), walker.Position, "부딪혀도 제자리");
         }
@@ -121,9 +121,9 @@ namespace WordRPG.Tests
             var altar = town.TryStep(Direction.Up);
 
             Assert.AreEqual(FieldTile.Shop, shop.TargetTile);
-            Assert.AreEqual(StepKind.Interacted, shop.Kind);
+            Assert.AreEqual(StepKind.BlockedByObject, shop.Kind);
             Assert.AreEqual(FieldTile.Altar, altar.TargetTile);
-            Assert.AreEqual(StepKind.Interacted, altar.Kind);
+            Assert.AreEqual(StepKind.BlockedByObject, altar.Kind);
         }
 
         [Test]

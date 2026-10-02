@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -13,7 +14,7 @@ using static WordRPG.Tests.UiDriver;
 
 namespace WordRPG.Tests
 {
-    // 마을: 상점에 부딪혀 재료 구매 → 진화의 제단에 부딪혀 진화 (실제 패드·버튼 사용)
+    // 마을: 상점 앞에서 [확인] → 재료 구매 → 진화의 제단 앞에서 [확인] → 진화 (실제 패드·버튼 사용)
     public class TownScreenTests
     {
         //   y=3  #####
@@ -57,9 +58,16 @@ namespace WordRPG.Tests
             var shopView = go.transform.Find("FieldHud/SafeArea/ShopView").gameObject;
             var evolutionView = go.transform.Find("FieldHud/SafeArea/EvolutionView").gameObject;
 
-            // 1) 위 = 상점
-            yield return HoldPad(field, "Pad_Up", () => shopView.activeSelf);
-            Assert.IsTrue(shopView.activeSelf, "상점에 부딪히면 상점 화면");
+            // 가까이 있는 제단·상점 위에 이름표 (상점은 상점 이름)
+            CollectionAssert.AreEquivalent(new[] { "진화의 제단", "테스트 상점" }, field.VisibleNameTags.ToList());
+
+            // 1) 아래(벽)를 보고 있어도 [확인]은 옆 칸의 상점을 찾아 연다
+            Assert.AreEqual(Direction.Down, field.Facing);
+            Assert.IsTrue(field.ConfirmReady);
+            yield return PressConfirm(field);
+            yield return WaitFor(() => shopView.activeSelf, 2f);
+            Assert.IsTrue(shopView.activeSelf, "상점 앞에서 [확인] → 상점 화면");
+            Assert.AreEqual(Direction.Up, field.Facing, "상점 쪽으로 돌아봄");
             StringAssert.Contains("테스트 상점", AllText(shopView.transform));
 
             // 상점이 열려 있는 동안은 움직이지 않음
@@ -76,13 +84,17 @@ namespace WordRPG.Tests
             FindButton(shopView.transform, "ShopCloseButton").onClick.Invoke();
             Assert.IsFalse(shopView.activeSelf);
 
-            // 3) 왼쪽으로 한 칸 → 위 = 진화의 제단
+            // 3) 왼쪽으로 한 칸 → 위 = 진화의 제단. 부딪히기만 하면 안 열리고 [확인]으로 열림
             yield return WaitFor(() => !field.IsPanelOpen);
             yield return new WaitForSecondsRealtime(0.6f); // 창을 닫은 직후 대기 시간
             yield return HoldPad(field, "Pad_Left", () => field.IsMoving);
             Assert.AreEqual(new Vector2Int(1, 1), field.PlayerCell);
-            yield return HoldPad(field, "Pad_Up", () => evolutionView.activeSelf);
-            Assert.IsTrue(evolutionView.activeSelf, "제단에 부딪히면 진화 화면");
+            yield return FacePad(field, "Pad_Up", Direction.Up);
+            yield return new WaitForSecondsRealtime(0.2f);
+            Assert.IsFalse(evolutionView.activeSelf, "부딪히기만 해서는 안 열림");
+            yield return PressConfirm(field);
+            yield return WaitFor(() => evolutionView.activeSelf, 2f);
+            Assert.IsTrue(evolutionView.activeSelf, "제단 앞에서 [확인] → 진화 화면");
 
             // 4) 진화는 두 번 눌러야 함
             var evolve = FindButton(evolutionView.transform, "EvolveButton_0");
@@ -100,12 +112,13 @@ namespace WordRPG.Tests
             StringAssert.Contains("잉크 폭풍", text);
             Assert.IsFalse(evolve.interactable, "최종 형태");
 
-            // 진화 연출: 어라…? → 빛 → 축하해요! (능력치 변화 + 새 기술) → [좋아요!]로 닫힘
+            // 진화 연출: 단어가 반짝 → 글자 고리 → 진화 성공! (능력치 변화 + 새 기술) → [좋아요!]로 닫힘
             var cutscene = evolutionView.transform.Find("EvolutionCutscene").gameObject;
             Assert.IsTrue(cutscene.activeSelf, "진화하면 연출 시작");
             yield return WaitFor(() => ActiveButton(cutscene.transform, "EvolutionOkButton") != null, 5f);
             var scene = AllText(cutscene.transform);
-            StringAssert.Contains("축하해요", scene);
+            StringAssert.Contains("진화 성공", scene);
+            StringAssert.DoesNotContain("어라", scene, "다른 게임 대사를 쓰지 않음");
             StringAssert.Contains("잉크 폭풍", scene);
             StringAssert.Contains("Lv5", scene);
             FindButton(cutscene.transform, "EvolutionOkButton").onClick.Invoke();

@@ -77,6 +77,8 @@ namespace WordRPG.Tests
             yield return null;
             yield return null;
 
+            CollectionAssert.Contains(field.VisibleNameTags, "안쪽 서고", "출입구 위에 도착 지역 이름표");
+
             // 위, 위 → 출입구를 밟으면 안쪽 서고의 출입구 칸에 나타남
             yield return HoldPad(field, "Pad_Up", () => field.IsMoving);
             yield return HoldPad(field, "Pad_Up", () => field.IsMoving);
@@ -118,8 +120,12 @@ namespace WordRPG.Tests
             yield return null;
             yield return null;
 
-            // 위 = 보스에 부딪힘 → 보스전
-            yield return HoldPad(field, "Pad_Up", () => field.IsInBattle);
+            CollectionAssert.Contains(field.VisibleNameTags, "까먹대왕", "보스 위에 보스 이름표");
+
+            // 위 = 보스 → [확인]으로 도전 → 보스전
+            yield return FacePad(field, "Pad_Up", Direction.Up);
+            Assert.IsFalse(field.IsInBattle, "부딪히기만 해서는 싸우지 않음");
+            yield return PressConfirm(field);
             yield return WaitFor(() => field.Battle.IsRunning);
             Assert.IsTrue(field.Battle.IsRunning);
             Assert.AreSame(king, field.Battle.Engine.Enemies[0].Monster.Species);
@@ -133,9 +139,12 @@ namespace WordRPG.Tests
             Assert.IsTrue(session.World.IsBossDefeated("lair:boss"));
             StringAssert.Contains("까먹대왕을 물리쳤다", field.ToastMessage);
 
-            // 다시 부딪혀도 전투 없음
+            CollectionAssert.DoesNotContain(field.VisibleNameTags, "까먹대왕", "쓰러뜨린 보스는 이름표도 사라짐");
+
+            // 다시 [확인]을 눌러도 전투 없음
             yield return new WaitForSecondsRealtime(0.7f);
-            yield return HoldPad(field, "Pad_Up", () => field.ToastMessage.Contains("있던 자리"), maxSeconds: 2f);
+            yield return PressConfirm(field);
+            yield return WaitFor(() => field.ToastMessage.Contains("있던 자리"), 2f);
             Assert.IsFalse(field.IsInBattle);
             StringAssert.Contains("까먹대왕이 있던 자리", field.ToastMessage);
             Assert.AreEqual(1, session.Record.BattlesWon);

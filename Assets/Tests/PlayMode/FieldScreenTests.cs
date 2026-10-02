@@ -13,7 +13,7 @@ using static WordRPG.Tests.UiDriver;
 
 namespace WordRPG.Tests
 {
-    // 필드 통합 테스트: 실제 가상 패드를 눌러 걷고, 상자·샘·풀숲 조우·전투 복귀까지 확인
+    // 필드 통합 테스트: 실제 가상 패드를 눌러 걷고, [확인]으로 상자·샘 사용, 풀숲 조우·전투 복귀까지 확인
     public class FieldScreenTests
     {
         //   y=4  #####
@@ -66,15 +66,24 @@ namespace WordRPG.Tests
             yield return null;
             Assert.AreEqual(new Vector2Int(2, 1), field.PlayerCell);
 
-            // 1) 위 = 보물상자에 부딪힘 → 빛나는 잉크 2개, 자리는 그대로
-            yield return HoldPad(field, "Pad_Up", () => session.Inventory.GetCount(ink) > 0);
+            // 1) 위 = 보물상자. 부딪히기만 해서는 열리지 않고 [확인]을 눌러야 열림 → 빛나는 잉크 2개, 자리는 그대로
+            yield return FacePad(field, "Pad_Up", Direction.Up);
+            yield return new WaitForSecondsRealtime(0.2f);
+            Assert.AreEqual(0, session.Inventory.GetCount(ink), "부딪히기만 하면 안 열림");
+            Assert.IsTrue(field.ConfirmReady, "옆에 상자가 있으면 확인 버튼이 금색");
+            yield return PressConfirm(field);
+            yield return WaitFor(() => session.Inventory.GetCount(ink) > 0, 2f);
             Assert.AreEqual(2, session.Inventory.GetCount(ink));
             StringAssert.Contains("빛나는 잉크", field.ToastMessage);
             Assert.AreEqual(new Vector2Int(2, 1), field.PlayerCell);
+            CollectionAssert.Contains(field.VisibleNameTags, "회복의 샘", "가까이 있는 샘에 이름표");
 
-            // 2) 왼쪽 = 회복의 샘 → 파티 회복
+            // 2) 왼쪽 = 회복의 샘 → 그쪽을 보고 [확인] → 파티 회복
             session.Party[0].TakeDamage(50);
-            yield return HoldPad(field, "Pad_Left", () => session.Party[0].CurrentHp == session.Party[0].Stats.MaxHp);
+            yield return new WaitForSecondsRealtime(0.35f); // 연속 사용 대기 시간
+            yield return FacePad(field, "Pad_Left", Direction.Left);
+            yield return PressConfirm(field);
+            yield return WaitFor(() => session.Party[0].CurrentHp == session.Party[0].Stats.MaxHp, 2f);
             Assert.AreEqual(session.Party[0].Stats.MaxHp, session.Party[0].CurrentHp);
             StringAssert.Contains("회복의 샘", field.ToastMessage);
 

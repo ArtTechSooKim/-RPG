@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using WordRPG.Battle;
+using WordRPG.Field;
 using WordRPG.UI;
 
 namespace WordRPG.Tests
@@ -77,6 +78,23 @@ namespace WordRPG.Tests
             yield return WaitFor(until, maxSeconds);
             ExecuteEvents.Execute(pad.gameObject, data, ExecuteEvents.pointerUpHandler);
             yield return WaitFor(() => !field.IsMoving, maxSeconds);
+        }
+
+        // 막힌 쪽(상자·제단 등)으로 패드를 눌러 그쪽을 바라보게 한다 — 부딪히기만 하고 쓰지는 않음
+        public static IEnumerator FacePad(FieldScreen field, string padName, Direction direction)
+        {
+            yield return HoldPad(field, padName, () => field.Facing == direction);
+            yield return null;
+        }
+
+        // 패드 가운데 [확인] 버튼을 누른다 (필드가 다음 프레임에 처리)
+        public static IEnumerator PressConfirm(FieldScreen field)
+        {
+            var button = FindButton(field.transform, "Pad_Confirm");
+            if (button == null) throw new ArgumentException("확인 버튼 Pad_Confirm 없음");
+            button.onClick.Invoke();
+            yield return null;
+            yield return null;
         }
     }
 }

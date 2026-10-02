@@ -7,7 +7,15 @@ using WordRPG.Monsters;
 
 namespace WordRPG.UI
 {
-    // 소지품 (Figma '소지품 — 재료' / '소지품 — 징표 진열장'): 재료 탭 = 4칸 격자 + 고른 아이템 상세(쓰는 곳),
+    public enum BagTab
+    {
+        Monsters,  // 파티 몬스터 능력치·기술
+        Materials, // 진화 재료
+        Keepsakes  // 징표 진열장
+    }
+
+    // 소지품 (Figma '소지품 — 몬스터' / '소지품 — 재료' / '소지품 — 징표 진열장'):
+    // 몬스터 탭 = 파티 카드 + 능력치·기술·진화 조건 (MonsterInfoPage), 재료 탭 = 4칸 격자 + 고른 아이템 상세(쓰는 곳),
     // 징표 탭 = 지역 도감 완성 징표 진열장. 아이템은 세이브에 id만 있어서 GameDatabase로 찾는다
     public class InventoryView
     {
@@ -35,11 +43,14 @@ namespace WordRPG.UI
 
         public GameObject Root { get; private set; }
         public bool IsOpen => Root != null && Root.activeSelf;
-        public bool ShowingKeepsakes { get; private set; }
+        public BagTab CurrentTab { get; private set; }
+        public bool ShowingKeepsakes => CurrentTab == BagTab.Keepsakes;
+        public int SelectedMonster => monsterPage.Selected;
 
         private Text goldText;
-        private Button materialsTab, keepsakesTab;
-        private GameObject materialsPage, keepsakesPage;
+        private Button monstersTab, materialsTab, keepsakesTab;
+        private GameObject materialsPage, keepsakesPage, detailBox;
+        private MonsterInfoPage monsterPage;
         private readonly List<Slot> slots = new List<Slot>();
         private readonly List<Shelf> shelves = new List<Shelf>();
         private Image detailIcon, usageIcon;
@@ -62,11 +73,14 @@ namespace WordRPG.UI
             view.goldText = UiKit.IconTitle("Gold", root, UiKit.Icon("gold"), "", 44, Palette.Text, 0, 0.885f, 1, 0.925f);
 
             var tabs = UiKit.RoundPanel("Tabs", root, Palette.Track, UiKit.RadiusMd, 0.022f, 0.815f, 0.978f, 0.872f);
-            view.materialsTab = UiKit.MakeButton("TabMaterials", tabs.transform, "재료", Palette.Button, 44, 0.008f, 0.1f, 0.496f, 0.9f);
-            view.keepsakesTab = UiKit.MakeButton("TabKeepsakes", tabs.transform, "징표", Color.clear, 44, 0.504f, 0.1f, 0.992f, 0.9f);
-            view.materialsTab.onClick.AddListener(() => view.SelectTab(false));
-            view.keepsakesTab.onClick.AddListener(() => view.SelectTab(true));
+            view.monstersTab = UiKit.MakeButton("TabMonsters", tabs.transform, "몬스터", Palette.Button, 44, 0.008f, 0.1f, 0.33f, 0.9f);
+            view.materialsTab = UiKit.MakeButton("TabMaterials", tabs.transform, "재료", Color.clear, 44, 0.339f, 0.1f, 0.661f, 0.9f);
+            view.keepsakesTab = UiKit.MakeButton("TabKeepsakes", tabs.transform, "징표", Color.clear, 44, 0.67f, 0.1f, 0.992f, 0.9f);
+            view.monstersTab.onClick.AddListener(() => view.SelectTab(BagTab.Monsters));
+            view.materialsTab.onClick.AddListener(() => view.SelectTab(BagTab.Materials));
+            view.keepsakesTab.onClick.AddListener(() => view.SelectTab(BagTab.Keepsakes));
 
+            view.monsterPage = MonsterInfoPage.Create(root, 0.022f, 0.105f, 0.978f, 0.8f);
             view.BuildMaterials(root);
             view.BuildKeepsakes(root);
             view.BuildDetail(root);
@@ -142,6 +156,7 @@ namespace WordRPG.UI
         private void BuildDetail(RectTransform root)
         {
             var box = UiKit.RoundPanel("DetailBox", root, Palette.PanelLight, UiKit.RadiusLg, 0.022f, 0.28f, 0.978f, 0.515f);
+            detailBox = box.gameObject;
             detailIcon = UiKit.IconImage("Icon", box.transform, null, 0.03f, 0.6f, 0.155f, 0.92f);
             detailName = UiKit.Display(UiKit.Label("Name", box.transform, "", 44, Palette.Text, 0.18f, 0.76f, 0.97f, 0.93f,
                 TextAnchor.MiddleLeft, FontStyle.Normal, true, 24));
@@ -158,7 +173,8 @@ namespace WordRPG.UI
                 TextAnchor.MiddleLeft, FontStyle.Normal, true, 18);
         }
 
-        public void Show(GameSession gameSession, GameDatabase gameDatabase)
+        // monster: 몬스터 탭에서 고를 파티 몬스터 번호 (-1이면 첫 번째). 가방은 항상 몬스터 탭으로 열린다
+        public void Show(GameSession gameSession, GameDatabase gameDatabase, int monster = -1)
         {
             session = gameSession;
             database = gameDatabase;
@@ -174,20 +190,28 @@ namespace WordRPG.UI
 
             Root.transform.SetAsLastSibling();
             Root.SetActive(true);
-            SelectTab(false);
+            SelectTab(BagTab.Monsters, Mathf.Max(0, monster));
         }
 
         public void Hide() => Root.SetActive(false);
 
-        private void SelectTab(bool keepsakeTab)
+        private void SelectTab(BagTab tab) => SelectTab(tab, 0);
+
+        private void SelectTab(BagTab tab, int monster)
         {
-            ShowingKeepsakes = keepsakeTab;
-            materialsPage.SetActive(!keepsakeTab);
-            keepsakesPage.SetActive(keepsakeTab);
-            StyleTab(materialsTab, !keepsakeTab);
-            StyleTab(keepsakesTab, keepsakeTab);
-            if (keepsakeTab) ShowKeepsake(0);
-            else ShowMaterial(0);
+            CurrentTab = tab;
+            materialsPage.SetActive(tab == BagTab.Materials);
+            keepsakesPage.SetActive(tab == BagTab.Keepsakes);
+            detailBox.SetActive(tab != BagTab.Monsters);
+            StyleTab(monstersTab, tab == BagTab.Monsters);
+            StyleTab(materialsTab, tab == BagTab.Materials);
+            StyleTab(keepsakesTab, tab == BagTab.Keepsakes);
+            switch (tab)
+            {
+                case BagTab.Monsters: monsterPage.Show(session, monster); break;
+                case BagTab.Materials: monsterPage.Hide(); ShowMaterial(0); break;
+                default: monsterPage.Hide(); ShowKeepsake(0); break;
+            }
         }
 
         private static void StyleTab(Button tab, bool selected)
@@ -236,19 +260,23 @@ namespace WordRPG.UI
 
             var species = user.Species;
             string where = $"쓰는 곳  진화의 제단 · {user.DisplayName} → {species.EvolvesTo.DisplayName}";
-            var role = UiKit.Icon(RoleIconName(species.Role));
-            int owned = session.Inventory.GetCount(item);
-            switch (Evolution.Check(user, session.Inventory))
+            var status = EvolutionStatusLine(user, session.Inventory);
+            SetUsage(UiKit.Icon(RoleIconName(species.Role)), where, status.Text, status.Color);
+        }
+
+        // 진화 조건 한 줄 (소지품 재료 상세 · 몬스터 탭에서 같이 쓴다). 진화하지 않는 몬스터에는 쓰지 않는다
+        internal static (string Text, Color Color) EvolutionStatusLine(MonsterInstance monster, Inventory inventory)
+        {
+            var species = monster.Species;
+            int owned = species.EvolveItem != null ? inventory.GetCount(species.EvolveItem) : 0;
+            switch (Evolution.Check(monster, inventory))
             {
                 case EvolutionStatus.Ready:
-                    SetUsage(role, where, $"Lv{species.EvolveLevel} ✓   재료 {owned} / {species.EvolveItemCount} ✓   지금 진화할 수 있어요!", Palette.Good);
-                    break;
+                    return ($"Lv{species.EvolveLevel} ✓   재료 {owned} / {species.EvolveItemCount} ✓   지금 진화할 수 있어요!", Palette.Good);
                 case EvolutionStatus.LevelTooLow:
-                    SetUsage(role, where, $"Lv{species.EvolveLevel}이 되면 진화할 수 있어요 (지금 Lv{user.Level})   재료 {owned} / {species.EvolveItemCount}", Palette.TextDim);
-                    break;
+                    return ($"Lv{species.EvolveLevel}이 되면 진화할 수 있어요 (지금 Lv{monster.Level})   재료 {owned} / {species.EvolveItemCount}", Palette.TextDim);
                 default:
-                    SetUsage(role, where, $"재료 {owned} / {species.EvolveItemCount} — {species.EvolveItemCount - owned}개 더 모으면 돼요", Palette.TextDim);
-                    break;
+                    return ($"재료 {owned} / {species.EvolveItemCount} — {species.EvolveItemCount - owned}개 더 모으면 돼요", Palette.TextDim);
             }
         }
 

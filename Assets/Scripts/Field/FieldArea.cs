@@ -75,7 +75,7 @@ namespace WordRPG.Field
         [SerializeField] private string displayName; // 예: "초원"
         [SerializeField] private FieldTheme theme = FieldTheme.Meadow;
 
-        [Tooltip(". 길  , 풀숲(조우)  # 나무  ~ 물  P 시작 위치  D 출입구  /  부딪혀서 사용: F 회복의 샘  C 보물상자  E 진화의 제단  S 상점  B 보스")]
+        [Tooltip(". 길  , 풀숲(조우)  # 나무  ~ 물  P 시작 위치  D 출입구  /  옆에서 [확인]으로 사용: F 회복의 샘  C 보물상자  E 진화의 제단  S 상점  B 보스")]
         [TextArea(12, 40)]
         [SerializeField] private string map;
 
@@ -89,7 +89,7 @@ namespace WordRPG.Field
         [SerializeField] private int minStepsBetweenEncounters = 4;
 
         [Header("마을")]
-        [Tooltip("맵의 S(상점)에 부딪히면 여는 상점")]
+        [Tooltip("맵의 S(상점) 앞에서 [확인]을 누르면 여는 상점")]
         [SerializeField] private ShopData shop;
 
         [Header("보물상자 — 맵의 C를 위→아래, 왼→오른 순서로 하나씩 대응")]
@@ -138,6 +138,22 @@ namespace WordRPG.Field
         {
             int index = Map.DoorIndex(position);
             return index >= 0 && index < exits.Count ? exits[index] : null;
+        }
+
+        // 이름표 글자: 진화의 제단 · 상점 이름 · 회복의 샘 · 보스 이름 · 출입구는 도착 지역 이름. 이름표가 없는 칸은 null
+        public string LandmarkName(Vector2Int position)
+        {
+            switch (Map.Get(position))
+            {
+                case FieldTile.Altar: return "진화의 제단";
+                case FieldTile.Fountain: return "회복의 샘";
+                case FieldTile.Shop: return shop != null ? shop.DisplayName : "상점";
+                case FieldTile.Boss: return Boss?.Species.DisplayName;
+                case FieldTile.Door:
+                    var exit = GetExit(position);
+                    return exit != null && exit.Target != null ? exit.Target.DisplayName : null;
+                default: return null;
+            }
         }
 
         public ChestContent GetChestContent(Vector2Int position)

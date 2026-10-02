@@ -14,7 +14,8 @@ namespace WordRPG.UI
 {
     // 탑다운 필드: 한 칸씩 이동, 풀숲 조우 → 전투(BattleScreen을 위에 덮음) → 원래 자리로 복귀.
     // 출입구(D)를 밟으면 다른 지역으로 (같은 씬에서 맵만 바꿔 그림).
-    // 보물상자·회복의 샘·진화의 제단·상점·보스는 '부딪혀서' 사용. 입력은 화면 아래 가상 패드 + 키보드(방향키/WASD).
+    // 보물상자·회복의 샘·진화의 제단·상점·보스는 옆에 서서 패드 가운데 [확인](키보드 Space·Enter·Z)으로 사용.
+    // 가까이 가면 오브젝트 위에 이름표가 뜬다. 입력은 화면 아래 가상 패드 + 키보드(방향키/WASD).
     // 이동·조우 규칙은 FieldWalker / EncounterCounter(순수 C#)가 하고 여기서는 화면과 입력만 다룬다
     public class FieldScreen : MonoBehaviour
     {
@@ -47,6 +48,9 @@ namespace WordRPG.UI
         private float walkTime; // 걷기 애니메이션 시계 (멈추면 서 있는 모습)
         private Vector3 moveFrom, moveTo;
         private float interactCooldown;
+        private bool confirmRequested;  // [확인]을 눌렀다 (걷는 중이면 걸음이 끝난 뒤 처리)
+        private float confirmHint;      // 오브젝트에 부딪히면 [확인] 버튼을 잠깐 크게 깜빡여 알려 준다
+        private bool confirmReady;
 
         private Camera cam;
         private Transform player;
@@ -57,6 +61,10 @@ namespace WordRPG.UI
         private bool bossBattle;
 
         private RectTransform hudRoot;
+        private Canvas hudCanvas;
+        private FieldNameTags nameTags;
+        private Image confirmImage, confirmGlow, confirmRing;
+        private Text confirmLabel;
         private Text areaLabel, dexLabel, toastText;
         private GameObject toastPanel;
         private float toastUntil;
@@ -86,6 +94,8 @@ namespace WordRPG.UI
                                    || inventoryView.IsOpen || settingsView.IsOpen || mapView.IsOpen;
         public MinimapView Minimap => minimap;
         public string ToastMessage => toastPanel != null && toastPanel.activeSelf ? toastText.text : "";
+        public IEnumerable<string> VisibleNameTags => nameTags.VisibleNames;
+        public bool ConfirmReady => confirmReady; // 지금 [확인]으로 쓸 것이 옆에 있는지
 
         // 코드로 만들 때(테스트) Start 전에 호출. session을 안 주면 GameManager 것을 쓴다
         // database: 세이브의 마지막 지역이 다른 곳이면 거기서 시작하기 위해 지역을 찾는 데 쓴다 (소지품 화면의 아이템 찾기에도)
@@ -167,7 +177,7 @@ namespace WordRPG.UI
             EnterArea(area, spawn);
 
             if (!string.IsNullOrEmpty(statusMessage)) ShowToast(statusMessage, 3f);
-            if (!loadedFromSave) ShowToast("진한 풀숲을 걸으면 야생 몬스터가 나타나요!\n상자·샘·제단·상점은 부딪혀서 사용", 4f);
+            if (!loadedFromSave) ShowToast("진한 풀숲을 걸으면 야생 몬스터가 나타나요!\n제단·상점·샘 앞에서 가운데 [확인]을 눌러요", 4f);
             return true;
         }
 
@@ -176,11 +186,13 @@ namespace WordRPG.UI
             if (!initialized) return;
             UpdateToast();
             UpdateCamera();
+            nameTags.Tick(cam, hudCanvas, Time.unscaledDeltaTime);
 
-            if (inBattle || transitioning) return;
-            if (IsPanelOpen)
+            if (inBattle || transitioning || IsPanelOpen)
             {
-                interactCooldown = 0.5f; // 창을 닫은 직후 같은 방향을 누르고 있어도 바로 다시 열리지 않게
+                // 창을 닫은 직후 같은 키(Enter 등)로 바로 다시 열리지 않게
+                if (IsPanelOpen) interactCooldown = 0.5f;
+                confirmRequested = false;
                 return;
             }
 
@@ -200,6 +212,13 @@ namespace WordRPG.UI
             }
 
             interactCooldown -= Time.deltaTime;
+            UpdateConfirmButton();
+            if (confirmRequested || ConfirmKeyPressed())
+            {
+                confirmRequested = false;
+                if (TryInteract()) return;
+            }
+
             var direction = ReadDirection();
             if (direction.HasValue) TryStep(direction.Value);
             else if (walkTime > 0f)
@@ -224,18 +243,38 @@ namespace WordRPG.UI
                     moveFrom = player.position;
                     moveTo = CellCenter(outcome.Target);
                     break;
-                case StepKind.Interacted:
-                    if (interactCooldown <= 0f) Interact(outcome);
+                case StepKind.BlockedByObject:
+                    confirmHint = 0.8f; // 부딪히면 쓰지 않고 [확인] 버튼만 깜빡여 알려 준다
                     break;
             }
         }
 
-        private void Interact(StepOutcome outcome)
+        // [확인]: 바라보는 칸(없으면 옆 칸)의 상자·샘·제단·상점·보스를 쓴다. 쓴 것이 있으면 true
+        private bool TryInteract()
         {
-            interactCooldown = 0.6f;
-            switch (outcome.TargetTile)
+            if (interactCooldown > 0f) return false;
+            var direction = FieldInteraction.FindTarget(walker.Map, walker.Position, walker.Facing);
+            if (!direction.HasValue) return false;
+            walker.Face(direction.Value);
+            playerRenderer.sprite = PlayerArt.Get(walker.Facing, 0);
+            var cell = walker.Position + direction.Value.ToOffset();
+            Interact(walker.Map.Get(cell), cell);
+            return true;
+        }
+
+        private static bool ConfirmKeyPressed()
+        {
+            var keyboard = Keyboard.current;
+            return keyboard != null && (keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame
+                                        || keyboard.numpadEnterKey.wasPressedThisFrame || keyboard.zKey.wasPressedThisFrame);
+        }
+
+        private void Interact(FieldTile tile, Vector2Int cell)
+        {
+            interactCooldown = 0.3f;
+            switch (tile)
             {
-                case FieldTile.Chest: OpenChest(outcome.Target); break;
+                case FieldTile.Chest: OpenChest(cell); break;
                 case FieldTile.Fountain: UseFountain(); break;
                 case FieldTile.Altar: evolutionView.Show(session, OnTownChanged); break;
                 case FieldTile.Shop:
@@ -275,6 +314,7 @@ namespace WordRPG.UI
         {
             session.World.SetPosition(area.AreaId, walker.Position);
             minimap.Picture.SetPlayer(walker.Position);
+            RefreshNameTags();
             if (session.World.Reveal(area.AreaId, walker.Map.Width, walker.Map.Height, walker.Position) > 0) minimap.Redraw();
             var tile = walker.Map.Get(walker.Position);
             if (tile == FieldTile.Door)
@@ -390,6 +430,7 @@ namespace WordRPG.UI
                 var bossCell = walker.Map.BossPosition.Value;
                 tilemap.SetTile(new Vector3Int(bossCell.x, bossCell.y, 0), TileFor(FieldTile.Boss, true));
                 minimap.Redraw();
+                RefreshNameTags();
                 saveProgress?.Invoke();
                 string name = area.Boss.Species.DisplayName;
                 ShowToast($"★ {UiKit.WithJosa(name, "을", "를")} 물리쳤다!\n{area.DisplayName}에 잊혀진 기억이 돌아왔다", 4f);
@@ -399,6 +440,7 @@ namespace WordRPG.UI
                 // 패배: 전투 화면이 이미 파티를 회복시켰다. 이 지역의 시작 위치로 돌아간다
                 walker.WarpTo(walker.Map.Start);
                 SnapPlayer();
+                RefreshNameTags();
                 session.World.SetPosition(area.AreaId, walker.Position);
                 saveProgress?.Invoke();
                 ShowToast($"{area.DisplayName} 시작 지점으로 돌아왔다. 파티가 회복되었다!");
@@ -458,6 +500,8 @@ namespace WordRPG.UI
             if (!inBattle) Sound.PlayMusic(AreaMusic);
             session.World.Reveal(area.AreaId, map.Width, map.Height, position);
             minimap.SetArea(map, area.Theme, IsCellDone, cell => session.World.IsExplored(area.AreaId, cell));
+            nameTags.SetArea(area);
+            RefreshNameTags();
             SnapPlayer();
             UpdateCamera();
             RefreshHud();
@@ -524,6 +568,7 @@ namespace WordRPG.UI
             var canvasGo = new GameObject("FieldHud", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvasGo.transform.SetParent(transform, false);
             var canvas = canvasGo.GetComponent<Canvas>();
+            hudCanvas = canvas;
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 0;
             var scaler = canvasGo.GetComponent<CanvasScaler>();
@@ -534,6 +579,9 @@ namespace WordRPG.UI
 
             hudRoot = UiKit.Stretch("SafeArea", canvasGo.transform);
             UiKit.ApplySafeArea(hudRoot);
+
+            // 오브젝트 이름표는 맨 아래 층 (상단 바·패드·창이 그 위를 덮는다)
+            nameTags = FieldNameTags.Create(hudRoot);
 
             // 상단: 지역 이름 · 도감 진행 · 골드
             var top = UiKit.Panel("TopBar", hudRoot, Palette.Scrim, 0, 0.94f, 1, 1);
@@ -577,7 +625,8 @@ namespace WordRPG.UI
             {
                 // Figma 'Party Badge': 얼굴 원 + 이름 + HP 바
                 var badge = UiKit.RoundPanel($"Badge_{i}", strip, Palette.Scrim, UiKit.RadiusMd, i / 3f, 0, (i + 1) / 3f, 1);
-                badge.raycastTarget = false;
+                int member = i;
+                UiKit.AddButton(badge).onClick.AddListener(() => OpenBag(member)); // 누르면 가방 > 몬스터 탭에서 이 몬스터
                 UiKit.Pad(badge.rectTransform, 8, 0, 8, 0);
                 var avatar = UiKit.Pill(UiKit.Panel("Avatar", badge.transform, Palette.PanelLight, 0, 0.62f, 0, 0.62f));
                 avatar.raycastTarget = false;
@@ -612,6 +661,7 @@ namespace WordRPG.UI
             padDown = PadButton(pad, "Pad_Down", "▼", 0.35f, 0f, 0.65f, 0.33f);
             padLeft = PadButton(pad, "Pad_Left", "◀", 0f, 0.335f, 0.3f, 0.665f);
             padRight = PadButton(pad, "Pad_Right", "▶", 0.7f, 0.335f, 1f, 0.665f);
+            BuildConfirmButton(pad);
 
             // 조우 연출용 번쩍임
             flash = UiKit.Panel("EncounterFlash", hudRoot, Color.clear);
@@ -633,6 +683,51 @@ namespace WordRPG.UI
             UiKit.Label("Arrow", image.transform, arrow, 52, new Color(1, 1, 1, 0.92f), 0, 0, 1, 1, TextAnchor.MiddleCenter, FontStyle.Bold);
             return image.gameObject.AddComponent<HoldButton>();
         }
+
+        // 패드 가운데 [확인] (Figma 'Action Button'): 옆에 쓸 것이 있으면 금색(Ready), 없으면 반투명(Idle)
+        private void BuildConfirmButton(RectTransform pad)
+        {
+            confirmGlow = UiKit.IconImage("ConfirmGlow", pad, UiKit.GlowSprite(), 0.5f, 0.5f, 0.5f, 0.5f);
+            confirmGlow.rectTransform.sizeDelta = new Vector2(250, 250);
+            confirmGlow.color = new Color(Palette.Gold.r, Palette.Gold.g, Palette.Gold.b, 0.5f);
+            confirmImage = UiKit.Pill(UiKit.Panel("Pad_Confirm", pad, Color.white, 0.5f, 0.5f, 0.5f, 0.5f));
+            confirmImage.rectTransform.sizeDelta = new Vector2(144, 144);
+            UiKit.AddButton(confirmImage).onClick.AddListener(() => confirmRequested = true);
+            confirmRing = UiKit.Outline(UiKit.Panel("Ring", confirmImage.transform, new Color(1f, 1f, 1f, 0.9f)), 32, 2);
+            confirmRing.gameObject.AddComponent<AutoPill>();
+            confirmRing.raycastTarget = false;
+            confirmLabel = UiKit.Display(UiKit.Label("Label", confirmImage.transform, "확인", 44, Palette.Text, 0, 0, 1, 1));
+            SetConfirmReady(false);
+        }
+
+        private void UpdateConfirmButton()
+        {
+            bool ready = FieldInteraction.FindTarget(walker.Map, walker.Position, walker.Facing).HasValue;
+            if (ready != confirmReady) SetConfirmReady(ready);
+
+            // Ready면 숨 쉬듯 살짝, 부딪힌 직후에는 크게 깜빡
+            float scale = 1f;
+            if (confirmHint > 0f)
+            {
+                confirmHint -= Time.unscaledDeltaTime;
+                scale = 1f + Mathf.Abs(Mathf.Sin(confirmHint * 12f)) * 0.14f;
+            }
+            else if (ready) scale = 1f + Mathf.Sin(Time.unscaledTime * 4f) * 0.04f;
+            confirmImage.rectTransform.localScale = Vector3.one * scale;
+        }
+
+        private void SetConfirmReady(bool ready)
+        {
+            confirmReady = ready;
+            confirmImage.color = ready ? Palette.Gold : new Color(1f, 1f, 1f, 0.22f);
+            confirmLabel.color = ready ? Palette.OnAccent : new Color(Palette.Text.r, Palette.Text.g, Palette.Text.b, 0.85f);
+            confirmRing.enabled = ready;
+            confirmGlow.enabled = ready;
+        }
+
+        // 가까운 오브젝트 이름표만 보이게 (쓰러뜨린 보스는 감춤)
+        private void RefreshNameTags() =>
+            nameTags.Refresh(walker.Position, cell => walker.Map.Get(cell) == FieldTile.Boss && session.World.IsBossDefeated(area.BossId));
 
         private void BuildBattle()
         {
@@ -661,9 +756,12 @@ namespace WordRPG.UI
             }
         }
 
-        private void OpenBag()
+        private void OpenBag() => OpenBag(-1);
+
+        // member: 가방을 몬스터 탭으로 열면서 고를 파티 몬스터 (-1 = 첫 번째)
+        private void OpenBag(int member)
         {
-            if (CanOpenMenu) inventoryView.Show(session, database);
+            if (CanOpenMenu) inventoryView.Show(session, database, member);
         }
 
         private void OpenSettings()

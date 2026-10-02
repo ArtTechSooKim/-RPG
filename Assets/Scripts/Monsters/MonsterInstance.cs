@@ -15,6 +15,9 @@ namespace WordRPG.Monsters
         public bool IsFainted => CurrentHp <= 0;
         public bool IsMaxLevel => Level >= LevelCurve.MaxLevel;
 
+        // 다음 레벨까지 남은 경험치 (최고 레벨이면 0)
+        public int ExpToNextLevel => IsMaxLevel ? 0 : LevelCurve.ExpToNextLevel(Level) - Exp;
+
         public MonsterInstance(MonsterSpecies species, int level, int exp = 0, int? currentHp = null)
         {
             Species = species ?? throw new ArgumentNullException(nameof(species));

@@ -7,12 +7,14 @@ using WordRPG.Monsters;
 
 namespace WordRPG.UI
 {
-    // 진화 연출 (Figma '진화 연출 1·2·3'): ① "어라…?" ② 빛줄기 속 하얀 실루엣 ③ "축하해요!" 새 모습 + 능력치 변화 + 새 기술.
+    // 진화 연출 (Figma '진화 연출 1·2·3'): ① 익힌 단어들이 반짝이기 시작 ② 알파벳 고리가 금빛으로 물든 몬스터 둘레를 돌며 모여듦
+    // ③ "진화 성공!" 새 모습 + 능력치 변화 + 새 기술. 단어 게임다운 우리만의 연출 (다른 게임의 대사·하얀 실루엣은 쓰지 않는다).
     // 화면을 누르면 ③으로 건너뛴다. [좋아요!]를 누르면 닫히고 finished
     public class EvolutionCutscene : MonoBehaviour
     {
         private const float CardSize = 420f;
         private const float ResultCardSize = 360f;
+        private const string RingLetters = "ABCDEFGHIJKL";
 
         public bool IsPlaying => gameObject.activeSelf;
         public bool ShowingResult { get; private set; }
@@ -21,7 +23,8 @@ namespace WordRPG.UI
         private bool skip;
         private Action onFinished;
 
-        private RectTransform card, glow, rays;
+        private RectTransform card, glow, rays, letterRing;
+        private readonly List<Text> letters = new List<Text>();
         private Image cardImage, cardSprite, cardBorder, glowImage, raysImage, flash;
         private Text cardInitial, message, title, headline, sub, skillTitle, skillName, skillDetail;
         private GameObject messageBox, resultGroup, skillBox;
@@ -63,6 +66,18 @@ namespace WordRPG.UI
             cardBorder = UiKit.Outline(UiKit.Panel("Border", card, Palette.Gold), UiKit.RadiusLg, 8);
             cardBorder.raycastTarget = false;
 
+            // ② 몬스터 둘레를 도는 알파벳 고리 (자리는 Run에서 매 프레임 계산)
+            letterRing = UiKit.Rect("Letters", root, 0.5f, 0.62f, 0.5f, 0.62f);
+            for (int i = 0; i < RingLetters.Length; i++)
+            {
+                var letter = UiKit.Display(UiKit.Label($"Letter_{RingLetters[i]}", letterRing, RingLetters[i].ToString(),
+                    i % 3 == 0 ? 76 : 60, Palette.Gold, 0.5f, 0.5f, 0.5f, 0.5f));
+                letter.rectTransform.sizeDelta = new Vector2(100, 100);
+                letter.horizontalOverflow = HorizontalWrapMode.Overflow;
+                letters.Add(letter);
+            }
+            letterRing.gameObject.SetActive(false);
+
             var box = UiKit.RoundPanel("MessageBox", root, Palette.PanelLight, UiKit.RadiusLg, 0.067f, 0.115f, 0.933f, 0.19f);
             box.raycastTarget = false;
             messageBox = box.gameObject;
@@ -79,7 +94,7 @@ namespace WordRPG.UI
         {
             var group = UiKit.Stretch("Result", root);
             resultGroup = group.gameObject;
-            title = UiKit.Display(UiKit.Label("Title", group, "축하해요!", 64, Palette.Gold, 0, 0.9f, 1, 0.955f));
+            title = UiKit.Display(UiKit.Label("Title", group, "진화 성공!", 64, Palette.Gold, 0, 0.9f, 1, 0.955f));
             headline = UiKit.Display(UiKit.Label("Headline", group, "", 46, Palette.Text, 0.03f, 0.635f, 0.97f, 0.675f,
                 TextAnchor.MiddleCenter, FontStyle.Normal, true, 26));
             var subRow = UiKit.Rect("Sub", group, 0.03f, 0.605f, 0.97f, 0.633f);
@@ -178,9 +193,10 @@ namespace WordRPG.UI
             resultGroup.SetActive(false);
             messageBox.SetActive(true);
             raysImage.enabled = false;
+            letterRing.gameObject.SetActive(false);
             flash.color = Color.clear;
             ShowSpecies(from, CardSize, new Vector2(0.5f, 0.62f), false);
-            message.text = $"어라…? {from.DisplayName}의 모습이…!";
+            message.text = $"{UiKit.WithJosa(from.DisplayName, "이", "가")} 익힌 단어들이 반짝이기 시작했어요!";
             float t = 0f, duration = 1.4f * animationScale;
             while (t < duration && !skip)
             {
@@ -191,21 +207,25 @@ namespace WordRPG.UI
                 yield return null;
             }
 
-            // ② 빛: 빛줄기가 돌고 하얀 실루엣이 커졌다 작아졌다
+            // ② 글자: 몬스터는 금빛으로 물들고, 알파벳 고리가 점점 빨리 돌며 몬스터 쪽으로 모여든다
             if (!skip)
             {
-                message.text = $"빛이 {UiKit.WithJosa(from.DisplayName, "을", "를")} 감싸고 있어요…";
+                message.text = $"글자들이 {UiKit.WithJosa(from.DisplayName, "을", "를")} 감싸며 빙글빙글 돌고 있어요…";
                 Sound.Play(Sfx.EvolveLight);
                 raysImage.enabled = true;
-                cardInitial.enabled = false;
-                cardSprite.enabled = false;
+                letterRing.gameObject.SetActive(true);
+                var startColor = cardImage.color;
+                var goldCard = new Color(0.98f, 0.8f, 0.42f);
+                var goldSprite = new Color(1f, 0.9f, 0.6f);
                 t = 0f;
                 duration = 1.8f * animationScale;
                 while (t < duration && !skip)
                 {
                     float k = t / Mathf.Max(0.001f, duration);
-                    cardImage.color = Color.Lerp(cardImage.color, new Color(1f, 0.97f, 0.88f), 0.15f);
-                    card.localScale = Vector3.one * (1f + Mathf.Sin(t * (8f + 16f * k)) * 0.08f);
+                    cardImage.color = Color.Lerp(startColor, goldCard, Mathf.Clamp01(k * 2f));
+                    cardSprite.color = Color.Lerp(Color.white, goldSprite, Mathf.Clamp01(k * 2f));
+                    card.localScale = Vector3.one * (1f + Mathf.Sin(t * 5f) * 0.04f);
+                    PlaceLetters(t, k);
                     rays.localEulerAngles = new Vector3(0, 0, -t * 30f);
                     raysImage.color = Tint(new Color(1f, 0.95f, 0.77f), 0.12f + 0.16f * k);
                     glowImage.color = Tint(Palette.Gold, 0.3f + 0.3f * k);
@@ -232,10 +252,27 @@ namespace WordRPG.UI
             }
         }
 
+        // 글자 고리: 회전이 점점 빨라지고 반지름은 줄어들어 마지막에 몬스터 속으로 모인다. 처음엔 서서히 나타남
+        private void PlaceLetters(float t, float k)
+        {
+            float spin = t * (1.2f + 2.4f * k);
+            float radius = Mathf.Lerp(360f, 140f, k * k);
+            float alpha = Mathf.Clamp01(t * 4f) * (1f - Mathf.Clamp01((k - 0.85f) / 0.15f));
+            for (int i = 0; i < letters.Count; i++)
+            {
+                float angle = i / (float)letters.Count * Mathf.PI * 2f + spin;
+                float r = radius + (i % 2 == 0 ? 20f : -20f);
+                letters[i].rectTransform.anchoredPosition = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * r;
+                letters[i].color = Tint(Palette.Gold, alpha * (i % 3 == 0 ? 1f : 0.75f));
+            }
+        }
+
         private void ShowResult()
         {
             ShowingResult = true;
             Sound.Play(Sfx.Evolve);
+            letterRing.gameObject.SetActive(false);
+            cardSprite.color = Color.white;
             messageBox.SetActive(false);
             resultGroup.SetActive(true);
             card.localScale = Vector3.one;
@@ -247,13 +284,14 @@ namespace WordRPG.UI
 
         private void ShowSpecies(MonsterSpecies species, float size, Vector2 anchor, bool border)
         {
-            foreach (var rt in new[] { card, glow, rays })
+            foreach (var rt in new[] { card, glow, rays, letterRing })
                 rt.anchorMin = rt.anchorMax = anchor;
             card.sizeDelta = new Vector2(size, size);
             cardImage.color = UiKit.ArtColor(species);
             cardInitial.text = species.DisplayName.Length > 0 ? species.DisplayName.Substring(0, 1) : "?";
             cardInitial.fontSize = Mathf.RoundToInt(size * 0.42f);
             cardSprite.sprite = species.Sprite;
+            cardSprite.color = Color.white;
             cardSprite.enabled = species.Sprite != null;
             cardInitial.enabled = species.Sprite == null;
             cardBorder.enabled = border;

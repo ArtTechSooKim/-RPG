@@ -667,7 +667,10 @@ namespace WordRPG.UI
             }
         }
 
-        internal static string SkillDetail(SkillData skill)
+        internal static string SkillDetail(SkillData skill) => $"{SkillEffect(skill)}  |  문제 {QuizText(skill)}";
+
+        // "공격 20 · 적 1체"
+        internal static string SkillEffect(SkillData skill)
         {
             string kind = skill.Kind == SkillKind.Damage ? "공격" : skill.Kind == SkillKind.Heal ? "회복" : "보호막";
             string target;
@@ -679,9 +682,12 @@ namespace WordRPG.UI
                 case SkillTarget.AllAllies: target = "아군 전체"; break;
                 default: target = "자신"; break;
             }
-            string quiz = skill.QuizDirection == QuizDirection.EnglishToMeaning ? "영→한 · 쉬움" : "한→영 · 어려움";
-            return $"{kind} {skill.Power} · {target}  |  문제 {quiz}";
+            return $"{kind} {skill.Power} · {target}";
         }
+
+        internal static bool IsHardQuiz(SkillData skill) => skill.QuizDirection != QuizDirection.EnglishToMeaning;
+
+        internal static string QuizText(SkillData skill) => IsHardQuiz(skill) ? "한→영 · 어려움" : "영→한 · 쉬움";
 
         internal static Color SkillColor(SkillData skill)
         {

@@ -81,8 +81,10 @@ namespace WordRPG.Tests
             var bag = hud.Find("InventoryView").gameObject;
             Assert.IsTrue(bag.activeSelf, "가방 버튼 → 소지품");
             Assert.IsTrue(field.IsPanelOpen, "소지품이 열려 있는 동안은 걷지 않음");
+            Assert.IsFalse(bag.transform.Find("DetailBox").gameObject.activeSelf, "처음엔 몬스터 탭 (재료 상세는 숨김)");
 
             // 재료 탭: 잉크(선택) · 표지, 나머지는 빈 칸. 징표는 재료 칸에 안 나옴
+            FindButton(bag.transform, "TabMaterials").onClick.Invoke();
             var text = AllText(bag.transform);
             StringAssert.Contains("보유 골드  90G", text);
             StringAssert.Contains("× 3", text);
@@ -111,6 +113,56 @@ namespace WordRPG.Tests
             Assert.IsFalse(bag.activeSelf);
             Assert.IsFalse(field.IsPanelOpen);
 
+            Object.Destroy(field.gameObject);
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator BagMonsterTabShowsStatsSkillsAndEvolution()
+        {
+            var splash = TestData.Skill("ink_splash", SkillKind.Damage, SkillTarget.AllEnemies, 14, QuizDirection.MeaningToEnglish)
+                .Set("displayName", "잉크 뿌리기").Set("description", "적 전체에 잉크를 뿌린다.");
+            var shell = TestData.Species("bookshell", new MonsterStats(40, 8, 14), new MonsterStats(6, 1, 3), splash)
+                .Set("displayName", "책껍질").Set("description", "책을 등껍질 삼아 지고 다니는 거북.").Set("role", MonsterRole.Defender);
+            // 펜촉이(잉크 3개로 진화 가능) + 책껍질(진화 없음, HP 20, 경험치 10) 파티
+            var nib = session.Party[0].Species;
+            session = GameSession.NewGame(new[] { nib, shell }, 5);
+            session.Inventory.Add(ink, 3);
+            session.Party[1].TakeDamage(session.Party[1].Stats.MaxHp - 20);
+            session.Party[1].GainExp(10);
+            var field = MakeField();
+            yield return null;
+            yield return null;
+            var hud = field.transform.Find("FieldHud/SafeArea");
+            var bag = hud.Find("InventoryView").gameObject;
+
+            // HUD의 두 번째 파티 배지를 누르면 가방 > 몬스터 탭에서 그 몬스터가 골라진 채로
+            FindButton(hud, "Badge_1").onClick.Invoke();
+            Assert.IsTrue(bag.activeSelf);
+            var detail = bag.transform.Find("MonstersPage/MonsterDetail");
+            var text = AllText(detail);
+            StringAssert.Contains("책껍질", text);
+            StringAssert.Contains("방어형 · Lv5", text);
+            StringAssert.Contains("책을 등껍질 삼아", text, "몬스터 설명");
+            StringAssert.Contains($"20 / {shell.GetStats(5).MaxHp}", text, "현재 HP / 최대 HP");
+            StringAssert.Contains(shell.GetStats(5).Defense.ToString(), text);
+            StringAssert.Contains("잉크 뿌리기", text);
+            StringAssert.Contains("한→영 · 어려움", text, "기술의 문제 유형");
+            StringAssert.Contains("공격 14 · 적 전체", text);
+            StringAssert.Contains($"다음 레벨까지 {LevelCurve.ExpToNextLevel(5) - 10}", text);
+            StringAssert.Contains("최종 모습이에요", text, "진화형이 없는 몬스터");
+
+            // 첫 번째 카드(펜촉이 Lv5 + 잉크 3개) → 진화 조건
+            FindButton(bag.transform, "MonsterTab_0").onClick.Invoke();
+            text = AllText(detail);
+            StringAssert.Contains("펜촉이", text);
+            StringAssert.Contains("진화  깃펜기사", text);
+            StringAssert.Contains("지금 진화할 수 있어요", text);
+            StringAssert.Contains("poke", text, "기술 이름");
+            Assert.IsFalse(FindButton(bag.transform, "MonsterTab_2").gameObject.activeSelf, "파티가 2마리면 세 번째 카드는 숨김");
+
+            FindButton(bag.transform, "InventoryCloseButton").onClick.Invoke();
+            Assert.IsFalse(field.IsPanelOpen);
             Object.Destroy(field.gameObject);
             yield return null;
         }

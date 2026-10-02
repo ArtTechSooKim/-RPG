@@ -75,14 +75,15 @@ Assets/
     Monsters/           MonsterSpecies·SkillData SO, MonsterInstance, LevelCurve, Evolution
     Items/              ItemData SO, Inventory, ShopData SO + Shop(구매 규칙)
     Battle/             BattleEngine, BattleFormulas, BattleReward
-    Field/              FieldMap(맵 글자→격자), FieldWalker(이동), EncounterCounter(조우),
+    Field/              FieldMap(맵 글자→격자), FieldWalker(이동), EncounterCounter(조우), FieldInteraction([확인] 대상·이름표 규칙),
                         FieldArea(지역 SO: 테마·출입구 연결·보스·상자·상점), EncounterTable
     Game/               GameSession(진행 상태 전체), GameManager(씬 간 유지 + 자동 저장 + 설정), GameDatabase(id→에셋), PlayerRecord,
                         Dex(도감 규칙), Keepsakes(징표 진열장), GameSettings(음량·진동)
     Save/               SaveData(JSON 형식), SaveSystem(임시파일+백업으로 안전 저장)
     UI/                 FieldScreen(필드·지역 이동·HUD·가상 패드), BattleScreen(필드 위에 덮이는 전투, 단독 연습 모드도 있음),
                         DexView(도감), EvolutionView(진화의 제단) + EvolutionCutscene(진화 연출), ShopView(상점),
-                        InventoryView(소지품: 재료·징표), SettingsView(설정) + ConfirmDialog(확인 창), SwitchView,
+                        InventoryView(소지품: 몬스터·재료·징표) + MonsterInfoPage(몬스터 능력치·기술), SettingsView(설정) + ConfirmDialog(확인 창), SwitchView,
+                        FieldNameTags(오브젝트 이름표),
                         TitleScreen(타이틀), Haptics(진동), UnitView, HoldButton,
                         FieldArt(필드 타일) · PlayerArt(주인공) · PlaceholderArt(그림이 없을 때 임시 도트), Sound(음악·효과음),
                         BattleFx(전투 효과) + IdleBob, MapViews(미니맵·지도),

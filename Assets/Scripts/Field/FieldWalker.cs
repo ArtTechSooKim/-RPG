@@ -7,7 +7,7 @@ namespace WordRPG.Field
     {
         Moved,
         Blocked,    // 나무·물·맵 끝 — 방향만 바뀜
-        Interacted  // 상자·샘·제단·상점에 부딪힘 — TargetTile로 무엇인지 구분
+        BlockedByObject // 상자·샘·제단·상점·보스에 막힘 — 사용은 [확인] 버튼으로 (FieldInteraction)
     }
 
     public readonly struct StepOutcome
@@ -27,7 +27,7 @@ namespace WordRPG.Field
         }
     }
 
-    // 격자 위 한 칸씩 이동 (포켓몬식). 상호작용은 '부딪히기'로 — 모바일에서 A버튼 없이 상자를 연다
+    // 격자 위 한 칸씩 이동. 막힌 칸 쪽으로 누르면 방향만 바뀐다 (상자·제단 등은 그쪽을 보고 [확인])
     public class FieldWalker
     {
         public FieldMap Map { get; }
@@ -54,9 +54,12 @@ namespace WordRPG.Field
                     Position = target;
                     return new StepOutcome(StepKind.Moved, target, tile);
                 default:
-                    return new StepOutcome(FieldMap.IsInteractive(tile) ? StepKind.Interacted : StepKind.Blocked, target, tile);
+                    return new StepOutcome(FieldMap.IsInteractive(tile) ? StepKind.BlockedByObject : StepKind.Blocked, target, tile);
             }
         }
+
+        // [확인]으로 옆 칸을 쓸 때 그쪽을 바라보게
+        public void Face(Direction direction) => Facing = direction;
 
         public void WarpTo(Vector2Int position)
         {
