@@ -1,7 +1,7 @@
 ==================================================================
  WordRPG (영단어 RPG) 개발현황보고서
 ==================================================================
- 마지막 업데이트: 2026-10-01
+ 마지막 업데이트: 2026-10-02
  작업할 때마다 이 파일을 갱신한다. 다시 시작할 때 맨 위 [현재 상태]만 읽으면 된다.
  자세한 게임 규칙·결정 사항은 Docs/GDD.md, 원본 기획은 Docs/PRD.txt
 
@@ -70,24 +70,29 @@
 ------------------------------------------------------------------
  [사용자가 직접 해야 할 일]
 ------------------------------------------------------------------
- [ ] 빈 폴더 F:\GameProject\영단어RPG 삭제
-     (VS Code를 F:\GameProject\WordRPG 로 다시 연 다음 탐색기에서 삭제)
- [ ] Unity Hub: Add → Add project from disk → F:\GameProject\WordRPG, 옛 항목 제거
- [ ] GitHub 레포 이름 변경: Settings → General → Repository name → WordRPG
-     (바꾼 뒤 Claude에게 알려주면 git 원격 주소 갱신)
- [ ] Title.unity 부터 직접 플레이 후 피드백: 이동 속도, 조우 빈도(풀숲 12%), 문제 난이도,
-     타이머(10초/크리티컬 3초), 데미지 — 숫자는 인스펙터에서 바로 바꿀 수 있음
+ ── 지금 컴퓨터에서 할 설정 (순서대로) ──
+ [ ] 1. VS Code를 F:\GameProject\WordRPG 로 다시 열기 (파일 > 폴더 열기)
+        지금은 빈 옛 폴더 F:\GameProject\영단어RPG 가 열려 있음 → 다시 연 뒤 탐색기에서 옛 폴더 삭제
+ [ ] 2. Unity Hub: Projects > Add > Add project from disk > F:\GameProject\WordRPG
+        (에디터 버전 6000.3.11f1, 목록에 옛 영단어RPG 항목이 있으면 Remove)
+ [ ] 3. 처음 열면 가져오기에 몇 분 걸림 → Assets/Scenes/Title.unity 열기
+ [ ] 4. Game 뷰 해상도: Game 탭 위 해상도 목록 > + > 1080 x 1920 (세로) 추가해서 선택
+ [ ] 5. Play → 소리가 안 나면 Game 뷰 위 'Mute Audio'가 꺼져 있는지 확인
+        ※ Unity 에디터로 프로젝트를 열어 두면 Claude가 테스트를 돌릴 수 없음 → 작업 맡길 땐 Unity를 닫거나 알려 주기
+
+ ── 해 보고 알려 주기 ──
+ [ ] 직접 플레이 피드백: 이동 속도, 조우 빈도(풀숲 12%), 문제 난이도, 타이머(10초/크리티컬 3초),
+     데미지, 상점 가격, 탐험 안개 반지름(3칸) — 숫자는 인스펙터에서 바로 바꿀 수 있음
  [ ] 결정: 설정의 "문제 제한 시간 10초/15초" 선택지를 넣을지 (Figma에 제안으로만 그림)
- [ ] Figma UI 키트 확인·수정: https://www.figma.com/design/UUDRmdKgisU6B59saw5gJr
-     (Components 페이지에서 색·버튼을 바꾸면 Screens의 모든 화면에 반영됨. 색은 변수라 한 곳만 고치면 됨)
- [ ] 아트 에셋 제작 (Midjourney / Figma) — 목록·규격·파일 이름: Docs/아트에셋목록.md
-     먼저 스타일 결정(도트 크기 16/32, 몬스터 컨셉 유지 여부), P1부터: 몬스터 10장 · 타일 · 전투 배경 · UI 기본 키트
-     만든 파일을 Assets/Art/ 에 넣고 "아트 적용해줘" 라고 하면 코드 연결
-     남은 것: 몬스터 10장·주인공·타일·전투 배경 (Midjourney/도트 툴)
-     Figma에서 남은 것: 문제 유형 아이콘 정도 (화면은 다 그림)
-     아이콘을 일러스트로 바꾸고 싶으면 같은 파일 이름으로 Assets/Resources/UI/Icons/ 에 덮어쓰기
+
+ ── 시간 날 때 ──
+ [ ] GitHub 레포 이름 변경: Settings → General → Repository name → WordRPG (바꾼 뒤 알려 주면 git 주소 갱신)
  [ ] 단어 CSV 뜻 검수: Assets/Data/Words/tier1_meadow.csv (엑셀로 열어 수정 → 저장하면 자동 반영)
- [ ] (모바일 빌드 때) Unity Hub → Installs → Android Build Support 설치
+ [ ] 펜촉이·깃펜기사 그림 (팩에 어울리는 그림이 없어 임시 도형) — Figma/도트 툴로 그려서
+     Assets/Resources/Art/NinjaAdventure/Monsters/nib.png, quill_knight.png 로 넣고 알려 주기
+ [ ] Figma UI 키트 확인·수정: https://www.figma.com/design/UUDRmdKgisU6B59saw5gJr
+ [ ] (폰 빌드 때) Unity Hub → Installs → 6000.3.11f1 → Add modules → Android Build Support
+ [ ] (다른 컴퓨터에서 받을 때) git lfs install 먼저 → 그다음 clone (그림·소리·글꼴이 LFS)
 
 
 ------------------------------------------------------------------
