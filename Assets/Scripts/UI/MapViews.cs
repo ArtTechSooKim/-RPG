@@ -186,7 +186,7 @@ namespace WordRPG.UI
             // 범례 두 줄
             var legend = new (string name, Color color)[]
             {
-                ("나", Palette.Gold), ("보물상자", MinimapArt.Chest), ("회복의 샘", MinimapArt.Fountain), ("진화의 제단", MinimapArt.Altar),
+                ("나", Palette.Gold), ("보물상자", MinimapArt.Chest), ("회복의 샘", MinimapArt.Fountain), ("성유물 제단", MinimapArt.Altar),
                 ("상점", MinimapArt.Shop), ("출입구", MinimapArt.Door), ("보스", MinimapArt.Boss), ("풀숲 (몬스터)", new Color32(63, 122, 53, 255)),
                 ("아직 안 가 본 곳", MinimapArt.Fog),
             };

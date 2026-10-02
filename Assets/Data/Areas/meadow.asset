@@ -71,18 +71,23 @@ MonoBehaviour:
   - item: {fileID: 11400000, guid: 4ef0a20b2f82e9c4c8ea2a134a013bf4, type: 2}
     count: 2
     gold: 0
+    relic: {fileID: 0}
   - item: {fileID: 11400000, guid: d068093b31fa6bd479a9978022d8bc1f, type: 2}
     count: 2
     gold: 0
+    relic: {fileID: 0}
   - item: {fileID: 11400000, guid: 83903ba43d39288409cddb3a5f7b0f43, type: 2}
     count: 2
     gold: 0
+    relic: {fileID: 0}
   - item: {fileID: 0}
     count: 0
-    gold: 100
+    gold: 50
+    relic: {fileID: 11400000, guid: 0a6bb6350c64997468755f814f9f9371, type: 2}
   exits:
   - target: {fileID: 11400000, guid: 2f0f21b4f39acf14fab8b7273b5e1a17, type: 2}
     targetDoorIndex: 0
   boss:
     species: {fileID: 0}
     level: 7
+    rewardRelic: {fileID: 0}

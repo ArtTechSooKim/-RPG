@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEngine;
 using WordRPG.Field;
 using WordRPG.Game;
+using WordRPG.Heroes;
 using WordRPG.Items;
 using WordRPG.Monsters;
 using WordRPG.UI;
@@ -55,23 +56,6 @@ namespace WordRPG.Tests
         }
     }
 
-    public class EvolutionPreviewTests
-    {
-        [Test]
-        public void NewSkillsListsOnlyWhatWasNotKnown()
-        {
-            var poke = TestData.Skill("poke", SkillKind.Damage, SkillTarget.SingleEnemy, 20);
-            var splash = TestData.Skill("splash", SkillKind.Damage, SkillTarget.AllEnemies, 14);
-            var storm = TestData.Skill("storm", SkillKind.Damage, SkillTarget.AllEnemies, 22);
-            var baby = TestData.Species("nib", new MonsterStats(1, 1, 1), new MonsterStats(0, 0, 0), poke, splash);
-            var adult = TestData.Species("knight", new MonsterStats(1, 1, 1), new MonsterStats(0, 0, 0), poke, storm);
-
-            CollectionAssert.AreEqual(new[] { storm }, Evolution.NewSkills(baby, adult));
-            Assert.AreEqual(0, Evolution.NewSkills(adult, adult).Count);
-            Assert.AreEqual(0, Evolution.NewSkills(null, adult).Count);
-        }
-    }
-
     public class JosaTests
     {
         [TestCase("펜촉이", "이", "가", "펜촉이가")]
@@ -118,31 +102,53 @@ namespace WordRPG.Tests
             }
         }
 
+        // 사용자 결정: 상점은 상처약만 판다 (강화 재료를 사면 너무 쉬워서). 재료는 적 드롭·보물상자·보스로
         [Test]
-        public void EveryStarterCanEvolveWithItemsThatAreObtainable()
+        public void ShopsSellHealingItemsNotUpgradeMaterials()
         {
-            // 시작 몬스터의 진화 재료는 상점·보물상자·적 드롭 중 하나 이상에서 얻을 수 있어야 함
+            var shops = AssetDatabase.FindAssets("t:ShopData", new[] { "Assets/Data" })
+                .Select(g => AssetDatabase.LoadAssetAtPath<ShopData>(AssetDatabase.GUIDToAssetPath(g))).ToList();
+            Assert.Greater(shops.Count, 0);
+            foreach (var shop in shops)
+            foreach (var entry in shop.Entries)
+            {
+                Assert.AreNotEqual(ItemKind.Material, entry.Item.Kind, $"{shop.name}: 강화 재료 {entry.Item.name}을(를) 팔면 안 됨");
+                Assert.IsTrue(entry.Item.IsHealingItem, $"{shop.name}: {entry.Item.name}은(는) 회복 아이템이 아님");
+            }
+        }
+
+        [Test]
+        public void EveryRelicCanBeUpgradedWithObtainableMaterialsAndIsFindable()
+        {
             var monsters = AssetDatabase.FindAssets("t:MonsterSpecies", new[] { "Assets/Data" })
                 .Select(g => AssetDatabase.LoadAssetAtPath<MonsterSpecies>(AssetDatabase.GUIDToAssetPath(g))).ToList();
             var areas = AssetDatabase.FindAssets("t:FieldArea", new[] { "Assets/Data" })
                 .Select(g => AssetDatabase.LoadAssetAtPath<FieldArea>(AssetDatabase.GUIDToAssetPath(g))).ToList();
+            var relics = AssetDatabase.FindAssets("t:RelicData", new[] { "Assets/Data" })
+                .Select(g => AssetDatabase.LoadAssetAtPath<RelicData>(AssetDatabase.GUIDToAssetPath(g))).ToList();
+            var hero = AssetDatabase.LoadAssetAtPath<HeroData>("Assets/Data/Hero/hero.asset");
 
-            var obtainable = new HashSet<ItemData>();
+            var obtainableItems = new HashSet<ItemData>();
+            var findableRelics = new HashSet<RelicData>(hero.StartingRelics);
             foreach (var m in monsters)
             foreach (var drop in m.Drops)
-                if (drop.Item != null && drop.Chance > 0) obtainable.Add(drop.Item);
+                if (drop.Item != null && drop.Chance > 0) obtainableItems.Add(drop.Item);
             foreach (var area in areas)
             {
                 foreach (var chest in area.ChestContents)
-                    if (chest.Item != null) obtainable.Add(chest.Item);
-                if (area.Shop != null)
-                    foreach (var entry in area.Shop.Entries)
-                        if (entry.Item != null) obtainable.Add(entry.Item);
+                {
+                    if (chest.Item != null) obtainableItems.Add(chest.Item);
+                    if (chest.Relic != null) findableRelics.Add(chest.Relic);
+                }
+                if (area.Boss != null && area.Boss.RewardRelic != null) findableRelics.Add(area.Boss.RewardRelic);
             }
 
-            foreach (var species in monsters.Where(m => m.EvolvesTo != null && m.EvolveItem != null))
-                Assert.IsTrue(obtainable.Contains(species.EvolveItem),
-                    $"{species.name}의 진화 재료 {species.EvolveItem.name}을 얻을 방법이 없음");
+            foreach (var relic in relics)
+            {
+                Assert.IsTrue(findableRelics.Contains(relic), $"{relic.name}: 시작·보물상자·보스 어디에서도 얻을 수 없음");
+                Assert.IsTrue(obtainableItems.Contains(relic.UpgradeItem),
+                    $"{relic.name}의 강화 재료 {relic.UpgradeItem.name}을(를) 얻을 방법이 없음 (적 드롭·보물상자)");
+            }
         }
     }
 }

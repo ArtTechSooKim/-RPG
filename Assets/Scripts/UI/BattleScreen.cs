@@ -9,13 +9,15 @@ using UnityEngine.UI;
 using WordRPG.Battle;
 using WordRPG.Field;
 using WordRPG.Game;
+using WordRPG.Heroes;
+using WordRPG.Items;
 using WordRPG.Monsters;
 using WordRPG.Words;
 
 namespace WordRPG.UI
 {
     // 세로 화면 전투 UI. 모든 규칙은 BattleEngine이 처리하고, 여기서는 입력을 넘기고 돌려받은 BattleEvent를 연출만 한다.
-    // UI는 전부 코드로 만든다 (아트 전 플레이스홀더). 파티·단어 기록은 GameManager의 GameSession을 쓰고,
+    // UI는 전부 코드로 만든다 (아트 전 플레이스홀더). 주인공·단어 기록은 GameManager의 GameSession을 쓰고,
     // 답할 때마다와 전투가 끝날 때마다 GameManager.Save()로 자동 저장한다
     public class BattleScreen : MonoBehaviour
     {
@@ -37,6 +39,7 @@ namespace WordRPG.UI
         // --- 런타임 상태 ---
         private System.Random rng;
         private GameSession session;
+        private GameDatabase database; // 가방의 상처약 찾기용 (id → 에셋)
         private GameSettings settings; // 진동 여부. GameManager가 없으면(테스트) null
         private Action saveProgress;
         private string pendingStatusMessage;
@@ -65,6 +68,8 @@ namespace WordRPG.UI
         private readonly List<Button> skillButtons = new List<Button>();
         private readonly List<Text> skillDetails = new List<Text>();
         private Button cancelButton;
+        private Button itemButton;
+        private bool itemMode; // 아이템(상처약) 고르는 중
 
         private Text quizPrompt, quizHint;
         private RectTransform timerFill;
@@ -82,6 +87,7 @@ namespace WordRPG.UI
 
         // --- 입력 대기용 ---
         private SkillData pickedSkill;
+        private ItemData pickedItem;
         private BattleUnit pickedTarget;
         private SkillData targetingSkill;
         private int pickedChoice = int.MinValue;
@@ -93,16 +99,19 @@ namespace WordRPG.UI
         public string ResultTitle => resultTitle != null ? resultTitle.text : "";
         public GameSession Session => session;
         public bool IsRunning => running;
-        public IReadOnlyList<MonsterInstance> Party => session.Party;
+        public Hero Hero => session.Hero;
         public VocabularyProgress Vocabulary => session.Vocabulary;
 
         // 코드로 만든 BattleScreen(테스트 등)이 Start 전에 데이터를 넣는 용도.
         // session을 안 주면 Start에서 GameManager.Instance의 세션을 쓴다
-        public void Configure(EncounterTable table, WordDatabase database, GameSession gameSession = null,
-            float animScale = 1f, BattleConfig config = null, Action onProgress = null, bool loop = true)
+        // gameDatabase: 상처약 등 아이템 찾기용. 안 주면 GameManager 것
+        public void Configure(EncounterTable table, WordDatabase wordBook, GameSession gameSession = null,
+            float animScale = 1f, BattleConfig config = null, Action onProgress = null, bool loop = true,
+            GameDatabase gameDatabase = null)
         {
             encounter = table;
-            words = database;
+            words = wordBook;
+            database = gameDatabase;
             session = gameSession;
             animationScale = animScale;
             if (config != null) battleConfig = config;
@@ -129,6 +138,8 @@ namespace WordRPG.UI
                 manager.MarkPlaying();
                 if (loopBattles) pendingStatusMessage = manager.StatusMessage; // 필드에서는 필드가 보여줌
             }
+
+            if (database == null && GameManager.Instance != null) database = GameManager.Instance.Database;
 
             if (session == null || (loopBattles && (encounter == null || words == null)))
             {
@@ -185,13 +196,13 @@ namespace WordRPG.UI
 
         private void StartNewBattle(List<MonsterInstance> enemies, string intro = null)
         {
-            if (!session.CanFight) session.RestoreParty();
+            if (!session.CanFight) session.RestoreHero();
             if (quizService == null || quizWords != words)
             {
                 quizWords = words;
                 quizService = new WordQuizService(words.Words, session.Vocabulary, masteryRules, rng);
             }
-            engine = new BattleEngine(session.Party, enemies, quizService, battleConfig, rng);
+            engine = new BattleEngine(new ICombatant[] { session.Hero }, enemies, quizService, battleConfig, rng);
 
             foreach (var view in enemyViews) Destroy(view.Root.gameObject);
             enemyViews.Clear();
@@ -230,7 +241,7 @@ namespace WordRPG.UI
             foreach (var enemy in engine.Enemies)
             {
                 if (names.Length > 0) names.Append(", ");
-                names.Append($"{enemy.DisplayName} Lv{enemy.Monster.Level}");
+                names.Append($"{enemy.DisplayName} Lv{enemy.Level}");
             }
             Log(intro ?? $"야생 몬스터 출현! {names}");
             roundLabel.text = "라운드 1";
@@ -243,8 +254,17 @@ namespace WordRPG.UI
         {
             while (!engine.IsOver)
             {
-                // 1. 스킬(과 대상) 선택
+                // 1. 기술(과 대상) 선택 — 또는 상처약
                 yield return ChooseSkill();
+                if (pickedItem != null)
+                {
+                    Snapshot();
+                    var itemEvents = engine.UseItem(pickedItem, session.Inventory);
+                    saveProgress?.Invoke();
+                    HideAllPanels();
+                    yield return PlayEvents(itemEvents);
+                    continue;
+                }
                 var question = engine.SelectSkill(pickedSkill, pickedTarget);
 
                 // 2. 처음 보는 단어면 뜻부터 보여준다
@@ -283,12 +303,14 @@ namespace WordRPG.UI
         {
             var actor = engine.CurrentActor;
             pickedSkill = null;
+            pickedItem = null;
             pickedTarget = null;
             targetingSkill = null;
+            itemMode = false;
             UpdateFrames();
             ShowSkillMenu(actor);
 
-            while (pickedSkill == null) yield return null;
+            while (pickedSkill == null && pickedItem == null) yield return null;
             ClearSelectable();
         }
 
@@ -445,6 +467,17 @@ namespace WordRPG.UI
                         yield return Wait(0.6f);
                         break;
 
+                    case BattleEventType.ItemUsed:
+                        var it = shown[e.Target];
+                        shown[e.Target] = (it.hp + e.Amount, it.shield);
+                        Sync(e.Target);
+                        Float(e.Target, $"+{e.Amount}", Palette.Good, 48);
+                        Sound.Play(Sfx.Heal);
+                        PlayFx(e.Target, Fx.Heal);
+                        Log($"{UiKit.WithJosa(e.Item.DisplayName, "을", "를")} 썼다! HP +{e.Amount}");
+                        yield return Wait(0.6f);
+                        break;
+
                     case BattleEventType.Defeated:
                         Log($"{e.Target.DisplayName} 쓰러졌다!");
                         Sound.Play(Sfx.Faint);
@@ -476,24 +509,21 @@ namespace WordRPG.UI
             if (victory)
             {
                 var reward = engine.CalculateReward();
-                var levels = BattleRewardCalculator.Apply(reward, session.Party, session.Inventory);
+                int levels = BattleRewardCalculator.Apply(reward, session.Hero, session.Inventory);
                 resultTitle.text = "승리!";
                 resultTitle.color = Palette.Gold;
                 AddResultLine(null, $"경험치 +{reward.Exp}", Palette.Text);
                 AddResultLine(UiKit.Icon("gold"), $"+{reward.Gold}   (보유 {session.Inventory.Gold}G)", Palette.Text);
                 foreach (var item in reward.Items) AddResultLine(UiKit.ItemIcon(item.Item), $"{item.Item.DisplayName} x{item.Count} 획득", Palette.Text);
-                // 레벨 업은 한 줄로 모아서 (도감 배너까지 붙어도 결과 패널이 넘치지 않게)
-                var leveled = new List<string>();
-                for (int i = 0; i < session.Party.Count; i++)
-                    if (levels[i] > 0) leveled.Add($"{session.Party[i].DisplayName} Lv{session.Party[i].Level}");
-                if (leveled.Count > 0) AddResultLine(UiKit.Icon("star_full"), $"레벨 업!  {string.Join(" · ", leveled)}", Palette.Gold);
-                leveledUp = leveled.Count > 0;
+                if (levels > 0) AddResultLine(UiKit.Icon("star_full"), $"레벨 업!  {session.Hero.DisplayName} Lv{session.Hero.Level}", Palette.Gold);
+                leveledUp = levels > 0;
             }
             else
             {
                 resultTitle.text = "패배…";
                 resultTitle.color = Palette.Bad;
-                AddResultLine(null, loopBattles ? "파티가 전멸했다. 회복하고 다시 도전하자!" : "파티가 전멸했다… 시작 지점으로 돌아간다.", Palette.Text);
+                string fainted = UiKit.WithJosa(session.Hero.DisplayName, "이", "가");
+                AddResultLine(null, loopBattles ? $"{fainted} 쓰러졌다. 회복하고 다시 도전하자!" : $"{fainted} 쓰러졌다… 시작 지점으로 돌아간다.", Palette.Text);
             }
             resultBorder.color = victory ? Palette.Gold : Palette.PanelLight;
             UiKit.SetColor(resultPrimary, victory ? Palette.Button : Palette.Neutral);
@@ -516,16 +546,16 @@ namespace WordRPG.UI
             session.Record.RecordBattle(victory, engine.CorrectAnswers, engine.WrongAnswers);
             saveProgress?.Invoke();
 
-            if (loopBattles) SetResultButtons(victory ? "다음 전투" : "파티 회복 후 재도전", victory ? "파티 회복 후 전투" : null);
+            if (loopBattles) SetResultButtons(victory ? "다음 전투" : "회복 후 재도전", victory ? "회복 후 전투" : null);
             else SetResultButtons(victory ? "계속 탐험" : "시작 지점으로", null);
             resultChoice = -1;
             ShowPanel(resultPanel);
             while (resultChoice < 0) yield return null;
 
-            // 패배 후 재도전, 또는 '회복' 선택 시 파티 완전 회복
+            // 패배 후 재도전, 또는 '회복' 선택 시 완전 회복
             if (!victory || resultChoice == 1)
             {
-                session.RestoreParty();
+                session.RestoreHero();
                 saveProgress?.Invoke();
             }
         }
@@ -582,8 +612,9 @@ namespace WordRPG.UI
 
         private void ShowSkillMenu(BattleUnit actor)
         {
+            itemMode = false;
             ShowPanel(skillPanel);
-            skillTitle.text = $"{actor.DisplayName}의 차례 — 스킬을 고르세요";
+            skillTitle.text = $"{actor.DisplayName}의 차례 — 기술을 고르세요";
             cancelButton.gameObject.SetActive(false);
 
             for (int i = 0; i < skillButtons.Count; i++)
@@ -594,11 +625,66 @@ namespace WordRPG.UI
 
                 var skill = actor.Skills[i];
                 UiKit.LabelOf(skillButtons[i]).text = skill.DisplayName;
-                skillDetails[i].text = SkillDetail(skill);
+                skillDetails[i].text = SourcePrefix(actor, skill) + SkillDetail(skill);
                 UiKit.SetColor(skillButtons[i], SkillColor(skill));
                 skillButtons[i].interactable = true;
                 skillButtons[i].onClick.RemoveAllListeners();
                 skillButtons[i].onClick.AddListener(() => OnSkillClicked(skill));
+            }
+
+            // 상처약: 가진 개수, HP가 가득이면 잠금
+            bool isHero = actor.Hero != null;
+            itemButton.gameObject.SetActive(isHero);
+            if (isHero)
+            {
+                int potions = 0;
+                foreach (var item in HealingItems()) potions += session.Inventory.GetCount(item);
+                bool full = actor.Hp >= actor.MaxHp;
+                itemButton.interactable = potions > 0 && !full;
+                UiKit.LabelOf(itemButton).text = potions == 0 ? "가방 — 상처약이 없어요" : full ? "가방 — HP가 가득해요" : $"가방 — 상처약 쓰기 ({potions}개)";
+            }
+        }
+
+        // "깃펜 · " (성유물 기술) / "기본 · " (주인공 기본 기술). 적이면 빈 글자
+        private static string SourcePrefix(BattleUnit actor, SkillData skill)
+        {
+            if (actor.Hero == null) return "";
+            var source = actor.Hero.SourceOf(skill);
+            return source != null ? $"{source.Data.DisplayName} · " : "기본 · ";
+        }
+
+        // 가방에 있는 회복 아이템 (상처약 등). 소지품은 id만 있어서 GameDatabase로 찾는다
+        private List<ItemData> HealingItems()
+        {
+            var list = new List<ItemData>();
+            if (database == null) return list;
+            foreach (var stack in session.Inventory.Stacks)
+            {
+                var item = database.FindItem(stack.ItemId);
+                if (item != null && item.IsHealingItem && stack.Count > 0) list.Add(item);
+            }
+            return list;
+        }
+
+        private void ShowItemMenu()
+        {
+            itemMode = true;
+            skillTitle.text = "어떤 아이템을 쓸까요? (한 턴을 쓰고, 문제는 없어요)";
+            itemButton.gameObject.SetActive(false);
+            cancelButton.gameObject.SetActive(true);
+            var items = HealingItems();
+            for (int i = 0; i < skillButtons.Count; i++)
+            {
+                bool used = i < items.Count;
+                skillButtons[i].gameObject.SetActive(used);
+                if (!used) continue;
+                var item = items[i];
+                UiKit.LabelOf(skillButtons[i]).text = $"{item.DisplayName}  × {session.Inventory.GetCount(item)}";
+                skillDetails[i].text = $"HP {item.HealAmount} 회복";
+                UiKit.SetColor(skillButtons[i], Palette.Heal);
+                skillButtons[i].interactable = true;
+                skillButtons[i].onClick.RemoveAllListeners();
+                skillButtons[i].onClick.AddListener(() => pickedItem = item);
             }
         }
 
@@ -628,6 +714,7 @@ namespace WordRPG.UI
             targetingSkill = skill;
             skillTitle.text = $"{skill.DisplayName} — 대상을 선택하세요";
             foreach (var button in skillButtons) button.gameObject.SetActive(false);
+            itemButton.gameObject.SetActive(false);
             cancelButton.gameObject.SetActive(true);
 
             foreach (var unit in alive)
@@ -645,6 +732,11 @@ namespace WordRPG.UI
 
         private void OnCancelTargeting()
         {
+            if (itemMode)
+            {
+                ShowSkillMenu(engine.CurrentActor);
+                return;
+            }
             if (targetingSkill == null) return;
             targetingSkill = null;
             ClearSelectable();
@@ -916,11 +1008,9 @@ namespace WordRPG.UI
                 TextAnchor.MiddleLeft, FontStyle.Normal, true, 22);
             UiKit.Pad(logLabel.rectTransform, 24, 8, 24, 8);
 
-            // 아군 카드 3장
+            // 주인공 카드 (가운데 한 장)
             var partyArea = UiKit.Rect("PartyArea", root, 0, 0.355f, 1, 0.51f);
-            partyViews = new UnitView[3];
-            for (int i = 0; i < 3; i++)
-                partyViews[i] = UnitView.Create(partyArea, $"Party_{i}", i / 3f, 0, (i + 1) / 3f, 1);
+            partyViews = new[] { UnitView.Create(partyArea, "Party_0", 1f / 3f, 0, 2f / 3f, 1) };
 
             // 하단 패널들
             var bottom = UiKit.Rect("Bottom", root, 0, 0, 1, 0.35f);
@@ -940,11 +1030,12 @@ namespace WordRPG.UI
             skillTitle = UiKit.Label("Title", skillPanel.transform, "", 40, Palette.Text, 0, 0.84f, 1, 1,
                 TextAnchor.MiddleCenter, FontStyle.Bold, true, 24);
 
+            // 기술 4칸 (기본 기술 + 성유물 3개) + 맨 아래 가방(상처약) 버튼 — Figma 'Battle — 주인공'
             for (int i = 0; i < 4; i++)
             {
-                float top = 0.82f - i * 0.2066f;
+                float top = 0.835f - i * 0.165f;
                 var button = UiKit.MakeButton($"SkillButton_{i}", skillPanel.transform, "", Palette.Button, 44,
-                    0, top - 0.19f, 1, top, bestFit: true);
+                    0, top - 0.155f, 1, top, bestFit: true);
                 var label = UiKit.LabelOf(button);
                 label.rectTransform.anchorMin = new Vector2(0, 0.4f);
                 label.rectTransform.offsetMin = new Vector2(16, 0);
@@ -955,8 +1046,15 @@ namespace WordRPG.UI
                 skillDetails.Add(detail);
             }
 
+            itemButton = UiKit.MakeButton("ItemButton", skillPanel.transform, "가방 — 상처약 쓰기", Palette.Button, 40,
+                0, 0, 1, 0.155f, bestFit: true);
+            var itemColors = itemButton.colors;
+            itemColors.disabledColor = new Color(0.6f, 0.6f, 0.6f, 0.5f);
+            itemButton.colors = itemColors;
+            itemButton.onClick.AddListener(ShowItemMenu);
+
             cancelButton = UiKit.MakeButton("CancelButton", skillPanel.transform, "취소", Palette.Neutral,
-                44, 0.25f, 0.04f, 0.75f, 0.24f);
+                44, 0.25f, 0, 0.75f, 0.155f);
             cancelButton.onClick.AddListener(OnCancelTargeting);
         }
 

@@ -7,6 +7,7 @@ using WordRPG.Words;
 
 namespace WordRPG.Save
 {
+    // v1(몬스터 파티 시절) 세이브의 몬스터 한 마리. v2부터는 쓰지 않고, 예전 세이브를 주인공 레벨로 바꿀 때만 읽는다
     [Serializable]
     public class MonsterSaveData
     {
@@ -31,16 +32,62 @@ namespace WordRPG.Save
         }
     }
 
+    [Serializable]
+    public class HeroSaveData
+    {
+        [SerializeField] private int level;
+        [SerializeField] private int exp;
+        [SerializeField] private int currentHp;
+
+        public int Level => level;
+        public int Exp => exp;
+        public int CurrentHp => currentHp;
+
+        private HeroSaveData() { } // Unity 직렬화용
+
+        public HeroSaveData(int level, int exp, int currentHp)
+        {
+            this.level = level;
+            this.exp = exp;
+            this.currentHp = currentHp;
+        }
+    }
+
+    // 모은 성유물 하나: id · 강화 단계 · 끼운 칸(-1 = 안 끼움)
+    [Serializable]
+    public class RelicSaveData
+    {
+        [SerializeField] private string relicId;
+        [SerializeField] private int level;
+        [SerializeField] private int slot = -1;
+
+        public string RelicId => relicId;
+        public int Level => level;
+        public int Slot => slot;
+
+        private RelicSaveData() { } // Unity 직렬화용
+
+        public RelicSaveData(string relicId, int level, int slot)
+        {
+            this.relicId = relicId;
+            this.level = level;
+            this.slot = slot;
+        }
+    }
+
     // 세이브 파일(save.json) 한 개의 내용. 에셋은 전부 id 문자열로 저장해서 에셋 이름이 바뀌어도 깨지지 않는다.
     // 필드를 추가해도 예전 세이브는 그 필드가 기본값으로 읽힌다. 기존 필드의 의미를 바꿀 때만 version을 올리고 변환 코드를 넣을 것
+    //   v1: 몬스터 파티(party)  →  v2: 주인공(hero) + 성유물(relics). v1은 GameSession.FromSaveData가 주인공으로 바꿔 읽는다
     [Serializable]
     public class SaveData
     {
-        public const int CurrentVersion = 1;
+        public const int CurrentVersion = 2;
 
         [SerializeField] private int version = CurrentVersion;
         [SerializeField] private long savedAtTicks;
-        [SerializeField] private List<MonsterSaveData> party = new List<MonsterSaveData>();
+        [SerializeField] private HeroSaveData hero = new HeroSaveData(1, 0, 0);
+        [SerializeField] private List<RelicSaveData> relics = new List<RelicSaveData>();
+        [SerializeField] private List<MonsterSaveData> party = new List<MonsterSaveData>(); // v1 전용 (읽기만)
         [SerializeField] private Inventory inventory = new Inventory();
         [SerializeField] private VocabularyProgress vocabulary = new VocabularyProgress();
         [SerializeField] private PlayerRecord record = new PlayerRecord();
@@ -48,7 +95,9 @@ namespace WordRPG.Save
 
         public int Version => version;
         public DateTime SavedAtUtc => new DateTime(savedAtTicks, DateTimeKind.Utc);
-        public IReadOnlyList<MonsterSaveData> Party => party;
+        public HeroSaveData Hero => hero;
+        public IReadOnlyList<RelicSaveData> Relics => relics;
+        public IReadOnlyList<MonsterSaveData> LegacyParty => party;
         public Inventory Inventory => inventory;
         public VocabularyProgress Vocabulary => vocabulary;
         public PlayerRecord Record => record;
@@ -56,15 +105,28 @@ namespace WordRPG.Save
 
         public SaveData() { }
 
-        public SaveData(DateTime savedAtUtc, List<MonsterSaveData> party, Inventory inventory,
+        public SaveData(DateTime savedAtUtc, HeroSaveData hero, List<RelicSaveData> relics, Inventory inventory,
             VocabularyProgress vocabulary, PlayerRecord record, WorldState world = null)
         {
             savedAtTicks = savedAtUtc.Ticks;
-            this.party = party;
+            this.hero = hero;
+            this.relics = relics ?? new List<RelicSaveData>();
             this.inventory = inventory;
             this.vocabulary = vocabulary;
             this.record = record;
             this.world = world ?? new WorldState();
+        }
+
+        // 테스트·변환용: v1 형식(몬스터 파티) 세이브를 만든다
+        public static SaveData LegacyV1(DateTime savedAtUtc, List<MonsterSaveData> party, Inventory inventory,
+            VocabularyProgress vocabulary, PlayerRecord record, WorldState world = null)
+        {
+            var data = new SaveData(savedAtUtc, new HeroSaveData(1, 0, 0), new List<RelicSaveData>(), inventory, vocabulary, record, world)
+            {
+                version = 1,
+                party = party ?? new List<MonsterSaveData>()
+            };
+            return data;
         }
 
         public string ToJson() => JsonUtility.ToJson(this, true);
@@ -77,6 +139,8 @@ namespace WordRPG.Save
             if (data == null || data.version <= 0) throw new FormatException("세이브 형식이 아닙니다");
             if (data.version > CurrentVersion)
                 throw new FormatException($"더 새로운 버전의 세이브입니다 (v{data.version}). 앱을 업데이트하세요");
+            data.hero = data.hero ?? new HeroSaveData(1, 0, 0);
+            data.relics = data.relics ?? new List<RelicSaveData>();
             data.party = data.party ?? new List<MonsterSaveData>();
             data.inventory = data.inventory ?? new Inventory();
             data.vocabulary = data.vocabulary ?? new VocabularyProgress();

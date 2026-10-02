@@ -3,67 +3,72 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 using WordRPG.Field;
+using WordRPG.Heroes;
 using WordRPG.Items;
 using WordRPG.Monsters;
 using WordRPG.Words;
 
 namespace WordRPG.EditorTools
 {
-    // MVP용 샘플 데이터(스킬·아이템·몬스터·출현표) 생성. 이미 있는 에셋은 건드리지 않으므로
+    // MVP용 샘플 데이터(주인공·성유물·스킬·아이템·적 몬스터·출현표·지역) 생성. 이미 있는 에셋은 건드리지 않으므로
     // 인스펙터에서 수치를 고친 뒤 다시 실행해도 안전하다. 배치모드: -executeMethod WordRPG.EditorTools.SampleDataBuilder.Build
     public static class SampleDataBuilder
     {
         private const string Root = "Assets/Data";
 
+        public const string HeroPath = Root + "/Hero/hero.asset";
+
         [MenuItem("WordRPG/Data/Create Sample Data")]
         public static void Build()
         {
-            // --- 아이템 (진화 재료) ---
-            var shinyInk = Item("shiny_ink", "빛나는 잉크", "펜촉이를 진화시키는 반짝이는 잉크.", new Color(0.3f, 0.4f, 1f));
-            var hardCover = Item("hard_cover", "단단한 표지", "책껍질을 진화시키는 두꺼운 가죽 표지.", new Color(0.55f, 0.35f, 0.2f));
-            var sparkleDust = Item("sparkle_dust", "반짝 가루", "등불이를 진화시키는 빛나는 가루.", new Color(1f, 0.9f, 0.4f));
+            // --- 아이템: 성유물 강화 재료 (전투·보물상자·보스에서 얻음. 상점에서는 팔지 않음) ---
+            var shinyInk = Item("shiny_ink", "빛나는 잉크", "깃펜을 강화하는 반짝이는 잉크.", new Color(0.3f, 0.4f, 1f));
+            var hardCover = Item("hard_cover", "단단한 표지", "백과사전·기억의 성배를 강화하는 두꺼운 가죽 표지.", new Color(0.55f, 0.35f, 0.2f));
+            var sparkleDust = Item("sparkle_dust", "반짝 가루", "등불·마법 지팡이를 강화하는 빛나는 가루.", new Color(1f, 0.9f, 0.4f));
+
+            // --- 상처약 (상점에서 판매, 필드·전투에서 사용) ---
+            var potion = Item("potion", "상처약", "상처에 바르면 HP를 40 회복한다. 필드·전투에서 쓸 수 있다.",
+                new Color(0.9f, 0.35f, 0.3f), ItemKind.Consumable, 40);
+            var largePotion = Item("potion_large", "큰 상처약", "HP를 120 회복하는 진한 약. 필드·전투에서 쓸 수 있다.",
+                new Color(0.85f, 0.2f, 0.3f), ItemKind.Consumable, 120);
 
             // --- 지역 도감 완성 징표 (지역 특색에 맞는 기념물) ---
             var meadowKeepsake = Item("keepsake_meadow", "네잎클로버 책갈피",
                 "초원 도감을 완성한 증표. 행운을 부르는 네잎클로버가 곱게 눌려 있다.", new Color(0.35f, 0.8f, 0.35f), ItemKind.Keepsake);
 
-            // --- 스킬: 기본기는 쉬운 영→한, 필살기는 어려운 한→영 ---
-            var poke = Skill("nib_poke", "찌르기", "펜촉으로 콕 찌른다.", SkillKind.Damage, SkillTarget.SingleEnemy, 20, QuizDirection.EnglishToMeaning);
+            // --- 기술: 기본기는 쉬운 영→한, 성유물 기술은 대부분 어려운 한→영 ---
+            var swing = Skill("hero_swing", "휘두르기", "들고 있는 사전으로 힘껏 휘두른다.", SkillKind.Damage, SkillTarget.SingleEnemy, 18, QuizDirection.EnglishToMeaning);
             var inkSplash = Skill("nib_ink_splash", "잉크 뿌리기", "적 전체에 잉크를 뿌린다.", SkillKind.Damage, SkillTarget.AllEnemies, 14, QuizDirection.MeaningToEnglish);
             var inkStorm = Skill("quill_ink_storm", "잉크 폭풍", "거센 잉크 폭풍으로 적 전체를 공격한다.", SkillKind.Damage, SkillTarget.AllEnemies, 22, QuizDirection.MeaningToEnglish);
-
-            var tackle = Skill("shell_tackle", "몸통박치기", "단단한 몸으로 부딪친다.", SkillKind.Damage, SkillTarget.SingleEnemy, 16, QuizDirection.EnglishToMeaning);
-            var bookShield = Skill("shell_book_shield", "책 방패", "아군 전체에 보호막을 친다.", SkillKind.Guard, SkillTarget.AllAllies, 4, QuizDirection.MeaningToEnglish);
-            var encycloWall = Skill("tortoise_encyclo_wall", "백과 방벽", "두꺼운 백과사전으로 아군 전체를 지킨다.", SkillKind.Guard, SkillTarget.AllAllies, 10, QuizDirection.MeaningToEnglish);
-
-            var lightOrb = Skill("lumi_light_orb", "빛 구슬", "작은 빛 구슬을 던진다.", SkillKind.Damage, SkillTarget.SingleEnemy, 14, QuizDirection.EnglishToMeaning);
-            var healingLight = Skill("lumi_healing_light", "치유의 빛", "아군 전체의 HP를 회복한다.", SkillKind.Heal, SkillTarget.AllAllies, 8, QuizDirection.MeaningToEnglish);
-            var wisdomLight = Skill("lantern_wisdom_light", "지혜의 빛", "따뜻한 지혜의 빛으로 아군 전체를 크게 회복한다.", SkillKind.Heal, SkillTarget.AllAllies, 14, QuizDirection.MeaningToEnglish);
+            var bookShield = Skill("shell_book_shield", "책 방패", "두꺼운 책으로 몸을 가려 보호막을 친다.", SkillKind.Guard, SkillTarget.AllAllies, 4, QuizDirection.MeaningToEnglish);
+            var encycloWall = Skill("tortoise_encyclo_wall", "백과 방벽", "백과사전을 펼쳐 단단한 방벽을 세운다.", SkillKind.Guard, SkillTarget.AllAllies, 10, QuizDirection.MeaningToEnglish);
+            var healingLight = Skill("lumi_healing_light", "치유의 빛", "따뜻한 빛으로 HP를 회복한다.", SkillKind.Heal, SkillTarget.AllAllies, 8, QuizDirection.MeaningToEnglish);
+            var wisdomLight = Skill("lantern_wisdom_light", "지혜의 빛", "지혜의 빛으로 HP를 크게 회복한다.", SkillKind.Heal, SkillTarget.AllAllies, 14, QuizDirection.MeaningToEnglish);
+            var spellBolt = Skill("wand_spell_bolt", "철자 번개", "철자를 정확히 외우면 적 하나에게 번개가 떨어진다.", SkillKind.Damage, SkillTarget.SingleEnemy, 26, QuizDirection.MeaningToEnglish);
+            var spellStorm = Skill("wand_thunder_spell", "낙뢰 주문", "긴 주문으로 적 하나에게 거대한 벼락을 떨어뜨린다.", SkillKind.Damage, SkillTarget.SingleEnemy, 34, QuizDirection.MeaningToEnglish);
+            var recall = Skill("grail_recall", "되찾은 기억", "잊었던 기억을 되찾아 HP를 회복한다.", SkillKind.Heal, SkillTarget.Self, 16, QuizDirection.EnglishToMeaning);
+            var blessing = Skill("grail_blessing", "기억의 축복", "되찾은 기억이 빛이 되어 HP를 크게 회복한다.", SkillKind.Heal, SkillTarget.Self, 26, QuizDirection.EnglishToMeaning);
 
             var splat = Skill("slime_splat", "끈적 공격", "끈적한 잉크를 튀긴다.", SkillKind.Damage, SkillTarget.SingleEnemy, 14, QuizDirection.EnglishToMeaning);
             var scratch = Skill("bat_scratch", "낙서 할퀴기", "삐뚤빼뚤한 발톱으로 할퀸다.", SkillKind.Damage, SkillTarget.SingleEnemy, 16, QuizDirection.EnglishToMeaning);
-            var forgetFog = Skill("goblin_forget_fog", "망각의 안개", "기억을 흐리는 안개로 파티 전체를 공격한다.", SkillKind.Damage, SkillTarget.AllEnemies, 10, QuizDirection.EnglishToMeaning);
+            var forgetFog = Skill("goblin_forget_fog", "망각의 안개", "기억을 흐리는 안개로 주인공을 공격한다.", SkillKind.Damage, SkillTarget.AllEnemies, 10, QuizDirection.EnglishToMeaning);
             var memoryDrain = Skill("boss_memory_drain", "기억 흡수", "빼앗은 기억으로 자신의 HP를 회복한다.", SkillKind.Heal, SkillTarget.Self, 8, QuizDirection.EnglishToMeaning);
             var blankBonk = Skill("goblin_blank_bonk", "깜빡 방망이", "머리를 하얗게 만드는 방망이질.", SkillKind.Damage, SkillTarget.SingleEnemy, 18, QuizDirection.EnglishToMeaning);
 
-            // --- 아군 몬스터 (진화형 먼저 만들어야 참조 가능) ---
-            var quillKnight = Monster("quill_knight", "깃펜기사", "펜촉이가 진화한 모습. 깃펜을 검처럼 휘두른다.", MonsterRole.Attacker,
-                new Color(0.15f, 0.25f, 0.7f), new MonsterStats(38, 19, 10), new MonsterStats(5, 4, 2), new[] { poke, inkStorm });
-            var nib = Monster("nib", "펜촉이", "작은 펜촉 몬스터. 날카로운 끝으로 적을 찌른다.", MonsterRole.Attacker,
-                new Color(0.25f, 0.45f, 0.95f), new MonsterStats(30, 14, 8), new MonsterStats(4, 3, 1), new[] { poke, inkSplash },
-                quillKnight, 5, shinyInk, 3);
+            // --- 성유물 (예전 아군 몬스터 3마리 → 깃펜·백과사전·등불, 그리고 새로 찾는 마법 지팡이·기억의 성배) ---
+            var quill = Relic("relic_quill", "깃펜", "펜촉이가 남긴 깃펜. 잉크를 뿌려 적을 한꺼번에 공격한다.", MonsterRole.Attacker,
+                new Color(0.25f, 0.45f, 0.95f), inkSplash, inkStorm, new MonsterStats(0, 4, 0), new MonsterStats(0, 2, 0), shinyInk);
+            var book = Relic("relic_book", "백과사전", "책껍질이 지고 다니던 두꺼운 사전. 펼치면 단단한 방패가 된다.", MonsterRole.Defender,
+                new Color(0.6f, 0.4f, 0.2f), bookShield, encycloWall, new MonsterStats(10, 0, 4), new MonsterStats(4, 0, 1), hardCover);
+            var lantern = Relic("relic_lantern", "등불", "등불이가 남긴 작은 등불. 따뜻한 빛으로 상처를 감싼다.", MonsterRole.Supporter,
+                new Color(1f, 0.85f, 0.3f), healingLight, wisdomLight, new MonsterStats(15, 0, 0), new MonsterStats(5, 0, 0), sparkleDust);
+            var wand = Relic("relic_wand", "마법 지팡이", "철자를 정확히 외우면 번개가 떨어지는 지팡이. 서고 깊은 곳에 잠들어 있었다.", MonsterRole.Attacker,
+                new Color(0.55f, 0.45f, 0.95f), spellBolt, spellStorm, new MonsterStats(0, 6, 0), new MonsterStats(0, 2, 0), sparkleDust);
+            var grail = Relic("relic_grail", "기억의 성배", "까먹대왕이 삼켰던 기억이 담긴 잔. 잊었던 힘을 되찾아 준다.", MonsterRole.Supporter,
+                new Color(1f, 0.75f, 0.2f), recall, blessing, new MonsterStats(20, 0, 2), new MonsterStats(5, 0, 1), hardCover);
 
-            var tortoise = Monster("encyclotortoise", "백과거북", "책껍질이 진화한 모습. 등껍질이 백과사전만큼 두껍다.", MonsterRole.Defender,
-                new Color(0.4f, 0.25f, 0.1f), new MonsterStats(50, 11, 18), new MonsterStats(7, 2, 4), new[] { tackle, encycloWall });
-            var bookshell = Monster("bookshell", "책껍질", "책을 등껍질 삼아 지고 다니는 거북. 동료를 지킨다.", MonsterRole.Defender,
-                new Color(0.6f, 0.4f, 0.2f), new MonsterStats(40, 8, 14), new MonsterStats(6, 1, 3), new[] { tackle, bookShield },
-                tortoise, 5, hardCover, 3);
-
-            var sageLantern = Monster("sage_lantern", "지혜등불", "등불이가 진화한 모습. 지혜의 빛으로 동료를 치유한다.", MonsterRole.Supporter,
-                new Color(1f, 0.7f, 0.1f), new MonsterStats(34, 14, 12), new MonsterStats(5, 3, 2), new[] { lightOrb, wisdomLight });
-            var lumi = Monster("lumi", "등불이", "작은 등불 몬스터. 따뜻한 빛으로 동료를 돌본다.", MonsterRole.Supporter,
-                new Color(1f, 0.85f, 0.3f), new MonsterStats(28, 10, 9), new MonsterStats(4, 2, 2), new[] { lightOrb, healingLight },
-                sageLantern, 5, sparkleDust, 3);
+            // --- 주인공: 혼자 싸운다. 시작 성유물은 깃펜 하나 ---
+            HeroAsset(swing, quill);
 
             // --- 적 몬스터 ---
             var inkSlime = Monster("ink_slime", "잉크 슬라임", "쏟아진 잉크가 뭉쳐 생긴 슬라임.", MonsterRole.Attacker,
@@ -76,7 +81,7 @@ namespace WordRPG.EditorTools
                 new Color(0.2f, 0.7f, 0.6f), new MonsterStats(40, 12, 10), new MonsterStats(8, 3, 2), new[] { forgetFog, blankBonk },
                 enemyExp: 15, enemyGold: 20, drops: new[] { new ItemDrop(hardCover, 0.6f), new ItemDrop(sparkleDust, 0.3f) });
 
-            // --- 보스: 잊혀진 서고 꼭대기의 까먹대왕. 진화 재료 3종을 반드시 떨어뜨린다 ---
+            // --- 보스: 잊혀진 서고 꼭대기의 까먹대왕. 강화 재료 3종 + 성유물 '기억의 성배' ---
             var forgetKing = Monster("boss_forget_king", "까먹대왕", "까먹깨비들의 우두머리. 서고의 기억을 몽땅 먹어 치우고 있다.", MonsterRole.Attacker,
                 new Color(0.15f, 0.6f, 0.55f), new MonsterStats(50, 14, 12), new MonsterStats(8, 3, 2), new[] { forgetFog, blankBonk, memoryDrain },
                 enemyExp: 25, enemyGold: 30,
@@ -95,24 +100,24 @@ namespace WordRPG.EditorTools
             WordCsvImporter.ImportAll();
             ConfigureRegion("Assets/Data/Words/tier1_meadow.asset", "meadow", "초원", meadowKeepsake, 500);
 
-            // --- 필드: 초원. 보물상자는 맵의 C를 위→아래, 왼→오른 순으로 대응 (진화 재료를 얻는 도감 외 경로) ---
+            // --- 필드: 초원. 보물상자는 맵의 C를 위→아래, 왼→오른 순으로 대응 (강화 재료·성유물을 얻는 곳) ---
             Area("meadow", "초원", MeadowMap, meadowEncounters,
                 AssetDatabase.LoadAssetAtPath<WordDatabase>("Assets/Data/Words/tier1_meadow.asset"),
-                new ChestContent(hardCover, 2),   // 오른쪽 위 구석
-                new ChestContent(shinyInk, 2),    // 왼쪽 위 방
-                new ChestContent(sparkleDust, 2), // 가운데 풀밭
-                new ChestContent(null, 0, 100));  // 마을 위 풀밭
+                new ChestContent(hardCover, 2),          // 오른쪽 위 구석
+                new ChestContent(shinyInk, 2),           // 왼쪽 위 방
+                new ChestContent(sparkleDust, 2),        // 가운데 풀밭
+                new ChestContent(null, 0, 50, book));    // 마을 위 풀밭 — 두 번째 성유물
 
-            // --- 마을 상점: 진화 재료를 골드로 (도감 외 경로) ---
+            // --- 마을 상점: 상처약 (강화 재료는 팔지 않음 — 사용자 결정, 진화가 너무 쉬워서) ---
             var meadowShop = ShopAsset("meadow_shop", "초원 마을 잡화점",
-                new ShopEntry(shinyInk, 60), new ShopEntry(hardCover, 60), new ShopEntry(sparkleDust, 60));
+                new ShopEntry(potion, 30), new ShopEntry(largePotion, 90));
             AssignShopIfEmpty("Assets/Data/Areas/meadow.asset", meadowShop);
 
             // --- 던전: 잊혀진 서고 (초원 북쪽 동굴 입구로 연결). MVP는 난이도 하나라 단어장은 초원과 같음 ---
             Area("library", "잊혀진 서고", LibraryMap, dungeonEncounters,
                 AssetDatabase.LoadAssetAtPath<WordDatabase>("Assets/Data/Words/tier1_meadow.asset"),
-                new ChestContent(null, 0, 200),    // 왼쪽 위 열람실
-                new ChestContent(sparkleDust, 1)); // 오른쪽 위 열람실
+                new ChestContent(null, 0, 100, lantern), // 왼쪽 위 열람실
+                new ChestContent(null, 0, 0, wand));     // 오른쪽 위 열람실
             ConfigureAreaIfNew("Assets/Data/Areas/library.asset", so =>
             {
                 Prop(so, "theme").enumValueIndex = (int)FieldTheme.Library;
@@ -120,6 +125,7 @@ namespace WordRPG.EditorTools
                 var boss = Prop(so, "boss");
                 boss.FindPropertyRelative("species").objectReferenceValue = forgetKing;
                 boss.FindPropertyRelative("level").intValue = 7;
+                boss.FindPropertyRelative("rewardRelic").objectReferenceValue = grail;
             });
             LinkDoorsIfEmpty("Assets/Data/Areas/meadow.asset", "Assets/Data/Areas/library.asset");
 
@@ -172,6 +178,7 @@ namespace WordRPG.EditorTools
                     element.FindPropertyRelative("item").objectReferenceValue = chests[i].Item;
                     element.FindPropertyRelative("count").intValue = chests[i].Count;
                     element.FindPropertyRelative("gold").intValue = chests[i].Gold;
+                    element.FindPropertyRelative("relic").objectReferenceValue = chests[i].Relic;
                 }
             });
         }
@@ -280,7 +287,7 @@ namespace WordRPG.EditorTools
         }
 
         private static ItemData Item(string id, string name, string description, Color color,
-            ItemKind kind = ItemKind.EvolutionMaterial)
+            ItemKind kind = ItemKind.Material, int healAmount = 0)
         {
             return CreateIfMissing<ItemData>($"{Root}/Items/{id}.asset", so =>
             {
@@ -289,6 +296,52 @@ namespace WordRPG.EditorTools
                 Prop(so, "description").stringValue = description;
                 Prop(so, "kind").enumValueIndex = (int)kind;
                 Prop(so, "placeholderColor").colorValue = color;
+                Prop(so, "healAmount").intValue = healAmount;
+            });
+        }
+
+        // 강화 비용 (+0→+1 … +4→+5): 재료 개수 · 골드
+        private static readonly (int items, int gold)[] UpgradeCosts = { (1, 30), (2, 60), (2, 90), (3, 120), (3, 150) };
+
+        private static RelicData Relic(string id, string name, string description, MonsterRole role, Color color,
+            SkillData skill, SkillData awakened, MonsterStats baseBonus, MonsterStats perLevel, ItemData material)
+        {
+            return CreateIfMissing<RelicData>($"{Root}/Relics/{id}.asset", so =>
+            {
+                Prop(so, "relicId").stringValue = id;
+                Prop(so, "displayName").stringValue = name;
+                Prop(so, "description").stringValue = description;
+                Prop(so, "role").enumValueIndex = (int)role;
+                Prop(so, "placeholderColor").colorValue = color;
+                Prop(so, "skill").objectReferenceValue = skill;
+                Prop(so, "awakenedSkill").objectReferenceValue = awakened;
+                Prop(so, "awakenLevel").intValue = 3;
+                SetStats(Prop(so, "baseBonus"), baseBonus);
+                SetStats(Prop(so, "bonusPerLevel"), perLevel);
+                Prop(so, "upgradeItem").objectReferenceValue = material;
+                var costs = Prop(so, "upgradeCosts");
+                costs.arraySize = UpgradeCosts.Length;
+                for (int i = 0; i < UpgradeCosts.Length; i++)
+                {
+                    costs.GetArrayElementAtIndex(i).FindPropertyRelative("itemCount").intValue = UpgradeCosts[i].items;
+                    costs.GetArrayElementAtIndex(i).FindPropertyRelative("gold").intValue = UpgradeCosts[i].gold;
+                }
+            });
+        }
+
+        private static HeroData HeroAsset(SkillData basicSkill, params RelicData[] startingRelics)
+        {
+            return CreateIfMissing<HeroData>(HeroPath, so =>
+            {
+                Prop(so, "displayName").stringValue = "주인공";
+                Prop(so, "description").stringValue = "단어의 힘을 성유물에 담아 싸우는 견습 모험가.";
+                SetStats(Prop(so, "baseStats"), new MonsterStats(60, 14, 10));
+                SetStats(Prop(so, "growthPerLevel"), new MonsterStats(8, 3, 2));
+                Prop(so, "startLevel").intValue = 3;
+                Prop(so, "basicSkill").objectReferenceValue = basicSkill;
+                var list = Prop(so, "startingRelics");
+                list.arraySize = startingRelics.Length;
+                for (int i = 0; i < startingRelics.Length; i++) list.GetArrayElementAtIndex(i).objectReferenceValue = startingRelics[i];
             });
         }
 
@@ -309,7 +362,6 @@ namespace WordRPG.EditorTools
 
         private static MonsterSpecies Monster(string id, string name, string description, MonsterRole role, Color color,
             MonsterStats baseStats, MonsterStats growth, SkillData[] skills,
-            MonsterSpecies evolvesTo = null, int evolveLevel = 5, ItemData evolveItem = null, int evolveItemCount = 3,
             int enemyExp = 5, int enemyGold = 5, ItemDrop[] drops = null)
         {
             return CreateIfMissing<MonsterSpecies>($"{Root}/Monsters/{id}.asset", so =>
@@ -325,11 +377,6 @@ namespace WordRPG.EditorTools
                 var skillList = Prop(so, "skills");
                 skillList.arraySize = skills.Length;
                 for (int i = 0; i < skills.Length; i++) skillList.GetArrayElementAtIndex(i).objectReferenceValue = skills[i];
-
-                Prop(so, "evolvesTo").objectReferenceValue = evolvesTo;
-                Prop(so, "evolveLevel").intValue = evolveLevel;
-                Prop(so, "evolveItem").objectReferenceValue = evolveItem;
-                Prop(so, "evolveItemCount").intValue = evolveItemCount;
 
                 Prop(so, "expReward").intValue = enemyExp;
                 Prop(so, "goldReward").intValue = enemyGold;

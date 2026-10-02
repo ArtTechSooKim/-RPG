@@ -98,10 +98,10 @@ namespace WordRPG.UI
             // 로고 (게임 이름: 영단어RPG)
             UiKit.Display(UiKit.Label("Logo", root, "영단어RPG", 168, Palette.Gold, 0, 0.7f, 1, 0.86f,
                 TextAnchor.MiddleCenter, FontStyle.Normal, true, 96));
-            UiKit.Label("Subtitle", root, "몬스터와 함께하는 영단어 모험", 40, Palette.Text, 0, 0.655f, 1, 0.7f,
+            UiKit.Label("Subtitle", root, "성유물과 함께하는 영단어 모험", 40, Palette.Text, 0, 0.655f, 1, 0.7f,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
 
-            // 시작 몬스터 3마리: 가운데 = 첫 번째, 왼쪽·오른쪽 = 두세 번째
+            // 가운데 = 주인공, 왼쪽·오른쪽 = 끼운 성유물 (앞의 두 칸)
             var slots = new (float x, float y, float size)[] { (540, 920, 300), (230, 980, 240), (850, 980, 240) };
             foreach (var (x, y, size) in slots)
             {
@@ -131,7 +131,7 @@ namespace WordRPG.UI
             var save = UiKit.RoundPanel("SaveCard", root, Palette.Panel, UiKit.RadiusMd, 0.067f, 0.265f, 0.933f, 0.328f);
             save.raycastTarget = false;
             saveCard = save.gameObject;
-            for (int i = 0; i < GameSession.MaxPartySize; i++)
+            for (int i = 0; i < 3; i++) // 주인공 + 끼운 성유물 두 개
             {
                 var back = UiKit.Pill(UiKit.Panel($"Avatar_{i}", save.transform, Palette.PanelLight, 0, 0.5f, 0, 0.5f));
                 back.raycastTarget = false;
@@ -179,26 +179,29 @@ namespace WordRPG.UI
         {
             bool hasSave = manager.HasSave;
             var session = manager.Session;
-            var party = session.Party;
+            var hero = session.Hero;
             for (int i = 0; i < cards.Count; i++)
             {
-                bool has = i < party.Count;
+                // 0 = 주인공, 1·2 = 끼운 성유물 (없으면 숨김)
+                var relic = i == 0 ? null : hero.SlotAt(i - 1);
+                bool has = i == 0 || relic != null;
                 cards[i].card.gameObject.SetActive(has);
                 avatars[i].back.gameObject.SetActive(has && hasSave);
                 if (!has) continue;
-                var species = party[i].Species;
-                string initial = species.DisplayName.Length > 0 ? species.DisplayName.Substring(0, 1) : "?";
-                var color = UiKit.ArtColor(species);
+                var sprite = i == 0 ? UiKit.HeroPortrait(hero.Data) : UiKit.RelicIcon(relic.Data);
+                string name = i == 0 ? hero.DisplayName : relic.Data.DisplayName;
+                string initial = name.Length > 0 ? name.Substring(0, 1) : "?";
+                var color = i == 0 ? Palette.PanelLight : Color.Lerp(Palette.PanelLight, relic.Data.PlaceholderColor, 0.22f);
                 cards[i].card.color = color;
                 cards[i].initial.text = initial;
-                cards[i].initial.enabled = species.Sprite == null;
-                cards[i].sprite.sprite = species.Sprite;
-                cards[i].sprite.enabled = species.Sprite != null;
+                cards[i].initial.enabled = sprite == null;
+                cards[i].sprite.sprite = sprite;
+                cards[i].sprite.enabled = sprite != null;
                 avatars[i].back.color = color;
                 avatars[i].initial.text = initial;
-                avatars[i].initial.enabled = species.Sprite == null;
-                avatars[i].sprite.sprite = species.Sprite;
-                avatars[i].sprite.enabled = species.Sprite != null;
+                avatars[i].initial.enabled = sprite == null;
+                avatars[i].sprite.sprite = sprite;
+                avatars[i].sprite.enabled = sprite != null;
             }
 
             saveCard.SetActive(hasSave);
@@ -207,8 +210,7 @@ namespace WordRPG.UI
             {
                 var area = manager.Database != null && session.World.AreaId != null ? manager.Database.FindArea(session.World.AreaId) : null;
                 string where = area != null ? area.DisplayName : "초원";
-                string others = party.Count > 1 ? $" 외 {party.Count - 1}마리" : "";
-                saveLine1.text = $"{where}  ·  {party[0].DisplayName} Lv{party[0].Level}{others}";
+                saveLine1.text = $"{where}  ·  {hero.DisplayName} Lv{hero.Level}  ·  성유물 {hero.Relics.Count}개";
                 string total = area != null && area.Words != null ? $" / {area.Words.Words.Count}" : "";
                 int battles = session.Record.BattlesWon + session.Record.BattlesLost;
                 saveLine2.text = $"발견한 단어 {session.Vocabulary.DiscoveredCount}{total}   ·   전투 {battles}번";

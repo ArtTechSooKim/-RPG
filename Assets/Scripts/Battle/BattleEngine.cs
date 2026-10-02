@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using WordRPG.Items;
 using WordRPG.Monsters;
 using WordRPG.Words;
 
@@ -13,9 +14,10 @@ namespace WordRPG.Battle
         Defeat
     }
 
-    // 턴제 전투 진행. 한 라운드 = 아군이 순서대로 [스킬 선택 → 단어 문제 → 결과] 후 적 전원 행동.
-    //  정답: 스킬 발동 (빨리 맞히면 크리티컬)
-    //  오답/시간 초과: 스킬 실패, 단어는 오답 노트로
+    // 턴제 전투 진행. 한 라운드 = 아군(지금은 주인공 혼자)이 [기술 선택 → 단어 문제 → 결과] 후 적 전원 행동.
+    //  정답: 기술 발동 (빨리 맞히면 크리티컬)
+    //  오답/시간 초과: 기술 실패, 단어는 오답 노트로
+    //  기술 대신 상처약을 쓰면 문제 없이 회복하고 차례를 넘긴다
     // MonoBehaviour·UI 의존 없음. UI는 SelectSkill/SubmitAnswer를 호출하고 돌려받은 BattleEvent 목록을 연출한다
     public class BattleEngine
     {
@@ -42,17 +44,17 @@ namespace WordRPG.Battle
         public IReadOnlyList<MasteryChange> MasteryChanges => masteryChanges;
         public bool IsOver => Phase == BattlePhase.Victory || Phase == BattlePhase.Defeat;
 
-        public BattleEngine(IReadOnlyList<MonsterInstance> partyMonsters, IReadOnlyList<MonsterInstance> enemyMonsters,
+        public BattleEngine(IReadOnlyList<ICombatant> partyMembers, IReadOnlyList<MonsterInstance> enemyMonsters,
             IQuizProvider quiz, BattleConfig config, Random rng)
         {
             this.quiz = quiz ?? throw new ArgumentNullException(nameof(quiz));
             this.config = config ?? new BattleConfig();
             this.rng = rng ?? new Random();
 
-            for (int i = 0; i < partyMonsters.Count; i++) party.Add(new BattleUnit(partyMonsters[i], true, i));
+            for (int i = 0; i < partyMembers.Count; i++) party.Add(new BattleUnit(partyMembers[i], true, i));
             for (int i = 0; i < enemyMonsters.Count; i++) enemies.Add(new BattleUnit(enemyMonsters[i], false, i));
 
-            if (FirstAlive(party) == null) throw new ArgumentException("싸울 수 있는 아군이 없습니다", nameof(partyMonsters));
+            if (FirstAlive(party) == null) throw new ArgumentException("싸울 수 있는 아군이 없습니다", nameof(partyMembers));
             if (FirstAlive(enemies) == null) throw new ArgumentException("적이 없습니다", nameof(enemyMonsters));
 
             CurrentActor = FirstAlive(party);
@@ -104,6 +106,21 @@ namespace WordRPG.Battle
             pendingTarget = null;
             CurrentQuestion = null;
 
+            if (!CheckBattleEnd(events)) AdvanceTurn(events);
+            return events;
+        }
+
+        // 기술 대신 회복 아이템(상처약)을 쓴다: 문제 없이 지금 차례인 아군을 회복하고 차례를 넘긴다
+        public IReadOnlyList<BattleEvent> UseItem(ItemData item, Inventory inventory)
+        {
+            RequirePhase(BattlePhase.ChoosingSkill);
+            if (item == null || !item.IsHealingItem) throw new ArgumentException("전투에서 쓸 수 있는 회복 아이템이 아닙니다", nameof(item));
+            if (inventory == null) throw new ArgumentNullException(nameof(inventory));
+            if (!inventory.TryRemove(item)) throw new InvalidOperationException($"{item.DisplayName}이(가) 없습니다");
+
+            var events = new List<BattleEvent>();
+            int healed = CurrentActor.ReceiveHeal(item.HealAmount);
+            events.Add(BattleEvent.ItemUsed(CurrentActor, item, healed));
             if (!CheckBattleEnd(events)) AdvanceTurn(events);
             return events;
         }

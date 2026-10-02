@@ -7,7 +7,7 @@ using WordRPG.Items;
 
 namespace WordRPG.UI
 {
-    // 마을 상점: 골드로 아이템(지금은 진화 재료) 구매 — Figma '상점' 화면 / 'Shop Row'
+    // 마을 상점: 골드로 아이템(상처약) 구매 — Figma '상점 — 상처약' 화면 / 'Shop Row'
     public class ShopView
     {
         private const int MaxRows = 6;
@@ -78,7 +78,7 @@ namespace WordRPG.UI
             session = gameSession;
             onChanged = changed;
             title.text = string.IsNullOrEmpty(shop.DisplayName) ? "상점" : shop.DisplayName;
-            messageText.text = "어서 오세요! 진화 재료가 부족하면 여기서 사 가세요";
+            messageText.text = "어서 오세요! 모험에는 상처약이 꼭 필요하답니다";
             Root.SetActive(true);
             Refresh();
         }

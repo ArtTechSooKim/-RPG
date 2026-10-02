@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using WordRPG.Game;
+using WordRPG.Heroes;
 using WordRPG.Items;
 using WordRPG.Monsters;
 
@@ -9,14 +11,15 @@ namespace WordRPG.UI
 {
     public enum BagTab
     {
-        Monsters,  // 파티 몬스터 능력치·기술
-        Materials, // 진화 재료
-        Keepsakes  // 징표 진열장
+        Hero,     // 주인공 능력치·기술 (HeroInfoPage)
+        Relics,   // 모은 성유물 · 장착 (RelicPage)
+        Items,    // 강화 재료 · 상처약
+        Keepsakes // 징표 진열장
     }
 
-    // 소지품 (Figma '소지품 — 몬스터' / '소지품 — 재료' / '소지품 — 징표 진열장'):
-    // 몬스터 탭 = 파티 카드 + 능력치·기술·진화 조건 (MonsterInfoPage), 재료 탭 = 4칸 격자 + 고른 아이템 상세(쓰는 곳),
-    // 징표 탭 = 지역 도감 완성 징표 진열장. 아이템은 세이브에 id만 있어서 GameDatabase로 찾는다
+    // 소지품 (Figma '소지품 — 주인공' / '— 성유물' / '— 재료(아이템)' / '— 징표 진열장'):
+    // 주인공 탭 = 끼운 성유물 + 능력치·기술, 성유물 탭 = 모은 성유물 · 장착/빼기, 아이템 탭 = 4칸 격자 + 고른 아이템 상세(쓰는 곳 ·
+    // 상처약은 [사용하기]), 징표 탭 = 지역 도감 완성 징표 진열장. 아이템은 세이브에 id만 있어서 GameDatabase로 찾는다
     public class InventoryView
     {
         public const int SlotCount = 8;
@@ -45,12 +48,16 @@ namespace WordRPG.UI
         public bool IsOpen => Root != null && Root.activeSelf;
         public BagTab CurrentTab { get; private set; }
         public bool ShowingKeepsakes => CurrentTab == BagTab.Keepsakes;
-        public int SelectedMonster => monsterPage.Selected;
+        public OwnedRelic SelectedRelic => relicPage.Selected;
 
         private Text goldText;
-        private Button monstersTab, materialsTab, keepsakesTab;
+        private Button heroTab, relicsTab, itemsTab, keepsakesTab;
         private GameObject materialsPage, keepsakesPage, detailBox;
-        private MonsterInfoPage monsterPage;
+        private HeroInfoPage heroPage;
+        private RelicPage relicPage;
+        private Button useButton;
+        private Action onChanged;
+        private int selectedMaterial;
         private readonly List<Slot> slots = new List<Slot>();
         private readonly List<Shelf> shelves = new List<Shelf>();
         private Image detailIcon, usageIcon;
@@ -73,14 +80,23 @@ namespace WordRPG.UI
             view.goldText = UiKit.IconTitle("Gold", root, UiKit.Icon("gold"), "", 44, Palette.Text, 0, 0.885f, 1, 0.925f);
 
             var tabs = UiKit.RoundPanel("Tabs", root, Palette.Track, UiKit.RadiusMd, 0.022f, 0.815f, 0.978f, 0.872f);
-            view.monstersTab = UiKit.MakeButton("TabMonsters", tabs.transform, "몬스터", Palette.Button, 44, 0.008f, 0.1f, 0.33f, 0.9f);
-            view.materialsTab = UiKit.MakeButton("TabMaterials", tabs.transform, "재료", Color.clear, 44, 0.339f, 0.1f, 0.661f, 0.9f);
-            view.keepsakesTab = UiKit.MakeButton("TabKeepsakes", tabs.transform, "징표", Color.clear, 44, 0.67f, 0.1f, 0.992f, 0.9f);
-            view.monstersTab.onClick.AddListener(() => view.SelectTab(BagTab.Monsters));
-            view.materialsTab.onClick.AddListener(() => view.SelectTab(BagTab.Materials));
-            view.keepsakesTab.onClick.AddListener(() => view.SelectTab(BagTab.Keepsakes));
+            var names = new[] { ("TabHero", "주인공", BagTab.Hero), ("TabRelics", "성유물", BagTab.Relics),
+                ("TabItems", "아이템", BagTab.Items), ("TabKeepsakes", "징표", BagTab.Keepsakes) };
+            var buttons = new Button[names.Length];
+            for (int i = 0; i < names.Length; i++)
+            {
+                float x0 = 0.006f + i * 0.247f;
+                buttons[i] = UiKit.MakeButton(names[i].Item1, tabs.transform, names[i].Item2, Color.clear, 44, x0, 0.1f, x0 + 0.24f, 0.9f);
+                var tab = names[i].Item3;
+                buttons[i].onClick.AddListener(() => view.SelectTab(tab));
+            }
+            view.heroTab = buttons[0];
+            view.relicsTab = buttons[1];
+            view.itemsTab = buttons[2];
+            view.keepsakesTab = buttons[3];
 
-            view.monsterPage = MonsterInfoPage.Create(root, 0.022f, 0.105f, 0.978f, 0.8f);
+            view.heroPage = HeroInfoPage.Create(root, 0.022f, 0.105f, 0.978f, 0.8f, slot => view.SelectTab(BagTab.Relics, view.session.Hero.SlotAt(slot)));
+            view.relicPage = RelicPage.Create(root, 0.022f, 0.105f, 0.978f, 0.8f);
             view.BuildMaterials(root);
             view.BuildKeepsakes(root);
             view.BuildDetail(root);
@@ -171,47 +187,60 @@ namespace WordRPG.UI
                 TextAnchor.MiddleLeft, FontStyle.Normal, true, 18);
             usageLine2 = UiKit.Label("Line2", usage.transform, "", 30, Palette.TextDim, 0.11f, 0.08f, 0.98f, 0.5f,
                 TextAnchor.MiddleLeft, FontStyle.Normal, true, 18);
+            // 상처약: 필드에서 바로 쓰기 (쓰는 곳 상자 오른쪽)
+            useButton = UiKit.MakeButton("UseItemButton", box.transform, "사용하기", Palette.Heal, 40, 0.7f, 0.06f, 0.969f, 0.34f);
+            var colors = useButton.colors;
+            colors.disabledColor = new Color(0.6f, 0.6f, 0.6f, 0.5f);
+            useButton.colors = colors;
+            useButton.onClick.AddListener(UseSelectedItem);
         }
 
-        // monster: 몬스터 탭에서 고를 파티 몬스터 번호 (-1이면 첫 번째). 가방은 항상 몬스터 탭으로 열린다
-        public void Show(GameSession gameSession, GameDatabase gameDatabase, int monster = -1)
+        // tab: 처음 보여줄 탭, relic: 성유물 탭에서 고를 성유물, changed: 장착·아이템 사용 뒤 (저장·HUD 갱신)
+        public void Show(GameSession gameSession, GameDatabase gameDatabase, BagTab tab = BagTab.Hero,
+            OwnedRelic relic = null, Action changed = null)
         {
             session = gameSession;
             database = gameDatabase;
-            goldText.text = $"보유 골드  {session.Inventory.Gold}G";
+            onChanged = changed;
+            CollectItems();
+            keepsakes = Keepsakes.Collect(database, session);
 
+            Root.transform.SetAsLastSibling();
+            Root.SetActive(true);
+            SelectTab(tab, relic);
+        }
+
+        private void CollectItems()
+        {
+            goldText.text = $"보유 골드  {session.Inventory.Gold}G";
             materials.Clear();
             foreach (var stack in session.Inventory.Stacks)
             {
                 var item = database != null ? database.FindItem(stack.ItemId) : null;
                 if (item != null && item.Kind != ItemKind.Keepsake) materials.Add(item);
             }
-            keepsakes = Keepsakes.Collect(database, session);
-
-            Root.transform.SetAsLastSibling();
-            Root.SetActive(true);
-            SelectTab(BagTab.Monsters, Mathf.Max(0, monster));
         }
 
         public void Hide() => Root.SetActive(false);
 
-        private void SelectTab(BagTab tab) => SelectTab(tab, 0);
+        private void SelectTab(BagTab tab) => SelectTab(tab, null);
 
-        private void SelectTab(BagTab tab, int monster)
+        private void SelectTab(BagTab tab, OwnedRelic relic)
         {
             CurrentTab = tab;
-            materialsPage.SetActive(tab == BagTab.Materials);
+            materialsPage.SetActive(tab == BagTab.Items);
             keepsakesPage.SetActive(tab == BagTab.Keepsakes);
-            detailBox.SetActive(tab != BagTab.Monsters);
-            StyleTab(monstersTab, tab == BagTab.Monsters);
-            StyleTab(materialsTab, tab == BagTab.Materials);
+            detailBox.SetActive(tab == BagTab.Items || tab == BagTab.Keepsakes);
+            StyleTab(heroTab, tab == BagTab.Hero);
+            StyleTab(relicsTab, tab == BagTab.Relics);
+            StyleTab(itemsTab, tab == BagTab.Items);
             StyleTab(keepsakesTab, tab == BagTab.Keepsakes);
-            switch (tab)
-            {
-                case BagTab.Monsters: monsterPage.Show(session, monster); break;
-                case BagTab.Materials: monsterPage.Hide(); ShowMaterial(0); break;
-                default: monsterPage.Hide(); ShowKeepsake(0); break;
-            }
+            if (tab == BagTab.Hero) heroPage.Show(session.Hero);
+            else heroPage.Hide();
+            if (tab == BagTab.Relics) relicPage.Show(session, database, relic, onChanged);
+            else relicPage.Hide();
+            if (tab == BagTab.Items) ShowMaterial(0);
+            if (tab == BagTab.Keepsakes) ShowKeepsake(0);
         }
 
         private static void StyleTab(Button tab, bool selected)
@@ -224,6 +253,7 @@ namespace WordRPG.UI
 
         private void ShowMaterial(int selected)
         {
+            selectedMaterial = selected;
             for (int i = 0; i < slots.Count; i++)
             {
                 var slot = slots[i];
@@ -237,53 +267,75 @@ namespace WordRPG.UI
                 slot.Count.text = has ? $"× {session.Inventory.GetCount(materials[i])}" : "";
             }
 
+            useButton.gameObject.SetActive(false);
             if (materials.Count == 0)
             {
-                SetDetail(UiKit.Icon("bag"), "아직 재료가 없어요", "", "보물상자 · 전투 · 상점에서 진화 재료를 모아 보세요");
+                SetDetail(UiKit.Icon("bag"), "아직 아이템이 없어요", "", "전투 · 보물상자에서 강화 재료를, 상점에서 상처약을 얻어요");
                 usageBox.SetActive(false);
                 return;
             }
 
             var item = materials[Mathf.Clamp(selected, 0, materials.Count - 1)];
             SetDetail(UiKit.ItemIcon(item), item.DisplayName, $"보유 {session.Inventory.GetCount(item)}개", item.Description);
-            ShowUsage(item);
+            if (item.IsHealingItem) ShowPotion(item);
+            else ShowUsage(item);
         }
 
+        // 상처약: 쓰는 곳 + [사용하기] (HP가 가득이면 잠금)
+        private void ShowPotion(ItemData item)
+        {
+            var hero = session.Hero;
+            bool full = hero.CurrentHp >= hero.Stats.MaxHp;
+            SetUsage(UiKit.Icon("skill_heal"), $"쓰는 곳  필드·전투 — HP {item.HealAmount} 회복",
+                full ? "HP가 가득해서 지금은 쓸 필요가 없어요" : $"지금 HP {hero.CurrentHp} / {hero.Stats.MaxHp}", Palette.TextDim);
+            useButton.gameObject.SetActive(true);
+            useButton.interactable = !full && session.Inventory.GetCount(item) > 0;
+            ((RectTransform)usageBox.transform).anchorMax = new Vector2(0.68f, 0.34f);
+        }
+
+        private void UseSelectedItem()
+        {
+            if (materials.Count == 0) return;
+            var item = materials[Mathf.Clamp(selectedMaterial, 0, materials.Count - 1)];
+            int healed = session.UseHealingItem(item);
+            if (healed <= 0) return;
+            Sound.Play(Sfx.Heal);
+            onChanged?.Invoke();
+            CollectItems();
+            ShowMaterial(Mathf.Min(selectedMaterial, Mathf.Max(0, materials.Count - 1)));
+            detailMeta.text = $"HP +{healed} 회복했어요   (남은 {session.Inventory.GetCount(item)}개)";
+            detailMeta.color = Palette.Good;
+        }
+
+        // 강화 재료: 이 재료로 강화하는 모은 성유물과 다음 단계에 필요한 개수
         private void ShowUsage(ItemData item)
         {
-            var user = Evolution.FindUser(session.Party, item);
+            OwnedRelic user = null;
+            foreach (var relic in session.Hero.Relics)
+            {
+                if (relic.Data.UpgradeItem == item && !relic.IsMaxLevel) { user = relic; break; }
+            }
             if (user == null)
             {
-                SetUsage(UiKit.Icon("star_full"), "쓰는 곳  진화의 제단", "지금 파티에는 이 재료로 진화하는 몬스터가 없어요", Palette.TextDim);
+                SetUsage(UiKit.Icon("star_full"), "쓰는 곳  성유물 제단", "지금 모은 성유물 중에는 이 재료로 강화하는 것이 없어요", Palette.TextDim);
                 return;
             }
 
-            var species = user.Species;
-            string where = $"쓰는 곳  진화의 제단 · {user.DisplayName} → {species.EvolvesTo.DisplayName}";
-            var status = EvolutionStatusLine(user, session.Inventory);
-            SetUsage(UiKit.Icon(RoleIconName(species.Role)), where, status.Text, status.Color);
-        }
-
-        // 진화 조건 한 줄 (소지품 재료 상세 · 몬스터 탭에서 같이 쓴다). 진화하지 않는 몬스터에는 쓰지 않는다
-        internal static (string Text, Color Color) EvolutionStatusLine(MonsterInstance monster, Inventory inventory)
-        {
-            var species = monster.Species;
-            int owned = species.EvolveItem != null ? inventory.GetCount(species.EvolveItem) : 0;
-            switch (Evolution.Check(monster, inventory))
-            {
-                case EvolutionStatus.Ready:
-                    return ($"Lv{species.EvolveLevel} ✓   재료 {owned} / {species.EvolveItemCount} ✓   지금 진화할 수 있어요!", Palette.Good);
-                case EvolutionStatus.LevelTooLow:
-                    return ($"Lv{species.EvolveLevel}이 되면 진화할 수 있어요 (지금 Lv{monster.Level})   재료 {owned} / {species.EvolveItemCount}", Palette.TextDim);
-                default:
-                    return ($"재료 {owned} / {species.EvolveItemCount} — {species.EvolveItemCount - owned}개 더 모으면 돼요", Palette.TextDim);
-            }
+            var cost = user.Data.CostFrom(user.Level);
+            int owned = session.Inventory.GetCount(item);
+            string where = $"쓰는 곳  성유물 제단 · {user.Data.DisplayName} +{user.Level} → +{user.Level + 1}";
+            var status = RelicUpgrade.Check(user, session.Inventory);
+            string line2 = status == UpgradeStatus.Ready ? $"재료 {owned} / {cost.ItemCount} ✓   {cost.Gold}G ✓   지금 강화할 수 있어요!"
+                : status == UpgradeStatus.NotEnoughGold ? $"재료 {owned} / {cost.ItemCount} ✓   골드 {cost.Gold}G가 필요해요"
+                : $"재료 {owned} / {cost.ItemCount} — {cost.ItemCount - owned}개 더 모으면 돼요";
+            SetUsage(UiKit.RelicIcon(user.Data), where, line2, status == UpgradeStatus.Ready ? Palette.Good : Palette.TextDim);
         }
 
         // 쓰는 곳 상자: 두 줄, 둘째 줄이 없으면 첫 줄을 가운데로
         private void SetUsage(Sprite icon, string line1, string line2, Color line2Color)
         {
             usageBox.SetActive(true);
+            ((RectTransform)usageBox.transform).anchorMax = new Vector2(0.969f, 0.34f);
             usageIcon.sprite = icon;
             usageIcon.enabled = icon != null;
             usageLine1.text = line1;
@@ -326,6 +378,7 @@ namespace WordRPG.UI
             }
 
             usageBox.SetActive(false);
+            useButton.gameObject.SetActive(false);
             var chosen = selected < keepsakes.Count ? keepsakes[selected] : null;
             if (chosen == null)
             {

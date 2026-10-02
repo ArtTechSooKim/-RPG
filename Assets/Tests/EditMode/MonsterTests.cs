@@ -69,59 +69,6 @@ namespace WordRPG.Tests
         }
     }
 
-    public class EvolutionTests
-    {
-        private ItemData ink;
-        private MonsterSpecies baby;
-        private MonsterSpecies evolved;
-        private Inventory inventory;
-
-        [SetUp]
-        public void SetUp()
-        {
-            ink = TestData.Item("shiny_ink");
-            evolved = TestData.Species("quill_knight", new MonsterStats(40, 20, 11), new MonsterStats(5, 4, 2));
-            baby = TestData.Species("nib", new MonsterStats(30, 14, 8), new MonsterStats(4, 3, 1))
-                .Set("evolvesTo", evolved).Set("evolveLevel", 5).Set("evolveItem", ink).Set("evolveItemCount", 3);
-            inventory = new Inventory();
-        }
-
-        [Test]
-        public void SpeciesWithoutEvolutionCannotEvolve()
-        {
-            var monster = new MonsterInstance(evolved, 10);
-            Assert.AreEqual(EvolutionStatus.NoEvolution, Evolution.Check(monster, inventory));
-        }
-
-        [Test]
-        public void NeedsLevelAndItems()
-        {
-            inventory.Add(ink, 3);
-            Assert.AreEqual(EvolutionStatus.LevelTooLow, Evolution.Check(new MonsterInstance(baby, 4), inventory));
-
-            var ready = new MonsterInstance(baby, 5);
-            inventory.TryRemove(ink, 1);
-            Assert.AreEqual(EvolutionStatus.NotEnoughItems, Evolution.Check(ready, inventory));
-            Assert.IsFalse(Evolution.TryEvolve(ready, inventory));
-            Assert.AreEqual(2, inventory.GetCount(ink), "실패하면 재료를 쓰지 않는다");
-        }
-
-        [Test]
-        public void EvolvingChangesSpeciesConsumesItemsKeepsLevelAndHeals()
-        {
-            inventory.Add(ink, 4);
-            var monster = new MonsterInstance(baby, 6);
-            monster.TakeDamage(10);
-
-            Assert.IsTrue(Evolution.TryEvolve(monster, inventory));
-
-            Assert.AreSame(evolved, monster.Species);
-            Assert.AreEqual(6, monster.Level);
-            Assert.AreEqual(1, inventory.GetCount(ink));
-            Assert.AreEqual(monster.Stats.MaxHp, monster.CurrentHp);
-        }
-    }
-
     public class InventoryTests
     {
         [Test]

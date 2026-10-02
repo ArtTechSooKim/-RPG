@@ -112,7 +112,7 @@ namespace WordRPG.UI
             return new Color(0.42f, 0.26f, 0.12f);
         }
 
-        // 진화의 제단: 돌 받침 위에 떠 있는 보라색 수정
+        // 성유물 제단: 돌 받침 위에 떠 있는 보라색 수정
         private static Color Altar(int x, int y)
         {
             if (y >= 1 && y <= 5 && x >= 3 && x <= 12) return y == 5 || x == 3 || x == 12 ? new Color(0.45f, 0.45f, 0.52f) : new Color(0.62f, 0.62f, 0.7f);

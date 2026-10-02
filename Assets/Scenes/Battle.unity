@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &1203673090
+--- !u!1 &313456877
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,40 +127,49 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1203673092}
-  - component: {fileID: 1203673091}
+  - component: {fileID: 313456879}
+  - component: {fileID: 313456878}
   m_Layer: 0
-  m_Name: GameManager
+  m_Name: BattleScreen
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1203673091
+--- !u!114 &313456878
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1203673090}
+  m_GameObject: {fileID: 313456877}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f8f45e50f85290a4789c00160533c843, type: 3}
+  m_Script: {fileID: 11500000, guid: 08b783a48a6aa374186efe32787365ad, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: WordRPG::WordRPG.Game.GameManager
-  database: {fileID: 11400000, guid: 373773ea057910f4382b5b5c876913f7, type: 2}
-  starterParty:
-  - {fileID: 11400000, guid: 21e9aad72bff69c42aecd8f3e7abae02, type: 2}
-  - {fileID: 11400000, guid: e16212585b6de204ca4fca78b70e330c, type: 2}
-  - {fileID: 11400000, guid: 631605aa251b1d14bb7087d9076ec491, type: 2}
-  starterLevel: 3
---- !u!4 &1203673092
+  m_EditorClassIdentifier: WordRPG::WordRPG.UI.BattleScreen
+  encounter: {fileID: 11400000, guid: bee0782bd39e10b419f0ac25025fd29e, type: 2}
+  words: {fileID: 11400000, guid: 89d1f80701129f84bad1df742f174dae, type: 2}
+  battleConfig:
+    answerTimeLimitSeconds: 10
+    criticalTimeSeconds: 3
+    criticalMultiplier: 1.5
+    variance: 0.1
+    expPerCorrectAnswer: 2
+  masteryRules:
+    learningIntervalMinutes: 5
+    reviewingIntervalMinutes: 1440
+    proficientIntervalMinutes: 4320
+    masteredIntervalMinutes: 10080
+  loopBattles: 1
+  animationScale: 1
+--- !u!4 &313456879
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1203673090}
+  m_GameObject: {fileID: 313456877}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -169,7 +178,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1782811785
+--- !u!1 &542665564
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -177,9 +186,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1782811788}
-  - component: {fileID: 1782811787}
-  - component: {fileID: 1782811786}
+  - component: {fileID: 542665567}
+  - component: {fileID: 542665566}
+  - component: {fileID: 542665565}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -187,21 +196,21 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &1782811786
+--- !u!81 &542665565
 AudioListener:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1782811785}
+  m_GameObject: {fileID: 542665564}
   m_Enabled: 1
---- !u!20 &1782811787
+--- !u!20 &542665566
 Camera:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1782811785}
+  m_GameObject: {fileID: 542665564}
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
@@ -246,13 +255,13 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!4 &1782811788
+--- !u!4 &542665567
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1782811785}
+  m_GameObject: {fileID: 542665564}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: -10}
@@ -261,7 +270,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1886145970
+--- !u!1 &669389319
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -269,49 +278,36 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1886145972}
-  - component: {fileID: 1886145971}
+  - component: {fileID: 669389321}
+  - component: {fileID: 669389320}
   m_Layer: 0
-  m_Name: BattleScreen
+  m_Name: GameManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1886145971
+--- !u!114 &669389320
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1886145970}
+  m_GameObject: {fileID: 669389319}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 08b783a48a6aa374186efe32787365ad, type: 3}
+  m_Script: {fileID: 11500000, guid: f8f45e50f85290a4789c00160533c843, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: WordRPG::WordRPG.UI.BattleScreen
-  encounter: {fileID: 11400000, guid: bee0782bd39e10b419f0ac25025fd29e, type: 2}
-  words: {fileID: 11400000, guid: 89d1f80701129f84bad1df742f174dae, type: 2}
-  battleConfig:
-    answerTimeLimitSeconds: 10
-    criticalTimeSeconds: 3
-    criticalMultiplier: 1.5
-    variance: 0.1
-    expPerCorrectAnswer: 2
-  masteryRules:
-    learningIntervalMinutes: 5
-    reviewingIntervalMinutes: 1440
-    proficientIntervalMinutes: 4320
-    masteredIntervalMinutes: 10080
-  loopBattles: 1
-  animationScale: 1
---- !u!4 &1886145972
+  m_EditorClassIdentifier: WordRPG::WordRPG.Game.GameManager
+  database: {fileID: 11400000, guid: 373773ea057910f4382b5b5c876913f7, type: 2}
+  hero: {fileID: 11400000, guid: c929fa07215170544a77c9fedc4fe269, type: 2}
+--- !u!4 &669389321
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1886145970}
+  m_GameObject: {fileID: 669389319}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -324,6 +320,6 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1782811788}
-  - {fileID: 1203673092}
-  - {fileID: 1886145972}
+  - {fileID: 542665567}
+  - {fileID: 669389321}
+  - {fileID: 313456879}

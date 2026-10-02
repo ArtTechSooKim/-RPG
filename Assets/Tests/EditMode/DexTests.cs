@@ -35,7 +35,7 @@ namespace WordRPG.Tests
             database.ReplaceContents(new[] { nib }, new[] { keepsake });
         }
 
-        private GameSession NewSession() => GameSession.NewGame(new[] { nib }, 1);
+        private GameSession NewSession() => GameSession.NewGame(TestData.Hero(new MonsterStats(30, 14, 8)), 1);
 
         private void Discover(GameSession session, params int[] wordIndexes)
         {
@@ -94,7 +94,7 @@ namespace WordRPG.Tests
             session.ClaimDexRewards(new[] { region });
 
             var json = session.ToSaveData(T0).ToJson();
-            var loaded = GameSession.FromSaveData(SaveData.FromJson(json), database, new[] { nib }, 1);
+            var loaded = GameSession.FromSaveData(SaveData.FromJson(json), database, TestData.Hero(new MonsterStats(30, 14, 8)));
 
             Assert.IsTrue(loaded.Record.HasClaimedRegion("meadow"));
             Assert.AreEqual(0, loaded.ClaimDexRewards(new[] { region }).Count);

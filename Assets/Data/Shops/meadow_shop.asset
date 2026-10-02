@@ -14,9 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: WordRPG::WordRPG.Items.ShopData
   displayName: "\uCD08\uC6D0 \uB9C8\uC744 \uC7A1\uD654\uC810"
   entries:
-  - item: {fileID: 11400000, guid: d068093b31fa6bd479a9978022d8bc1f, type: 2}
-    price: 60
-  - item: {fileID: 11400000, guid: 4ef0a20b2f82e9c4c8ea2a134a013bf4, type: 2}
-    price: 60
-  - item: {fileID: 11400000, guid: 83903ba43d39288409cddb3a5f7b0f43, type: 2}
-    price: 60
+  - item: {fileID: 11400000, guid: 56596be176cf57541a9ab3caafeb386a, type: 2}
+    price: 30
+  - item: {fileID: 11400000, guid: 03136cba480d605499404eebbaaac6f5, type: 2}
+    price: 90

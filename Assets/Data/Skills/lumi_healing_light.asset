@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.SkillData
   skillId: lumi_healing_light
   displayName: "\uCE58\uC720\uC758 \uBE5B"
-  description: "\uC544\uAD70 \uC804\uCCB4\uC758 HP\uB97C \uD68C\uBCF5\uD55C\uB2E4."
+  description: "\uB530\uB73B\uD55C \uBE5B\uC73C\uB85C HP\uB97C \uD68C\uBCF5\uD55C\uB2E4."
   kind: 1
   target: 3
   power: 8

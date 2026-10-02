@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.SkillData
   skillId: lantern_wisdom_light
   displayName: "\uC9C0\uD61C\uC758 \uBE5B"
-  description: "\uB530\uB73B\uD55C \uC9C0\uD61C\uC758 \uBE5B\uC73C\uB85C \uC544\uAD70
-    \uC804\uCCB4\uB97C \uD06C\uAC8C \uD68C\uBCF5\uD55C\uB2E4."
+  description: "\uC9C0\uD61C\uC758 \uBE5B\uC73C\uB85C HP\uB97C \uD06C\uAC8C \uD68C\uBCF5\uD55C\uB2E4."
   kind: 1
   target: 3
   power: 14

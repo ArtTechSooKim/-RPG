@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using WordRPG.Monsters;
+using WordRPG.Heroes;
 using WordRPG.Save;
 
 namespace WordRPG.Game
@@ -19,8 +19,7 @@ namespace WordRPG.Game
         public static string SaveDirectoryOverride;
 
         [SerializeField] private GameDatabase database;
-        [SerializeField] private MonsterSpecies[] starterParty;
-        [SerializeField] private int starterLevel = 3;
+        [SerializeField] private HeroData hero;
 
         private SaveSystem saveSystem;
         private bool playing;
@@ -33,13 +32,13 @@ namespace WordRPG.Game
         public string StatusMessage { get; private set; } = "";
         public string SaveDirectory => saveSystem?.Directory;
         public GameDatabase Database => database;
+        public HeroData HeroData => hero;
 
         // 코드로 만들 때(테스트) 비활성 오브젝트에 붙이고 Configure → SetActive(true) 순서로 쓴다
-        public void Configure(GameDatabase db, MonsterSpecies[] starters, int level)
+        public void Configure(GameDatabase db, HeroData heroData)
         {
             database = db;
-            starterParty = starters;
-            starterLevel = level;
+            hero = heroData;
         }
 
         private void Awake()
@@ -52,7 +51,8 @@ namespace WordRPG.Game
             Instance = this;
             if (transform.parent == null) DontDestroyOnLoad(gameObject);
 
-            if (database == null) Debug.LogError("[GameManager] GameDatabase가 비어 있어 세이브의 몬스터를 불러올 수 없습니다");
+            if (database == null) Debug.LogError("[GameManager] GameDatabase가 비어 있어 세이브의 성유물·아이템을 불러올 수 없습니다");
+            if (hero == null) Debug.LogError("[GameManager] 주인공 데이터(HeroData)가 비어 있습니다");
             saveSystem = new SaveSystem(SaveDirectoryOverride ?? Application.persistentDataPath);
             // 테스트(저장 폴더를 바꾼 경우)에서는 실제 기기 설정을 읽거나 덮어쓰지 않는다
             if (SaveDirectoryOverride == null) Settings = GameSettings.FromJson(PlayerPrefs.GetString(SettingsKey, ""));
@@ -64,7 +64,7 @@ namespace WordRPG.Game
             var result = saveSystem.Load();
             if (result.Data != null)
             {
-                Session = GameSession.FromSaveData(result.Data, database, starterParty, starterLevel);
+                Session = GameSession.FromSaveData(result.Data, database, hero);
                 LoadedFromSave = true;
                 playing = true;
                 StatusMessage = $"이어하기 — 발견한 단어 {Session.Vocabulary.DiscoveredCount}개, " +
@@ -83,7 +83,7 @@ namespace WordRPG.Game
                 Debug.LogError($"[GameManager] 세이브를 읽을 수 없어 새 게임으로 시작합니다. 원본은 보관합니다: {result.Error}");
                 saveSystem.QuarantineCorrupt();
             }
-            Session = GameSession.NewGame(starterParty, starterLevel);
+            Session = GameSession.NewGame(hero);
             LoadedFromSave = false;
             StatusMessage = "새 게임 시작!";
         }
@@ -115,7 +115,7 @@ namespace WordRPG.Game
         public void DeleteSave()
         {
             saveSystem.Delete();
-            Session = GameSession.NewGame(starterParty, starterLevel);
+            Session = GameSession.NewGame(hero);
             LoadedFromSave = false;
             playing = false;
             StatusMessage = "새 게임 시작!";

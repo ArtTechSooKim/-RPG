@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
+using WordRPG.Heroes;
 using WordRPG.Items;
 using WordRPG.Monsters;
 using WordRPG.Words;
@@ -44,6 +45,37 @@ namespace WordRPG.Tests
         public static ItemData Item(string id)
         {
             return ScriptableObject.CreateInstance<ItemData>().Set("itemId", id).Set("displayName", id);
+        }
+
+        // 상처약: HP를 heal만큼 회복하는 소모품
+        public static ItemData Potion(string id, int heal)
+        {
+            return Item(id).Set("kind", ItemKind.Consumable).Set("healAmount", heal);
+        }
+
+        // 주인공: 기본 기술 '휘두르기'(공격 18, 쉬움) + 시작 성유물. 레벨 성장은 0 (필요하면 .Set("growthPerLevel", …))
+        public static HeroData Hero(MonsterStats stats, params RelicData[] startingRelics)
+        {
+            return ScriptableObject.CreateInstance<HeroData>()
+                .Set("displayName", "주인공")
+                .Set("baseStats", stats).Set("growthPerLevel", new MonsterStats(0, 0, 0)).Set("startLevel", 1)
+                .Set("basicSkill", Skill("hero_swing", SkillKind.Damage, SkillTarget.SingleEnemy, 18))
+                .Set("startingRelics", new List<RelicData>(startingRelics));
+        }
+
+        // 성유물: 강화 비용 +1:(1개,30G) +2:(2,60) +3:(2,90) +4:(3,120) +5:(3,150), 각성 +3
+        public static RelicData Relic(string id, SkillData skill, MonsterStats bonus, ItemData material = null,
+            SkillData awakened = null)
+        {
+            var costs = new List<RelicUpgradeCost>
+            {
+                new RelicUpgradeCost(1, 30), new RelicUpgradeCost(2, 60), new RelicUpgradeCost(2, 90),
+                new RelicUpgradeCost(3, 120), new RelicUpgradeCost(3, 150)
+            };
+            return ScriptableObject.CreateInstance<RelicData>()
+                .Set("relicId", id).Set("displayName", id).Set("skill", skill).Set("awakenedSkill", awakened).Set("awakenLevel", 3)
+                .Set("baseBonus", bonus).Set("bonusPerLevel", new MonsterStats(0, 0, 0))
+                .Set("upgradeItem", material).Set("upgradeCosts", costs);
         }
 
         public static List<WordEntry> SampleWords()

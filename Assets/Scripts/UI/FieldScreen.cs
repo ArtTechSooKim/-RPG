@@ -8,13 +8,14 @@ using UnityEngine.UI;
 using WordRPG.Battle;
 using WordRPG.Field;
 using WordRPG.Game;
+using WordRPG.Heroes;
 using WordRPG.Monsters;
 
 namespace WordRPG.UI
 {
     // 탑다운 필드: 한 칸씩 이동, 풀숲 조우 → 전투(BattleScreen을 위에 덮음) → 원래 자리로 복귀.
     // 출입구(D)를 밟으면 다른 지역으로 (같은 씬에서 맵만 바꿔 그림).
-    // 보물상자·회복의 샘·진화의 제단·상점·보스는 옆에 서서 패드 가운데 [확인](키보드 Space·Enter·Z)으로 사용.
+    // 보물상자·회복의 샘·성유물 제단·상점·보스는 옆에 서서 패드 가운데 [확인](키보드 Space·Enter·Z)으로 사용.
     // 가까이 가면 오브젝트 위에 이름표가 뜬다. 입력은 화면 아래 가상 패드 + 키보드(방향키/WASD).
     // 이동·조우 규칙은 FieldWalker / EncounterCounter(순수 C#)가 하고 여기서는 화면과 입력만 다룬다
     public class FieldScreen : MonoBehaviour
@@ -71,17 +72,15 @@ namespace WordRPG.UI
         private Image flash;
         private HoldButton padUp, padDown, padLeft, padRight;
         private DexView dexView;
-        private EvolutionView evolutionView;
+        private RelicAltarView altarView;
         private ShopView shopView;
         private InventoryView inventoryView;
         private SettingsView settingsView;
         private MinimapView minimap;
         private MapView mapView;
-        private Text[] badgeNames;
-        private Text[] badgeInitials;
-        private Image[] badgeSprites;
-        private RectTransform[] badgeFills;
-        private Image[] badgeFillImages;
+        private Text heroName, heroHp;
+        private Image heroHpFill;
+        private readonly List<(Image back, Image icon, Text level, Text empty)> relicSlots = new List<(Image, Image, Text, Text)>();
 
         public Vector2Int PlayerCell => walker.Position;
         public Direction Facing => walker.Facing;
@@ -90,7 +89,7 @@ namespace WordRPG.UI
         public BattleScreen Battle => battle;
         public GameSession Session => session;
         public FieldArea CurrentArea => area;
-        public bool IsPanelOpen => dexView.IsOpen || evolutionView.IsOpen || shopView.IsOpen
+        public bool IsPanelOpen => dexView.IsOpen || altarView.IsOpen || shopView.IsOpen
                                    || inventoryView.IsOpen || settingsView.IsOpen || mapView.IsOpen;
         public MinimapView Minimap => minimap;
         public string ToastMessage => toastPanel != null && toastPanel.activeSelf ? toastText.text : "";
@@ -276,7 +275,7 @@ namespace WordRPG.UI
             {
                 case FieldTile.Chest: OpenChest(cell); break;
                 case FieldTile.Fountain: UseFountain(); break;
-                case FieldTile.Altar: evolutionView.Show(session, OnTownChanged); break;
+                case FieldTile.Altar: altarView.Show(session, OnTownChanged); break;
                 case FieldTile.Shop:
                     if (area.Shop == null) ShowToast("상점 문이 닫혀 있다.");
                     else shopView.Show(area.Shop, session, OnTownChanged);
@@ -303,7 +302,7 @@ namespace WordRPG.UI
             StartCoroutine(Encounter(enemies, $"보스 출현! {name} Lv{boss.Level} — 정답으로 맞서라!", true));
         }
 
-        // 진화·구매 직후 저장하고 HUD(파티 이름·골드) 갱신
+        // 강화·구매·장착 직후 저장하고 HUD(주인공·성유물·골드) 갱신
         private void OnTownChanged()
         {
             saveProgress?.Invoke();
@@ -373,23 +372,34 @@ namespace WordRPG.UI
             }
 
             tilemap.SetTile(new Vector3Int(cell.x, cell.y, 0), TileFor(FieldTile.Chest, true));
-            Sound.Play(Sfx.Coin);
+            Sound.Play(result.Relic != null ? Sfx.Evolve : Sfx.Coin);
             minimap.Redraw();
-            string loot = result.Item != null ? $"{result.Item.DisplayName} x{result.Count}" : "";
-            if (result.Gold > 0) loot += (loot.Length > 0 ? " + " : "") + $"{result.Gold} 골드";
-            ShowToast($"보물상자를 열었다!\n{loot} 획득", 2.5f);
+            if (result.Relic != null)
+            {
+                ShowToast($"성유물 '{result.Relic.Data.DisplayName}'을(를) 손에 넣었다!\n" + RelicHint(result.Relic), 3.5f);
+            }
+            else
+            {
+                string loot = result.Item != null ? $"{result.Item.DisplayName} x{result.Count}" : "";
+                if (result.Gold > 0) loot += (loot.Length > 0 ? " + " : "") + $"{result.Gold} 골드";
+                ShowToast($"보물상자를 열었다!\n{loot} 획득", 2.5f);
+            }
             saveProgress?.Invoke();
             RefreshHud();
         }
 
         private void UseFountain()
         {
-            session.RestoreParty();
+            session.RestoreHero();
             saveProgress?.Invoke();
             RefreshHud();
             Sound.Play(Sfx.Fountain);
-            ShowToast("회복의 샘 — 파티가 모두 회복되었다!");
+            ShowToast("회복의 샘 — HP가 모두 회복되었다!");
         }
+
+        // 새 성유물을 얻었을 때 안내: 빈 칸이 있어 바로 끼웠는지, 가방에서 바꿔 끼워야 하는지
+        private string RelicHint(OwnedRelic relic) =>
+            session.Hero.IsEquipped(relic) ? $"빈 칸에 끼웠다 — 새 기술 '{relic.Skill.DisplayName}'" : "칸이 가득 — 가방 > 성유물에서 바꿔 끼울 수 있어요";
 
         private IEnumerator Encounter(List<MonsterInstance> enemies = null, string intro = null, bool boss = false)
         {
@@ -431,19 +441,22 @@ namespace WordRPG.UI
                 tilemap.SetTile(new Vector3Int(bossCell.x, bossCell.y, 0), TileFor(FieldTile.Boss, true));
                 minimap.Redraw();
                 RefreshNameTags();
-                saveProgress?.Invoke();
                 string name = area.Boss.Species.DisplayName;
-                ShowToast($"★ {UiKit.WithJosa(name, "을", "를")} 물리쳤다!\n{area.DisplayName}에 잊혀진 기억이 돌아왔다", 4f);
+                var relic = session.GrantRelic(area.Boss.RewardRelic);
+                saveProgress?.Invoke();
+                ShowToast(relic != null
+                    ? $"★ {UiKit.WithJosa(name, "을", "를")} 물리쳤다!\n성유물 '{relic.Data.DisplayName}' 획득 — {RelicHint(relic)}"
+                    : $"★ {UiKit.WithJosa(name, "을", "를")} 물리쳤다!\n{area.DisplayName}에 잊혀진 기억이 돌아왔다", 4.5f);
             }
             else if (!won)
             {
-                // 패배: 전투 화면이 이미 파티를 회복시켰다. 이 지역의 시작 위치로 돌아간다
+                // 패배: 전투 화면이 이미 주인공을 회복시켰다. 이 지역의 시작 위치로 돌아간다
                 walker.WarpTo(walker.Map.Start);
                 SnapPlayer();
                 RefreshNameTags();
                 session.World.SetPosition(area.AreaId, walker.Position);
                 saveProgress?.Invoke();
-                ShowToast($"{area.DisplayName} 시작 지점으로 돌아왔다. 파티가 회복되었다!");
+                ShowToast($"{area.DisplayName} 시작 지점으로 돌아왔다. HP가 회복되었다!");
             }
             RefreshHud();
         }
@@ -614,36 +627,43 @@ namespace WordRPG.UI
                 button.onClick.AddListener(entries[i].open);
             }
 
-            // 파티 HP
-            var strip = UiKit.Rect("PartyStrip", hudRoot, 0, 0.875f, 1, 0.935f);
-            badgeNames = new Text[GameSession.MaxPartySize];
-            badgeInitials = new Text[GameSession.MaxPartySize];
-            badgeSprites = new Image[GameSession.MaxPartySize];
-            badgeFills = new RectTransform[GameSession.MaxPartySize];
-            badgeFillImages = new Image[GameSession.MaxPartySize];
-            for (int i = 0; i < GameSession.MaxPartySize; i++)
+            // 주인공 배지 + 끼운 성유물 3칸 (Figma 'Field — HUD (주인공·성유물)' / 'Hero Badge' / 'Relic Slot')
+            var strip = UiKit.Rect("HeroStrip", hudRoot, 0, 0.875f, 1, 0.935f);
+            var badge = UiKit.RoundPanel("HeroBadge", strip, Palette.Scrim, UiKit.RadiusMd, 0.012f, 0, 0.575f, 1);
+            UiKit.AddButton(badge).onClick.AddListener(() => OpenBag(BagTab.Hero)); // 누르면 가방 > 주인공
+            var avatar = UiKit.Pill(UiKit.Panel("Avatar", badge.transform, Palette.PanelLight, 0, 0.5f, 0, 0.5f));
+            avatar.raycastTarget = false;
+            avatar.rectTransform.pivot = new Vector2(0, 0.5f);
+            avatar.rectTransform.sizeDelta = new Vector2(76, 76);
+            avatar.rectTransform.anchoredPosition = new Vector2(12, 0);
+            UiKit.IconImage("Face", avatar.transform, UiKit.HeroPortrait(session.Hero.Data), 0.1f, 0.1f, 0.9f, 0.9f);
+            heroName = UiKit.Label("Name", badge.transform, "", 30, Palette.Text, 0, 0.45f, 0.62f, 0.95f,
+                TextAnchor.MiddleLeft, FontStyle.Bold, true, 18);
+            heroName.rectTransform.offsetMin = new Vector2(104, 0);
+            heroHp = UiKit.OneLine(UiKit.Label("Hp", badge.transform, "", 24, Palette.TextDim, 0.62f, 0.45f, 0.97f, 0.95f,
+                TextAnchor.MiddleRight));
+            var hpBack = UiKit.Pill(UiKit.Panel("HpBack", badge.transform, Palette.Track, 0, 0.16f, 0.97f, 0.36f));
+            hpBack.raycastTarget = false;
+            hpBack.rectTransform.offsetMin = new Vector2(104, 0);
+            heroHpFill = UiKit.Pill(UiKit.Panel("HpFill", hpBack.transform, Palette.Good));
+            heroHpFill.raycastTarget = false;
+            for (int i = 0; i < HeroData.SlotCount; i++)
             {
-                // Figma 'Party Badge': 얼굴 원 + 이름 + HP 바
-                var badge = UiKit.RoundPanel($"Badge_{i}", strip, Palette.Scrim, UiKit.RadiusMd, i / 3f, 0, (i + 1) / 3f, 1);
-                int member = i;
-                UiKit.AddButton(badge).onClick.AddListener(() => OpenBag(member)); // 누르면 가방 > 몬스터 탭에서 이 몬스터
-                UiKit.Pad(badge.rectTransform, 8, 0, 8, 0);
-                var avatar = UiKit.Pill(UiKit.Panel("Avatar", badge.transform, Palette.PanelLight, 0, 0.62f, 0, 0.62f));
-                avatar.raycastTarget = false;
-                avatar.rectTransform.pivot = new Vector2(0, 0.5f);
-                avatar.rectTransform.sizeDelta = new Vector2(48, 48);
-                avatar.rectTransform.anchoredPosition = new Vector2(14, 0);
-                badgeInitials[i] = UiKit.Display(UiKit.Label("Initial", avatar.transform, "", 30, Palette.Text, 0, 0, 1, 1));
-                badgeSprites[i] = UiKit.IconImage("Sprite", avatar.transform, null, 0.05f, 0.05f, 0.95f, 0.95f);
-                badgeNames[i] = UiKit.Label("Name", badge.transform, "", 28, Palette.Text, 0, 0.4f, 1, 0.86f,
-                    TextAnchor.MiddleLeft, FontStyle.Bold, true, 16);
-                badgeNames[i].rectTransform.offsetMin = new Vector2(74, 0);
-                badgeNames[i].rectTransform.offsetMax = new Vector2(-8, 0);
-                var back = UiKit.Pill(UiKit.Panel("HpBack", badge.transform, Palette.Track, 0.05f, 0.14f, 0.95f, 0.32f));
-                back.raycastTarget = false;
-                badgeFillImages[i] = UiKit.Pill(UiKit.Panel("HpFill", back.transform, Palette.Good));
-                badgeFillImages[i].raycastTarget = false;
-                badgeFills[i] = badgeFillImages[i].rectTransform;
+                var back = UiKit.RoundPanel($"RelicSlot_{i}", strip, Palette.PanelLight, UiKit.RadiusMd, 0, 0.5f, 0, 0.5f);
+                back.rectTransform.pivot = new Vector2(0, 0.5f);
+                back.rectTransform.sizeDelta = new Vector2(104, 104);
+                back.rectTransform.anchoredPosition = new Vector2(640 + i * 116, 0);
+                int slot = i;
+                UiKit.AddButton(back).onClick.AddListener(() => OpenBag(BagTab.Relics, slot)); // 누르면 가방 > 성유물
+                var icon = UiKit.IconImage("Icon", back.transform, null, 0.12f, 0.12f, 0.88f, 0.88f);
+                var levelBack = UiKit.Pill(UiKit.Panel("Level", back.transform, Palette.Gold, 1, 0, 1, 0));
+                levelBack.raycastTarget = false;
+                levelBack.rectTransform.pivot = new Vector2(1, 0);
+                levelBack.rectTransform.sizeDelta = new Vector2(52, 30);
+                levelBack.rectTransform.anchoredPosition = new Vector2(-4, 4);
+                var level = UiKit.Display(UiKit.OneLine(UiKit.Label("Text", levelBack.transform, "", 24, Palette.OnAccent, 0, 0, 1, 1)));
+                var empty = UiKit.Label("Empty", back.transform, "빈 칸", 22, Palette.TextDim, 0, 0, 1, 1);
+                relicSlots.Add((back, icon, level, empty));
             }
 
             // 알림
@@ -669,7 +689,7 @@ namespace WordRPG.UI
             flash.gameObject.SetActive(false);
 
             dexView = DexView.Create(hudRoot);
-            evolutionView = EvolutionView.Create(hudRoot, animationScale);
+            altarView = RelicAltarView.Create(hudRoot, animationScale);
             shopView = ShopView.Create(hudRoot);
             inventoryView = InventoryView.Create(hudRoot);
             settingsView = SettingsView.Create(hudRoot);
@@ -734,7 +754,8 @@ namespace WordRPG.UI
             var battleGo = new GameObject("Battle");
             battleGo.transform.SetParent(transform, false);
             battle = battleGo.AddComponent<BattleScreen>();
-            battle.Configure(area.Encounters, area.Words, session, animationScale, battleConfig, saveProgress, loop: false);
+            battle.Configure(area.Encounters, area.Words, session, animationScale, battleConfig, saveProgress, loop: false,
+                gameDatabase: database);
         }
 
         // 메뉴는 걷는 중·전투 중·다른 창이 열려 있을 때는 열지 않는다
@@ -756,12 +777,14 @@ namespace WordRPG.UI
             }
         }
 
-        private void OpenBag() => OpenBag(-1);
+        private void OpenBag() => OpenBag(BagTab.Hero);
 
-        // member: 가방을 몬스터 탭으로 열면서 고를 파티 몬스터 (-1 = 첫 번째)
-        private void OpenBag(int member)
+        // tab: 열 탭, slot: 성유물 탭에서 고를 칸 (그 칸에 끼운 성유물)
+        private void OpenBag(BagTab tab, int slot = -1)
         {
-            if (CanOpenMenu) inventoryView.Show(session, database, member);
+            if (!CanOpenMenu) return;
+            var relic = session.Hero.SlotAt(slot);
+            inventoryView.Show(session, database, tab, relic, OnTownChanged);
         }
 
         private void OpenSettings()
@@ -787,22 +810,23 @@ namespace WordRPG.UI
             var progress = Dex.GetProgress(area.Words, session.Vocabulary);
             dexLabel.text = $"발견 {progress.Discovered}/{progress.Total}   {session.Inventory.Gold}G";
 
-            for (int i = 0; i < badgeNames.Length; i++)
+            var hero = session.Hero;
+            heroName.text = $"{hero.DisplayName} Lv{hero.Level}";
+            heroHp.text = $"HP {hero.CurrentHp}/{hero.Stats.MaxHp}";
+            float ratio = Mathf.Clamp01((float)hero.CurrentHp / Mathf.Max(1, hero.Stats.MaxHp));
+            heroHpFill.enabled = ratio > 0f;
+            heroHpFill.rectTransform.anchorMax = new Vector2(ratio, 1);
+            heroHpFill.color = ratio > 0.5f ? Palette.Good : ratio > 0.25f ? Palette.Gold : Palette.Bad;
+            for (int i = 0; i < relicSlots.Count; i++)
             {
-                bool has = i < session.Party.Count;
-                badgeNames[i].transform.parent.gameObject.SetActive(has);
-                if (!has) continue;
-                var monster = session.Party[i];
-                float ratio = Mathf.Clamp01((float)monster.CurrentHp / Mathf.Max(1, monster.Stats.MaxHp));
-                badgeNames[i].text = $"{monster.DisplayName} Lv{monster.Level}";
-                var sprite = monster.Species.Sprite;
-                badgeSprites[i].sprite = sprite;
-                badgeSprites[i].enabled = sprite != null;
-                badgeInitials[i].enabled = sprite == null;
-                badgeInitials[i].text = monster.DisplayName.Length > 0 ? monster.DisplayName.Substring(0, 1) : "?";
-                badgeFillImages[i].enabled = ratio > 0f;
-                badgeFills[i].anchorMax = new Vector2(ratio, 1);
-                badgeFillImages[i].color = ratio > 0.5f ? Palette.Good : ratio > 0.25f ? Palette.Gold : Palette.Bad;
+                var relic = hero.SlotAt(i);
+                var (back, icon, level, empty) = relicSlots[i];
+                back.color = relic != null ? Palette.PanelLight : Palette.Track;
+                icon.sprite = relic != null ? UiKit.RelicIcon(relic.Data) : null;
+                icon.enabled = icon.sprite != null;
+                level.transform.parent.gameObject.SetActive(relic != null);
+                level.text = relic != null ? $"+{relic.Level}" : "";
+                empty.enabled = relic == null;
             }
         }
 

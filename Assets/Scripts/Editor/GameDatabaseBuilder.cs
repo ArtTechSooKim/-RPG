@@ -4,13 +4,14 @@ using UnityEditor;
 using UnityEngine;
 using WordRPG.Field;
 using WordRPG.Game;
+using WordRPG.Heroes;
 using WordRPG.Items;
 using WordRPG.Monsters;
 
 namespace WordRPG.EditorTools
 {
-    // 프로젝트의 모든 MonsterSpecies·ItemData를 GameDatabase에 모은다.
-    // 몬스터·아이템을 새로 만들면 이 메뉴를 실행할 것 (안 하면 그 몬스터는 세이브에서 불러올 수 없음 — 테스트가 잡아냄)
+    // 프로젝트의 모든 MonsterSpecies·ItemData·RelicData·FieldArea를 GameDatabase에 모은다.
+    // 아이템·성유물·지역을 새로 만들면 이 메뉴를 실행할 것 (안 하면 세이브에서 불러올 수 없음 — 테스트가 잡아냄)
     public static class GameDatabaseBuilder
     {
         public const string DatabasePath = "Assets/Data/GameDatabase.asset";
@@ -21,7 +22,9 @@ namespace WordRPG.EditorTools
             var monsters = LoadAll<MonsterSpecies>().OrderBy(m => m.SpeciesId).ToList();
             var items = LoadAll<ItemData>().OrderBy(i => i.ItemId).ToList();
             var areas = LoadAll<FieldArea>().OrderBy(a => a.AreaId).ToList();
+            var relics = LoadAll<RelicData>().OrderBy(r => r.RelicId).ToList();
             WarnDuplicates(monsters.Select(m => m.SpeciesId), "몬스터");
+            WarnDuplicates(relics.Select(r => r.RelicId), "성유물");
             WarnDuplicates(items.Select(i => i.ItemId), "아이템");
             WarnDuplicates(areas.Select(a => a.AreaId), "지역");
 
@@ -31,10 +34,10 @@ namespace WordRPG.EditorTools
                 database = ScriptableObject.CreateInstance<GameDatabase>();
                 AssetDatabase.CreateAsset(database, DatabasePath);
             }
-            database.ReplaceContents(monsters, items, areas);
+            database.ReplaceContents(monsters, items, areas, relics);
             EditorUtility.SetDirty(database);
             AssetDatabase.SaveAssets();
-            Debug.Log($"[WordRPG] GameDatabase 갱신: 몬스터 {monsters.Count}, 아이템 {items.Count}, 지역 {areas.Count}");
+            Debug.Log($"[WordRPG] GameDatabase 갱신: 몬스터 {monsters.Count}, 아이템 {items.Count}, 성유물 {relics.Count}, 지역 {areas.Count}");
             return database;
         }
 
@@ -67,7 +70,7 @@ namespace WordRPG.EditorTools
         [MenuItem("WordRPG/Save/Delete Save Data")]
         public static void DeleteSave()
         {
-            if (!EditorUtility.DisplayDialog("세이브 삭제", "저장된 진행 상황(파티, 단어 학습 기록)을 지우고 새 게임으로 시작합니다.", "삭제", "취소"))
+            if (!EditorUtility.DisplayDialog("세이브 삭제", "저장된 진행 상황(주인공·성유물, 단어 학습 기록)을 지우고 새 게임으로 시작합니다.", "삭제", "취소"))
                 return;
             new Save.SaveSystem(Application.persistentDataPath).Delete();
             Debug.Log($"[WordRPG] 세이브 삭제: {Application.persistentDataPath}");

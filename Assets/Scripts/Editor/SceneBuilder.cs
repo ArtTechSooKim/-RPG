@@ -3,6 +3,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using WordRPG.Field;
 using WordRPG.Game;
+using WordRPG.Heroes;
 using WordRPG.Monsters;
 using WordRPG.UI;
 using WordRPG.Words;
@@ -105,12 +106,7 @@ namespace WordRPG.EditorTools
             var managerGo = new GameObject("GameManager", typeof(GameManager));
             var manager = new SerializedObject(managerGo.GetComponent<GameManager>());
             manager.FindProperty("database").objectReferenceValue = Load<GameDatabase>(GameDatabaseBuilder.DatabasePath);
-            var starters = manager.FindProperty("starterParty");
-            string[] ids = { "nib", "bookshell", "lumi" };
-            starters.arraySize = ids.Length;
-            for (int i = 0; i < ids.Length; i++)
-                starters.GetArrayElementAtIndex(i).objectReferenceValue = Load<MonsterSpecies>($"Assets/Data/Monsters/{ids[i]}.asset");
-            manager.FindProperty("starterLevel").intValue = 3;
+            manager.FindProperty("hero").objectReferenceValue = Load<HeroData>(SampleDataBuilder.HeroPath);
             manager.ApplyModifiedPropertiesWithoutUndo();
         }
 

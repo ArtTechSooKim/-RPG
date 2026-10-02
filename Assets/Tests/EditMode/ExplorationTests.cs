@@ -12,11 +12,7 @@ namespace WordRPG.Tests
     public class ExplorationTests
     {
         private static GameSession NewSession() =>
-            GameSession.NewGame(new[]
-            {
-                TestData.Species("hero", new MonsterStats(10, 5, 5), new MonsterStats(1, 1, 1),
-                    TestData.Skill("poke", SkillKind.Damage, SkillTarget.SingleEnemy, 5))
-            }, 1);
+            GameSession.NewGame(TestData.Hero(new MonsterStats(10, 5, 5)), 1);
 
         [Test]
         public void RevealOpensCircleAroundPlayerOnce()

@@ -14,7 +14,7 @@ namespace WordRPG.Battle
         [SerializeField] private float criticalMultiplier = 1.5f;
         [Tooltip("데미지/회복량 ±랜덤 폭 (0.1 = ±10%)")]
         [SerializeField] private float variance = 0.1f;
-        [Tooltip("정답 1개당 파티 전원이 추가로 받는 경험치 — 공부가 곧 성장")]
+        [Tooltip("정답 1개당 주인공이 추가로 받는 경험치 — 공부가 곧 성장")]
         [SerializeField] private int expPerCorrectAnswer = 2;
 
         public float AnswerTimeLimitSeconds => answerTimeLimitSeconds;

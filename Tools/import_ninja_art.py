@@ -5,7 +5,8 @@
 - 몬스터: 시트에서 정면(첫 칸) 한 프레임만 잘라 Monsters/{speciesId}.png (파일 이름 = speciesId)
   → Unity 메뉴 WordRPG > Data > Link Monster Art 가 같은 이름의 몬스터 에셋에 연결한다
 - 주인공: 4방향 × 걷기 4프레임 시트 그대로 (게임이 잘라 씀)
-- 팩에 어울리는 그림이 없는 몬스터(펜촉이·깃펜기사)는 넣지 않는다 → 임시 도형 그대로
+- 성유물: Relics/{relicId}.png (파일 이름 = relicId) — 게임이 RelicData.icon이 비어 있으면 이 그림을 쓴다
+- 상처약 등 아이템 도트: Items/{itemId}.png (Figma로 그린 UI/Icons/Items/{itemId}.png가 없을 때 쓰임)
 필요한 Pillow: pip install pillow
 """
 import os
@@ -18,12 +19,8 @@ DEFAULT_PACK = r"F:\Unity\김수연습\Ninja Adventure - Asset Pack\Ninja Advent
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(PROJECT, "Assets", "Resources", "Art", "NinjaAdventure")
 
-# speciesId: (팩 안의 시트 경로, 한 칸 크기)
+# speciesId: (팩 안의 시트 경로, 한 칸 크기) — 적 몬스터만 (아군 몬스터는 성유물로 바뀜)
 MONSTERS = {
-    "lumi": ("Actor/Monsters/LanternRed/SpriteSheet.png", 16),          # 등불이
-    "sage_lantern": ("Actor/Monsters/LanternGreen/SpriteSheet.png", 16),  # 지혜등불
-    "bookshell": ("Actor/Monsters/Mollusc/Mollusc.png", 16),             # 책껍질
-    "encyclotortoise": ("Actor/Monsters/Mollusc2/Mollusc2.png", 16),     # 백과거북
     "ink_slime": ("Actor/Monsters/Slime/Slime.png", 16),                 # 잉크 슬라임
     "scribble_bat": ("Actor/Monsters/BlueBat/SpriteSheet.png", 16),      # 낙서 박쥐
     "forget_goblin": ("Actor/Monsters/KappaGreen/SpriteSheet.png", 16),  # 까먹깨비
@@ -31,6 +28,21 @@ MONSTERS = {
 }
 
 PLAYER = "Actor/Characters/Boy/SpriteSheet.png"
+
+# relicId: (그림 경로, 시트에서 자를 한 칸 크기 — None이면 그대로)
+RELICS = {
+    "relic_quill": ("Items/Resource/feather.png", None),                  # 깃펜 (예전 펜촉이)
+    "relic_book": ("Items/Object/Book.png", None),                        # 백과사전 (예전 책껍질)
+    "relic_lantern": ("Actor/Monsters/LanternRed/SpriteSheet.png", 16),   # 등불 (예전 등불이)
+    "relic_wand": ("Items/Weapons/MagicWand/Sprite.png", None),           # 마법 지팡이
+    "relic_grail": ("Items/Treasure/GoldCup.png", None),                  # 기억의 성배 (보스 보상)
+}
+
+# itemId: 그림 경로 (도트 아이템)
+ITEMS = {
+    "potion": "Items/Potion/Medipack.png",       # 상처약
+    "potion_large": "Items/Potion/LifePot.png",  # 큰 상처약
+}
 
 # 소리: 파일 이름 = 게임 코드의 이름(Music·Sfx 열거형을 소문자로)
 MUSIC = {
@@ -151,6 +163,20 @@ def ink(tile):
     return out
 
 
+def copy_relics_and_items(pack):
+    for folder in ("Relics", "Items"):
+        os.makedirs(os.path.join(OUT, folder), exist_ok=True)
+    for relic_id, (rel, size) in RELICS.items():
+        dst = os.path.join(OUT, "Relics", relic_id + ".png")
+        if size:
+            crop_front(os.path.join(pack, rel), size, dst)
+        else:
+            shutil.copyfile(os.path.join(pack, rel), dst)
+    for item_id, rel in ITEMS.items():
+        shutil.copyfile(os.path.join(pack, rel), os.path.join(OUT, "Items", item_id + ".png"))
+    print("relics", len(RELICS), "+ items", len(ITEMS), "->", OUT)
+
+
 def build_tiles(pack):
     boss = pack.frame("Actor/Boss/GiantSpirit/Idle.png", 0, 50).crop((1, 1, 49, 49))
     book = pack.image("Items/Object/Book.png")
@@ -217,6 +243,8 @@ def main():
 
     shutil.copyfile(os.path.join(pack, PLAYER), os.path.join(OUT, "Player", "Boy.png"))
     print("player <-", PLAYER)
+
+    copy_relics_and_items(pack)
 
     art = Pack(pack)
     build_tiles(art)

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0122d155e04474e488164747cf40b6ca, type: 3}
+  m_Name: hero
+  m_EditorClassIdentifier: WordRPG::WordRPG.Heroes.HeroData
+  displayName: "\uC8FC\uC778\uACF5"
+  description: "\uB2E8\uC5B4\uC758 \uD798\uC744 \uC131\uC720\uBB3C\uC5D0 \uB2F4\uC544
+    \uC2F8\uC6B0\uB294 \uACAC\uC2B5 \uBAA8\uD5D8\uAC00."
+  portrait: {fileID: 0}
+  baseStats:
+    maxHp: 60
+    attack: 14
+    defense: 10
+  growthPerLevel:
+    maxHp: 8
+    attack: 3
+    defense: 2
+  startLevel: 3
+  basicSkill: {fileID: 11400000, guid: 44862ed8e04fc0947b495d2d506e1a25, type: 2}
+  startingRelics:
+  - {fileID: 11400000, guid: 0e6430d280433c24a9d7318f56367003, type: 2}

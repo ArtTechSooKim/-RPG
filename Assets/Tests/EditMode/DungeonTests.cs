@@ -79,12 +79,12 @@ namespace WordRPG.Tests
             var database = ScriptableObject.CreateInstance<GameDatabase>();
             database.ReplaceContents(new[] { nib }, new ItemData[0], new[] { library });
 
-            var session = GameSession.NewGame(new[] { nib }, 1);
+            var session = GameSession.NewGame(TestData.Hero(new MonsterStats(30, 14, 8)), 1);
             session.World.MarkBossDefeated("library:boss");
             session.World.SetPosition("library", new Vector2Int(8, 2));
 
             var json = session.ToSaveData(DateTime.UtcNow).ToJson();
-            var loaded = GameSession.FromSaveData(SaveData.FromJson(json), database, new[] { nib }, 1);
+            var loaded = GameSession.FromSaveData(SaveData.FromJson(json), database, TestData.Hero(new MonsterStats(30, 14, 8)));
 
             Assert.IsTrue(loaded.World.IsBossDefeated("library:boss"));
             Assert.IsFalse(loaded.World.IsBossDefeated("meadow:boss"));

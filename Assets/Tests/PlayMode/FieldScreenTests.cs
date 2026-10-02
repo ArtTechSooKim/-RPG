@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using WordRPG.Field;
 using WordRPG.Game;
+using WordRPG.Heroes;
 using WordRPG.Items;
 using WordRPG.Monsters;
 using WordRPG.UI;
@@ -45,10 +46,10 @@ namespace WordRPG.Tests
             return field;
         }
 
-        private static MonsterSpecies Hero(int hp, int atk)
+        private static HeroData Hero(int hp, int atk)
         {
             var strike = TestData.Skill("strike", SkillKind.Damage, SkillTarget.SingleEnemy, 40);
-            return TestData.Species("hero", new MonsterStats(hp, atk, 10), new MonsterStats(0, 0, 0), strike);
+            return TestData.Hero(new MonsterStats(hp, atk, 10)).Set("basicSkill", strike);
         }
 
         private static MonsterSpecies Enemy(int hp, int atk, int power)
@@ -60,7 +61,7 @@ namespace WordRPG.Tests
         [UnityTest]
         public IEnumerator ChestFountainEncounterAndReturnToField()
         {
-            var session = GameSession.NewGame(new[] { Hero(100, 30) }, 1);
+            var session = GameSession.NewGame(Hero(100, 30), 1);
             var field = CreateField(session, Enemy(40, 1, 5));
             yield return null;
             yield return null;
@@ -78,13 +79,13 @@ namespace WordRPG.Tests
             Assert.AreEqual(new Vector2Int(2, 1), field.PlayerCell);
             CollectionAssert.Contains(field.VisibleNameTags, "회복의 샘", "가까이 있는 샘에 이름표");
 
-            // 2) 왼쪽 = 회복의 샘 → 그쪽을 보고 [확인] → 파티 회복
-            session.Party[0].TakeDamage(50);
+            // 2) 왼쪽 = 회복의 샘 → 그쪽을 보고 [확인] → HP 회복
+            session.Hero.TakeDamage(50);
             yield return new WaitForSecondsRealtime(0.35f); // 연속 사용 대기 시간
             yield return FacePad(field, "Pad_Left", Direction.Left);
             yield return PressConfirm(field);
-            yield return WaitFor(() => session.Party[0].CurrentHp == session.Party[0].Stats.MaxHp, 2f);
-            Assert.AreEqual(session.Party[0].Stats.MaxHp, session.Party[0].CurrentHp);
+            yield return WaitFor(() => session.Hero.CurrentHp == session.Hero.Stats.MaxHp, 2f);
+            Assert.AreEqual(session.Hero.Stats.MaxHp, session.Hero.CurrentHp);
             StringAssert.Contains("회복의 샘", field.ToastMessage);
 
             // 3) 오른쪽 → 위 → 위(풀숲) = 조우
@@ -122,7 +123,7 @@ namespace WordRPG.Tests
         [UnityTest]
         public IEnumerator SpawnsAtSavedPositionAndDefeatReturnsToFountain()
         {
-            var session = GameSession.NewGame(new[] { Hero(10, 1) }, 1);
+            var session = GameSession.NewGame(Hero(10, 1), 1);
             session.World.SetPosition("test", new Vector2Int(3, 2));
             var field = CreateField(session, Enemy(500, 50, 500));
             yield return null;
@@ -138,7 +139,7 @@ namespace WordRPG.Tests
             yield return WaitFor(() => !field.IsInBattle);
 
             Assert.AreEqual(new Vector2Int(2, 1), field.PlayerCell, "시작 위치(회복의 샘 앞)로 돌아감");
-            Assert.AreEqual(session.Party[0].Stats.MaxHp, session.Party[0].CurrentHp, "파티 회복");
+            Assert.AreEqual(session.Hero.Stats.MaxHp, session.Hero.CurrentHp, "HP 회복");
             StringAssert.Contains("돌아왔다", field.ToastMessage);
             Assert.AreEqual(1, session.Record.BattlesLost);
 

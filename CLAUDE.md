@@ -22,20 +22,23 @@
 
 ## 프로젝트 개요
 
-- **장르**: 몬스터 육성 턴제 RPG + 영단어 학습. "공부하려고 켜는 게임"이 아니라 "게임하다 보니 단어를 외우고 있는 게임"
+- **장르**: 주인공 + 성유물 수집·강화 턴제 RPG + 영단어 학습. "공부하려고 켜는 게임"이 아니라 "게임하다 보니 단어를 외우고 있는 게임"
+  (2026-10-02 사용자 결정으로 몬스터 3마리 육성 → 주인공 혼자 + 성유물. 몬스터는 적으로만)
 - **엔진**: Unity 6000.3.11f1 (2D, Built-in RP) / **플랫폼**: 모바일, **세로 고정**, Android 우선 / **개발**: 1인
-- **핵심 루프**: 탐험 → 랜덤 조우 → 전투(스킬마다 단어 문제) → 보상 → 성장·진화 → 새 지역·어려운 단어
-- **현재 단계**: MVP — 마을 1, 필드 1, 던전 1, 아군 3종(+진화) + 적 3종, 단어 100개
+- **핵심 루프**: 탐험 → 랜덤 조우 → 전투(기술마다 단어 문제) → 보상(경험치·재료·성유물) → 레벨업·성유물 강화(+3 각성) → 새 지역·어려운 단어
+- **현재 단계**: MVP — 마을 1, 필드 1, 던전 1, 주인공 + 성유물 5개(3칸 장착) + 적 3종·보스, 단어 100개
 
 ## 기술 규칙 (반드시 준수)
 
-1. **게임 데이터는 ScriptableObject**: 몬스터, 스킬, 아이템, 출현표, 단어장. 하드코딩 금지
+1. **게임 데이터는 ScriptableObject**: 주인공(HeroData), 성유물(RelicData), 적 몬스터, 스킬, 아이템, 출현표, 단어장. 하드코딩 금지
    - 단어는 `Assets/Data/Words/*.csv`를 고치면 같은 이름의 `WordDatabase` .asset이 자동 갱신됨
-2. **로직과 UI 분리**: `Words/ Monsters/ Items/ Battle/`은 순수 C# (MonoBehaviour 없음). UI는 `BattleEngine`이 돌려주는 `BattleEvent` 목록을 연출만 한다
+2. **로직과 UI 분리**: `Words/ Monsters/ Heroes/ Items/ Battle/`은 순수 C# (MonoBehaviour 없음). UI는 `BattleEngine`이 돌려주는 `BattleEvent` 목록을 연출만 한다
 3. **새 로직에는 EditMode 테스트**: `Assets/Tests/EditMode/`. SO는 `TestData` 도우미로 생성
 4. **시간·랜덤은 주입**: 로직에서 `DateTime.UtcNow`, `UnityEngine.Random` 직접 사용 금지 → `DateTime nowUtc` / `System.Random` 파라미터로 받기 (테스트 결정성)
-5. **저장 데이터는 id 문자열로 참조**: wordId, itemId, speciesId. 에셋 이름이 바뀌어도 세이브가 깨지지 않게
-   - 몬스터·아이템을 새로 만들면 `WordRPG > Data > Refresh Game Database` 실행 (안 하면 세이브에서 불러올 수 없음, DataIntegrityTests가 잡음)
+5. **저장 데이터는 id 문자열로 참조**: wordId, itemId, relicId, areaId. 에셋 이름이 바뀌어도 세이브가 깨지지 않게 (세이브 v2: 주인공 + 성유물, v1 몬스터 파티는 불러올 때 변환)
+   - 아이템·성유물·몬스터·지역을 새로 만들면 `WordRPG > Data > Refresh Game Database` 실행 (안 하면 세이브에서 불러올 수 없음, DataIntegrityTests가 잡음)
+   - 성유물은 시작·보물상자(ChestContent.relic)·보스(BossEncounter.rewardRelic) 중 하나에서 얻을 수 있어야 하고, 강화 재료는 적 드롭·상자에서 얻을 수 있어야 함.
+     상점은 회복 아이템(상처약)만 판다 — 사용자 결정 (TownDataTests가 검사)
    - 이미 출시된 id는 바꾸지 말 것. SaveData에 필드 추가는 자유(예전 세이브는 기본값), 기존 필드 의미를 바꿀 때만 version 올리고 변환
    - 게임 진행 상태는 `GameManager.Instance.Session`에서 얻고, 바뀌면 `GameManager.Save()` 호출
    - 세션을 쓰기 시작하는 화면(필드·전투)은 `MarkPlaying()`을 불러야 저장된다 (타이틀에서 시작 전엔 저장 안 함)
@@ -54,7 +57,9 @@
     - 아이콘: `UiKit.Icon("gold")`, 아이템은 `UiKit.ItemIcon(item)`. PNG를 `Assets/Resources/UI/Icons/`에 넣으면 `UiAssetImporter`가 스프라이트로 설정
     - 새 화면은 Figma에 먼저 그리고 같은 컴포넌트로 조립. 기호(✓ ✕ ▲ ◀ 등)는 Jua에 없을 수 있으니 Noto 글꼴로 쓰고 `font.HasCharacter`로 확인
 12. **도트 그림·소리는 Ninja Adventure 팩(CC0)**: `python Tools/import_ninja_art.py` 가 쓸 파일만 골라 복사·가공한다 (원본 팩 경로는 스크립트 안)
-    - 몬스터: `Assets/Resources/Art/NinjaAdventure/Monsters/{speciesId}.png` → `WordRPG > Data > Link Monster Art`(Create All Scenes에도 포함)가 Sprite 칸에 연결. 그림 없는 몬스터(펜촉이·깃펜기사)는 임시 도형
+    - 적 몬스터: `Assets/Resources/Art/NinjaAdventure/Monsters/{speciesId}.png` → `WordRPG > Data > Link Monster Art`(Create All Scenes에도 포함)가 Sprite 칸에 연결
+    - 성유물: `Art/NinjaAdventure/Relics/{relicId}.png` (`UiKit.RelicIcon`, RelicData.icon이 비면 사용), 상처약 등 도트 아이템: `Art/NinjaAdventure/Items/{itemId}.png`
+    - 주인공 얼굴: HeroData.portrait가 비면 필드 주인공 정면 (`UiKit.HeroPortrait`)
     - 필드 타일 `FieldArt`(Tiles/{테마}_{종류}[_done].png), 주인공 `PlayerArt`(4방향×걷기 4프레임 시트를 코드로 자름). 없으면 `PlaceholderArt`
     - `Assets/Resources/Art/` 그림은 가져올 때 16px = 1칸, Point 필터 (`UiAssetImporter`)
     - 소리: `Sound.PlayMusic(Music.X)` / `Sound.Play(Sfx.X)`, 파일 = `Resources/Audio/Music|Sfx/{열거형 소문자}`. 음량은 설정을 따름.
@@ -72,17 +77,19 @@ Assets/
   Scripts/              WordRPG.asmdef (런타임)
     Core/               CSV 파서 등 공용
     Words/              단어, 숙련도(VocabularyProgress), 출제(WordSelector), 4지선다(QuizGenerator)
-    Monsters/           MonsterSpecies·SkillData SO, MonsterInstance, LevelCurve, Evolution
-    Items/              ItemData SO, Inventory, ShopData SO + Shop(구매 규칙)
-    Battle/             BattleEngine, BattleFormulas, BattleReward
+    Monsters/           적 몬스터 MonsterSpecies·SkillData SO, MonsterInstance, ICombatant(싸우는 것 공통), LevelCurve
+    Heroes/             HeroData SO(주인공), Hero(레벨·HP·성유물 3칸), RelicData SO(성유물: 기술·각성·보너스·강화 비용), RelicUpgrade(강화 규칙)
+    Items/              ItemData SO(재료·상처약·징표), Inventory, ShopData SO + Shop(구매 규칙)
+    Battle/             BattleEngine(기술·상처약), BattleFormulas, BattleReward
     Field/              FieldMap(맵 글자→격자), FieldWalker(이동), EncounterCounter(조우), FieldInteraction([확인] 대상·이름표 규칙),
                         FieldArea(지역 SO: 테마·출입구 연결·보스·상자·상점), EncounterTable
     Game/               GameSession(진행 상태 전체), GameManager(씬 간 유지 + 자동 저장 + 설정), GameDatabase(id→에셋), PlayerRecord,
                         Dex(도감 규칙), Keepsakes(징표 진열장), GameSettings(음량·진동)
     Save/               SaveData(JSON 형식), SaveSystem(임시파일+백업으로 안전 저장)
     UI/                 FieldScreen(필드·지역 이동·HUD·가상 패드), BattleScreen(필드 위에 덮이는 전투, 단독 연습 모드도 있음),
-                        DexView(도감), EvolutionView(진화의 제단) + EvolutionCutscene(진화 연출), ShopView(상점),
-                        InventoryView(소지품: 몬스터·재료·징표) + MonsterInfoPage(몬스터 능력치·기술), SettingsView(설정) + ConfirmDialog(확인 창), SwitchView,
+                        DexView(도감), RelicAltarView(성유물 제단·강화) + AwakeningCutscene(각성 연출), ShopView(상점),
+                        InventoryView(소지품: 주인공·성유물·아이템·징표) + HeroViews(HeroInfoPage·RelicPage·RelicSlotsRow·SkillRowView),
+                        SettingsView(설정) + ConfirmDialog(확인 창), SwitchView,
                         FieldNameTags(오브젝트 이름표),
                         TitleScreen(타이틀), Haptics(진동), UnitView, HoldButton,
                         FieldArt(필드 타일) · PlayerArt(주인공) · PlaceholderArt(그림이 없을 때 임시 도트), Sound(음악·효과음),
@@ -91,11 +98,11 @@ Assets/
     Editor/             WordRPG.Editor.asmdef — CSV 임포터, 샘플 데이터 생성기, UiAssetImporter(아이콘·도트·소리 가져오기 설정),
                         MonsterArtLinker(몬스터 그림 연결)
   Resources/UI/         Fonts(Jua, Noto Sans KR + OFL 라이선스), Icons(UI 아이콘 128px), Icons/Items(아이템 256px, 파일명 = itemId)
-  Resources/Art/NinjaAdventure/  Monsters(speciesId.png), Player(Boy 시트), Tiles(합성 타일), LICENSE.txt(CC0)
+  Resources/Art/NinjaAdventure/  Monsters(speciesId.png), Relics(relicId.png), Items(itemId.png), Player(Boy 시트), Tiles(합성 타일), LICENSE.txt(CC0)
   Resources/Audio/      Music(5곡 ogg), Sfx(20개 wav) — Ninja Adventure
   Tests/EditMode/       WordRPG.Tests.EditMode.asmdef (로직)
   Tests/PlayMode/       WordRPG.Tests.PlayMode.asmdef (UI 버튼을 눌러 전투 한 판 진행)
-  Data/                 Words, Monsters, Skills, Items, Encounters, Areas, Shops (SO 에셋), GameDatabase.asset
+  Data/                 Words, Hero(hero.asset), Relics, Monsters(적), Skills, Items, Encounters, Areas, Shops (SO 에셋), GameDatabase.asset
   Scenes/               Title.unity (빌드 첫 씬) → Field.unity (본 게임), Battle.unity (전투만 반복하는 연습 씬)
 Docs/                   PRD.txt, GDD.md, 아트에셋목록.md
 Tools/                  import_ninja_art.py (에셋 팩 → 프로젝트, Pillow 필요)

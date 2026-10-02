@@ -189,7 +189,7 @@ namespace WordRPG.Tests
         [Test]
         public void ChestGivesItsContentOnce()
         {
-            var session = GameSession.NewGame(new[] { nib }, 1);
+            var session = GameSession.NewGame(TestData.Hero(new MonsterStats(30, 14, 8)), 1);
 
             var first = session.OpenChest(area, new Vector2Int(1, 2));
             var again = session.OpenChest(area, new Vector2Int(1, 2));
@@ -206,14 +206,14 @@ namespace WordRPG.Tests
         [Test]
         public void PositionAndOpenedChestsSurviveSave()
         {
-            var session = GameSession.NewGame(new[] { nib }, 1);
+            var session = GameSession.NewGame(TestData.Hero(new MonsterStats(30, 14, 8)), 1);
             session.OpenChest(area, new Vector2Int(1, 2));
             session.World.SetPosition("meadow", new Vector2Int(3, 1));
 
             var database = ScriptableObject.CreateInstance<GameDatabase>();
             database.ReplaceContents(new[] { nib }, new[] { ink });
             var json = session.ToSaveData(DateTime.UtcNow).ToJson();
-            var loaded = GameSession.FromSaveData(SaveData.FromJson(json), database, new[] { nib }, 1);
+            var loaded = GameSession.FromSaveData(SaveData.FromJson(json), database, TestData.Hero(new MonsterStats(30, 14, 8)));
 
             Assert.IsTrue(loaded.World.TryGetPosition("meadow", out var position));
             Assert.AreEqual(new Vector2Int(3, 1), position);
@@ -253,7 +253,8 @@ namespace WordRPG.Tests
                 Assert.AreEqual(map.Chests.Count, area.ChestContents.Count,
                     $"{area.name}: 맵의 보물상자 {map.Chests.Count}개, 내용물 {area.ChestContents.Count}개 — 개수가 같아야 함");
                 foreach (var content in area.ChestContents)
-                    Assert.IsTrue(content.Item != null && content.Count > 0 || content.Gold > 0, $"{area.name}: 빈 보물상자 내용물");
+                    Assert.IsTrue(content.Item != null && content.Count > 0 || content.Gold > 0 || content.Relic != null,
+                        $"{area.name}: 빈 보물상자 내용물");
 
                 // 시작 위치에서 모든 보물상자·회복의 샘에 갈 수 있어야 함
                 var reachable = Flood(map);

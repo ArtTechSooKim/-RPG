@@ -54,9 +54,7 @@ namespace WordRPG.Tests
         public void RemainingChestsCountsUnopenedChestTiles()
         {
             var area = Area();
-            var hero = TestData.Species("hero", new MonsterStats(10, 5, 5), new MonsterStats(1, 1, 1),
-                TestData.Skill("poke", SkillKind.Damage, SkillTarget.SingleEnemy, 5));
-            var session = GameSession.NewGame(new[] { hero }, 1);
+            var session = GameSession.NewGame(TestData.Hero(new MonsterStats(10, 5, 5)), 1);
             Assert.AreEqual(1, session.RemainingChests(area));
             session.OpenChest(area, area.Map.Chests[0]);
             Assert.AreEqual(0, session.RemainingChests(area));

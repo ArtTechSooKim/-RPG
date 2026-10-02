@@ -7,6 +7,7 @@ using UnityEngine.TestTools;
 using UnityEngine.UI;
 using WordRPG.Field;
 using WordRPG.Game;
+using WordRPG.Heroes;
 using WordRPG.Items;
 using WordRPG.Monsters;
 using WordRPG.UI;
@@ -22,7 +23,8 @@ namespace WordRPG.Tests
         //   y=1  #.P.#   ← 시작 (2,1)
         private const string Map = "#####\n#C..#\n#.P.#\n#####";
 
-        private ItemData ink, cover, keepsake;
+        private ItemData ink, cover, keepsake, potion;
+        private RelicData quill, book, lantern;
         private FieldArea area;
         private GameDatabase database;
         private GameSession session;
@@ -30,28 +32,36 @@ namespace WordRPG.Tests
         [SetUp]
         public void SetUp()
         {
-            ink = TestData.Item("shiny_ink").Set("displayName", "빛나는 잉크").Set("description", "펜촉이를 진화시키는 잉크.");
+            ink = TestData.Item("shiny_ink").Set("displayName", "빛나는 잉크").Set("description", "깃펜을 강화하는 잉크.");
             cover = TestData.Item("hard_cover").Set("displayName", "단단한 표지");
             keepsake = TestData.Item("keepsake_meadow").Set("displayName", "네잎클로버 책갈피").Set("kind", ItemKind.Keepsake);
-            var poke = TestData.Skill("poke", SkillKind.Damage, SkillTarget.SingleEnemy, 20);
-            var knight = TestData.Species("quill_knight", new MonsterStats(40, 20, 11), new MonsterStats(5, 4, 2), poke)
-                .Set("displayName", "깃펜기사");
-            var nib = TestData.Species("nib", new MonsterStats(30, 14, 8), new MonsterStats(4, 3, 1), poke)
-                .Set("displayName", "펜촉이")
-                .Set("evolvesTo", knight).Set("evolveLevel", 5).Set("evolveItem", ink).Set("evolveItemCount", 3);
+            potion = TestData.Potion("potion", 40).Set("displayName", "상처약");
+            var splash = TestData.Skill("ink_splash", SkillKind.Damage, SkillTarget.AllEnemies, 14, QuizDirection.MeaningToEnglish)
+                .Set("displayName", "잉크 뿌리기").Set("description", "적 전체에 잉크를 뿌린다.");
+            var storm = TestData.Skill("ink_storm", SkillKind.Damage, SkillTarget.AllEnemies, 22, QuizDirection.MeaningToEnglish)
+                .Set("displayName", "잉크 폭풍");
+            quill = TestData.Relic("relic_quill", splash, new MonsterStats(0, 4, 0), ink, storm)
+                .Set("displayName", "깃펜").Set("description", "펜촉이가 남긴 깃펜.").Set("bonusPerLevel", new MonsterStats(0, 2, 0));
+            book = TestData.Relic("relic_book", TestData.Skill("shield", SkillKind.Guard, SkillTarget.AllAllies, 4).Set("displayName", "책 방패"),
+                new MonsterStats(10, 0, 4), cover).Set("displayName", "백과사전").Set("role", MonsterRole.Defender);
+            lantern = TestData.Relic("relic_lantern", TestData.Skill("light", SkillKind.Heal, SkillTarget.AllAllies, 8).Set("displayName", "치유의 빛"),
+                new MonsterStats(15, 0, 0), cover).Set("displayName", "등불");
+            var enemySkill = TestData.Skill("bite", SkillKind.Damage, SkillTarget.SingleEnemy, 5);
+            var enemy = TestData.Species("slime", new MonsterStats(20, 5, 5), new MonsterStats(0, 0, 0), enemySkill);
 
             var words = ScriptableObject.CreateInstance<WordDatabase>()
                 .Set("regionId", "meadow").Set("regionName", "초원").Set("completionKeepsake", keepsake).Set("completionGold", 500);
             words.ReplaceWords(TestData.SampleWords());
             var table = ScriptableObject.CreateInstance<EncounterTable>()
-                .Set("entries", new List<EncounterTable.Entry> { new EncounterTable.Entry(nib, 1, 1, 1) });
+                .Set("entries", new List<EncounterTable.Entry> { new EncounterTable.Entry(enemy, 1, 1, 1) });
             area = ScriptableObject.CreateInstance<FieldArea>()
                 .Set("areaId", "meadow").Set("displayName", "초원").Set("map", Map)
                 .Set("encounters", table).Set("words", words);
             database = ScriptableObject.CreateInstance<GameDatabase>();
-            database.ReplaceContents(new[] { nib, knight }, new[] { ink, cover, keepsake }, new[] { area });
+            database.ReplaceContents(new[] { enemy }, new[] { ink, cover, keepsake, potion }, new[] { area }, new[] { quill, book, lantern });
 
-            session = GameSession.NewGame(new[] { nib }, 5);
+            var hero = TestData.Hero(new MonsterStats(60, 14, 10), quill).Set("description", "단어의 힘을 성유물에 담아 싸우는 견습 모험가.");
+            session = GameSession.NewGame(hero, 5);
             session.Inventory.Add(ink, 3);
             session.Inventory.Add(cover, 1);
             session.Inventory.Add(keepsake);
@@ -81,22 +91,22 @@ namespace WordRPG.Tests
             var bag = hud.Find("InventoryView").gameObject;
             Assert.IsTrue(bag.activeSelf, "가방 버튼 → 소지품");
             Assert.IsTrue(field.IsPanelOpen, "소지품이 열려 있는 동안은 걷지 않음");
-            Assert.IsFalse(bag.transform.Find("DetailBox").gameObject.activeSelf, "처음엔 몬스터 탭 (재료 상세는 숨김)");
+            Assert.IsFalse(bag.transform.Find("DetailBox").gameObject.activeSelf, "처음엔 주인공 탭 (아이템 상세는 숨김)");
 
-            // 재료 탭: 잉크(선택) · 표지, 나머지는 빈 칸. 징표는 재료 칸에 안 나옴
-            FindButton(bag.transform, "TabMaterials").onClick.Invoke();
+            // 아이템 탭: 잉크(선택) · 표지, 나머지는 빈 칸. 징표는 아이템 칸에 안 나옴
+            FindButton(bag.transform, "TabItems").onClick.Invoke();
             var text = AllText(bag.transform);
             StringAssert.Contains("보유 골드  90G", text);
             StringAssert.Contains("× 3", text);
             StringAssert.Contains("× 1", text);
             StringAssert.Contains("빛나는 잉크", text);
-            StringAssert.Contains("펜촉이 → 깃펜기사", text);
-            StringAssert.Contains("지금 진화할 수 있어요", text);
+            StringAssert.Contains("깃펜 +0 → +1", text, "쓰는 곳: 성유물 제단에서 깃펜 강화");
+            StringAssert.Contains("지금 강화할 수 있어요", text);
             Assert.IsFalse(FindButton(bag.transform, "ItemSlot_2").interactable, "세 번째 칸은 빈 칸");
 
             FindButton(bag.transform, "ItemSlot_1").onClick.Invoke();
             StringAssert.Contains("단단한 표지", AllText(bag.transform.Find("DetailBox")));
-            StringAssert.Contains("진화하는 몬스터가 없어요", AllText(bag.transform.Find("DetailBox")));
+            StringAssert.Contains("강화하는 것이 없어요", AllText(bag.transform.Find("DetailBox")), "백과사전·등불을 아직 안 모음");
 
             // 다른 메뉴는 겹쳐 열리지 않음
             FindButton(hud, "SettingsButton").onClick.Invoke();
@@ -117,52 +127,107 @@ namespace WordRPG.Tests
             yield return null;
         }
 
+        // 가방 > 주인공: 레벨·경험치·능력치(성유물 보너스)·기술(기본 + 성유물). 성유물 탭: 모은 것·??? · 장착/빼기
         [UnityTest]
-        public IEnumerator BagMonsterTabShowsStatsSkillsAndEvolution()
+        public IEnumerator BagHeroAndRelicTabs()
         {
-            var splash = TestData.Skill("ink_splash", SkillKind.Damage, SkillTarget.AllEnemies, 14, QuizDirection.MeaningToEnglish)
-                .Set("displayName", "잉크 뿌리기").Set("description", "적 전체에 잉크를 뿌린다.");
-            var shell = TestData.Species("bookshell", new MonsterStats(40, 8, 14), new MonsterStats(6, 1, 3), splash)
-                .Set("displayName", "책껍질").Set("description", "책을 등껍질 삼아 지고 다니는 거북.").Set("role", MonsterRole.Defender);
-            // 펜촉이(잉크 3개로 진화 가능) + 책껍질(진화 없음, HP 20, 경험치 10) 파티
-            var nib = session.Party[0].Species;
-            session = GameSession.NewGame(new[] { nib, shell }, 5);
-            session.Inventory.Add(ink, 3);
-            session.Party[1].TakeDamage(session.Party[1].Stats.MaxHp - 20);
-            session.Party[1].GainExp(10);
+            session.GrantRelic(book);                // 빈 칸에 바로 끼워짐 → 깃펜·백과사전 장착
+            session.Hero.TakeDamage(session.Hero.CurrentHp - 20);
+            session.Hero.GainExp(10);
             var field = MakeField();
             yield return null;
             yield return null;
             var hud = field.transform.Find("FieldHud/SafeArea");
             var bag = hud.Find("InventoryView").gameObject;
 
-            // HUD의 두 번째 파티 배지를 누르면 가방 > 몬스터 탭에서 그 몬스터가 골라진 채로
-            FindButton(hud, "Badge_1").onClick.Invoke();
+            // HUD 주인공 배지 → 가방 > 주인공
+            StringAssert.Contains("주인공 Lv5", AllText(hud.Find("HeroStrip")));
+            FindButton(hud, "HeroBadge").onClick.Invoke();
             Assert.IsTrue(bag.activeSelf);
-            var detail = bag.transform.Find("MonstersPage/MonsterDetail");
-            var text = AllText(detail);
-            StringAssert.Contains("책껍질", text);
-            StringAssert.Contains("방어형 · Lv5", text);
-            StringAssert.Contains("책을 등껍질 삼아", text, "몬스터 설명");
-            StringAssert.Contains($"20 / {shell.GetStats(5).MaxHp}", text, "현재 HP / 최대 HP");
-            StringAssert.Contains(shell.GetStats(5).Defense.ToString(), text);
-            StringAssert.Contains("잉크 뿌리기", text);
-            StringAssert.Contains("한→영 · 어려움", text, "기술의 문제 유형");
-            StringAssert.Contains("공격 14 · 적 전체", text);
-            StringAssert.Contains($"다음 레벨까지 {LevelCurve.ExpToNextLevel(5) - 10}", text);
-            StringAssert.Contains("최종 모습이에요", text, "진화형이 없는 몬스터");
+            var heroText = AllText(bag.transform.Find("HeroPage"));
+            StringAssert.Contains("Lv5 · 성유물 2개 장착", heroText);
+            StringAssert.Contains($"20 / {session.Hero.Stats.MaxHp}", heroText, "현재 HP / 최대 HP");
+            StringAssert.Contains("(+4)", heroText, "공격·방어에 성유물 보너스");
+            StringAssert.Contains("기본 기술 · ", heroText);
+            StringAssert.Contains("깃펜 +0 · ", heroText, "성유물 기술은 어느 성유물인지");
+            StringAssert.Contains("잉크 뿌리기", heroText);
+            StringAssert.Contains("책 방패", heroText);
+            StringAssert.Contains("한→영 · 어려움", heroText, "기술의 문제 유형");
+            StringAssert.Contains($"다음 레벨까지 {LevelCurve.ExpToNextLevel(5) - 10}", heroText);
+            StringAssert.Contains("견습 모험가", heroText);
 
-            // 첫 번째 카드(펜촉이 Lv5 + 잉크 3개) → 진화 조건
-            FindButton(bag.transform, "MonsterTab_0").onClick.Invoke();
-            text = AllText(detail);
-            StringAssert.Contains("펜촉이", text);
-            StringAssert.Contains("진화  깃펜기사", text);
-            StringAssert.Contains("지금 진화할 수 있어요", text);
-            StringAssert.Contains("poke", text, "기술 이름");
-            Assert.IsFalse(FindButton(bag.transform, "MonsterTab_2").gameObject.activeSelf, "파티가 2마리면 세 번째 카드는 숨김");
+            // 성유물 탭: 깃펜·백과사전 + 못 찾은 등불은 ???
+            FindButton(bag.transform, "TabRelics").onClick.Invoke();
+            var relicPage = bag.transform.Find("RelicPage");
+            var relicText = AllText(relicPage);
+            StringAssert.Contains("모은 성유물  2 / 3", relicText);
+            StringAssert.Contains("???", relicText);
+            StringAssert.Contains("깃펜  +0", relicText);
+            StringAssert.Contains("+3 각성 → 잉크 폭풍", relicText);
+            StringAssert.Contains("빼기", relicText);
+
+            // 깃펜 빼기 → 기술·공격이 줄어든다 → 다시 장착
+            int attack = session.Hero.Stats.Attack;
+            FindButton(relicPage, "RelicActionButton").onClick.Invoke();
+            Assert.IsFalse(session.Hero.IsEquipped(session.Hero.Find(quill)));
+            Assert.AreEqual(attack - 4, session.Hero.Stats.Attack);
+            StringAssert.Contains("장착하기", AllText(relicPage));
+            FindButton(relicPage, "RelicActionButton").onClick.Invoke();
+            Assert.IsTrue(session.Hero.IsEquipped(session.Hero.Find(quill)));
+
+            // 못 찾은 칸(???)을 누르면 안내
+            FindButton(relicPage, "Back").onClick.Invoke(); // 첫 칸 (깃펜)
+            var cells = relicPage.Find("Grid");
+            FindButton(cells.Find("RelicCell_2"), "Back").onClick.Invoke();
+            StringAssert.Contains("아직 찾지 못한 성유물", AllText(relicPage));
 
             FindButton(bag.transform, "InventoryCloseButton").onClick.Invoke();
+            yield return null;
             Assert.IsFalse(field.IsPanelOpen);
+            Object.Destroy(field.gameObject);
+            yield return null;
+        }
+
+        // 가방 > 아이템: 상처약 [사용하기] — HP가 가득이면 잠금, 다치면 회복 + 개수 감소
+        [UnityTest]
+        public IEnumerator PotionCanBeUsedFromBag()
+        {
+            session.Inventory.Add(potion, 2);
+            var field = MakeField();
+            yield return null;
+            yield return null;
+            var hud = field.transform.Find("FieldHud/SafeArea");
+            var bag = hud.Find("InventoryView").gameObject;
+
+            FindButton(hud, "BagButton").onClick.Invoke();
+            FindButton(bag.transform, "TabItems").onClick.Invoke();
+            int potionSlot = -1;
+            for (int i = 0; i < InventoryView.SlotCount; i++)
+            {
+                FindButton(bag.transform, $"ItemSlot_{i}").onClick.Invoke();
+                if (AllText(bag.transform.Find("DetailBox")).Contains("상처약")) { potionSlot = i; break; }
+            }
+            Assert.GreaterOrEqual(potionSlot, 0, "아이템 칸에 상처약");
+            var use = FindButton(bag.transform, "UseItemButton");
+            Assert.IsTrue(use.gameObject.activeSelf);
+            Assert.IsFalse(use.interactable, "HP가 가득하면 잠금");
+            FindButton(bag.transform, "InventoryCloseButton").onClick.Invoke();
+            yield return null;
+
+            session.Hero.TakeDamage(50);
+            FindButton(hud, "BagButton").onClick.Invoke();
+            FindButton(bag.transform, "TabItems").onClick.Invoke();
+            FindButton(bag.transform, $"ItemSlot_{potionSlot}").onClick.Invoke();
+            int hp = session.Hero.CurrentHp;
+            Assert.IsTrue(use.interactable);
+            use.onClick.Invoke();
+            Assert.AreEqual(hp + 40, session.Hero.CurrentHp);
+            Assert.AreEqual(1, session.Inventory.GetCount(potion));
+            StringAssert.Contains("HP +40 회복했어요", AllText(bag.transform.Find("DetailBox")));
+
+            FindButton(bag.transform, "InventoryCloseButton").onClick.Invoke();
+            yield return null;
+            StringAssert.Contains($"HP {session.Hero.CurrentHp}/", AllText(hud.Find("HeroStrip")), "HUD도 갱신");
             Object.Destroy(field.gameObject);
             yield return null;
         }

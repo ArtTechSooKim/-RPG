@@ -3,6 +3,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 using WordRPG.Game;
+using WordRPG.Heroes;
 using WordRPG.Items;
 using WordRPG.Monsters;
 using WordRPG.UI;
@@ -15,17 +16,18 @@ namespace WordRPG.Tests
     {
         private string dir;
         private GameDatabase database;
-        private MonsterSpecies hero;
+        private HeroData hero;
 
         [SetUp]
         public void SetUp()
         {
             dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "WordRPG_Title_" + System.Guid.NewGuid().ToString("N"));
             GameManager.SaveDirectoryOverride = dir;
-            hero = TestData.Species("hero", new MonsterStats(30, 10, 5), new MonsterStats(3, 2, 1),
-                TestData.Skill("poke", SkillKind.Damage, SkillTarget.SingleEnemy, 10)).Set("displayName", "펜촉이");
+            var quill = TestData.Relic("relic_quill", TestData.Skill("splash", SkillKind.Damage, SkillTarget.AllEnemies, 10),
+                new MonsterStats(0, 2, 0)).Set("displayName", "깃펜");
+            hero = TestData.Hero(new MonsterStats(30, 10, 5), quill).Set("startLevel", 2);
             database = ScriptableObject.CreateInstance<GameDatabase>();
-            database.ReplaceContents(new[] { hero }, new ItemData[0]);
+            database.ReplaceContents(new MonsterSpecies[0], new ItemData[0], null, new[] { quill });
         }
 
         [TearDown]
@@ -40,7 +42,7 @@ namespace WordRPG.Tests
         {
             var managerGo = new GameObject("GameManager");
             managerGo.SetActive(false);
-            managerGo.AddComponent<GameManager>().Configure(database, new[] { hero, hero }, 2);
+            managerGo.AddComponent<GameManager>().Configure(database, hero);
             managerGo.SetActive(true);
             return GameManager.Instance;
         }
@@ -91,7 +93,7 @@ namespace WordRPG.Tests
             Assert.IsNotNull(ActiveButton(root, "ContinueButton"));
             Assert.AreEqual("처음부터", UiKit.LabelOf(FindButton(root, "NewGameButton")).text);
             var summary = AllText(root.Find("TitleCanvas/SafeArea/SaveCard"));
-            StringAssert.Contains("펜촉이 Lv2 외 1마리", summary);
+            StringAssert.Contains("주인공 Lv2  ·  성유물 1개", summary);
             StringAssert.Contains("발견한 단어 0", summary);
             FindButton(root, "ContinueButton").onClick.Invoke();
             Assert.AreEqual(false, started);

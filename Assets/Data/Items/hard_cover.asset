@@ -14,8 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: WordRPG::WordRPG.Items.ItemData
   itemId: hard_cover
   displayName: "\uB2E8\uB2E8\uD55C \uD45C\uC9C0"
-  description: "\uCC45\uAECD\uC9C8\uC744 \uC9C4\uD654\uC2DC\uD0A4\uB294 \uB450\uAEBC\uC6B4
-    \uAC00\uC8FD \uD45C\uC9C0."
+  description: "\uBC31\uACFC\uC0AC\uC804\xB7\uAE30\uC5B5\uC758 \uC131\uBC30\uB97C
+    \uAC15\uD654\uD558\uB294 \uB450\uAEBC\uC6B4 \uAC00\uC8FD \uD45C\uC9C0."
   kind: 0
   icon: {fileID: 0}
   placeholderColor: {r: 0.55, g: 0.35, b: 0.2, a: 1}
+  healAmount: 0

@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using WordRPG.Field;
 using WordRPG.Game;
+using WordRPG.Heroes;
 using WordRPG.Items;
 using WordRPG.Monsters;
 using WordRPG.UI;
@@ -35,10 +36,18 @@ namespace WordRPG.Tests
             return words;
         }
 
+        // 지역의 적으로 쓰는 몬스터 (조우 확률 0이라 실제로는 안 나옴)
         private static MonsterSpecies Hero()
         {
             var strike = TestData.Skill("strike", SkillKind.Damage, SkillTarget.SingleEnemy, 40);
             return TestData.Species("hero", new MonsterStats(100, 30, 10), new MonsterStats(0, 0, 0), strike);
+        }
+
+        // 주인공 (기본 기술 공격 40)
+        private static HeroData Player()
+        {
+            var strike = TestData.Skill("strike", SkillKind.Damage, SkillTarget.SingleEnemy, 40);
+            return TestData.Hero(new MonsterStats(100, 30, 10)).Set("basicSkill", strike);
         }
 
         private static FieldArea Area(string id, string name, string map, MonsterSpecies enemy)
@@ -72,7 +81,7 @@ namespace WordRPG.Tests
         {
             var hero = Hero();
             var (outside, inside) = LinkedAreas(hero);
-            var session = GameSession.NewGame(new[] { hero }, 1);
+            var session = GameSession.NewGame(Player(), 1);
             var field = CreateField(outside, session);
             yield return null;
             yield return null;
@@ -113,9 +122,11 @@ namespace WordRPG.Tests
             var bite = TestData.Skill("bite", SkillKind.Damage, SkillTarget.SingleEnemy, 1);
             var king = TestData.Species("king", new MonsterStats(40, 1, 50), new MonsterStats(0, 0, 0), bite)
                 .Set("displayName", "까먹대왕").Set("expReward", 10);
+            var crown = TestData.Relic("relic_grail", TestData.Skill("recall", SkillKind.Heal, SkillTarget.Self, 16),
+                new MonsterStats(20, 0, 2)).Set("displayName", "기억의 성배");
             var area = Area("lair", "보스 방", "#####\n#.B.#\n#.P.#\n#####", hero)
-                .Set("boss", new BossEncounter(king, 3));
-            var session = GameSession.NewGame(new[] { hero }, 1);
+                .Set("boss", new BossEncounter(king, 3, crown));
+            var session = GameSession.NewGame(Player(), 1);
             var field = CreateField(area, session);
             yield return null;
             yield return null;
@@ -138,6 +149,9 @@ namespace WordRPG.Tests
 
             Assert.IsTrue(session.World.IsBossDefeated("lair:boss"));
             StringAssert.Contains("까먹대왕을 물리쳤다", field.ToastMessage);
+            StringAssert.Contains("기억의 성배", field.ToastMessage, "보스 보상 성유물");
+            Assert.IsTrue(session.Hero.Owns(crown));
+            Assert.IsTrue(session.Hero.IsEquipped(session.Hero.Find(crown)), "빈 칸이 있으면 바로 끼움");
 
             CollectionAssert.DoesNotContain(field.VisibleNameTags, "까먹대왕", "쓰러뜨린 보스는 이름표도 사라짐");
 
@@ -160,7 +174,7 @@ namespace WordRPG.Tests
             var (outside, inside) = LinkedAreas(hero);
             var database = ScriptableObject.CreateInstance<GameDatabase>();
             database.ReplaceContents(new[] { hero }, new ItemData[0], new[] { outside, inside });
-            var session = GameSession.NewGame(new[] { hero }, 1);
+            var session = GameSession.NewGame(Player(), 1);
             session.World.SetPosition("inside", new Vector2Int(1, 1));
 
             var field = CreateField(outside, session, database);

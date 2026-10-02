@@ -3,6 +3,8 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
+using WordRPG.Field;
+using WordRPG.Heroes;
 using WordRPG.Items;
 using WordRPG.Monsters;
 
@@ -161,6 +163,13 @@ namespace WordRPG.UI
             return label;
         }
 
+        // 한 줄 글자: Noto Sans KR은 줄 높이가 커서 칸이 조금만 낮아도 Truncate면 글자가 통째로 사라진다 → 넘쳐도 그리기
+        public static Text OneLine(Text label)
+        {
+            label.verticalOverflow = VerticalWrapMode.Overflow;
+            return label;
+        }
+
         // 제목·숫자용 Jua 글꼴로 바꾼다
         public static Text Display(Text label)
         {
@@ -261,12 +270,25 @@ namespace WordRPG.UI
 
         public static Sprite Icon(string name) => LoadSprite("UI/Icons/" + name);
 
-        // 아이템에 아이콘이 지정돼 있으면 그것, 없으면 itemId 이름의 PNG
+        // 아이템에 아이콘이 지정돼 있으면 그것, 없으면 itemId 이름의 PNG (Figma 아이콘 → 없으면 팩의 도트 그림)
         public static Sprite ItemIcon(ItemData item)
         {
             if (item == null) return null;
-            return item.Icon != null ? item.Icon : LoadSprite("UI/Icons/Items/" + item.ItemId);
+            if (item.Icon != null) return item.Icon;
+            var drawn = LoadSprite("UI/Icons/Items/" + item.ItemId);
+            return drawn != null ? drawn : LoadSprite("Art/NinjaAdventure/Items/" + item.ItemId);
         }
+
+        // 성유물 그림: 지정돼 있으면 그것, 없으면 Art/NinjaAdventure/Relics/{relicId}.png
+        public static Sprite RelicIcon(RelicData relic)
+        {
+            if (relic == null) return null;
+            return relic.Icon != null ? relic.Icon : LoadSprite("Art/NinjaAdventure/Relics/" + relic.RelicId);
+        }
+
+        // 주인공 얼굴: 지정한 초상이 없으면 필드 주인공 정면 그림
+        public static Sprite HeroPortrait(HeroData hero) =>
+            hero != null && hero.Portrait != null ? hero.Portrait : PlayerArt.Get(Direction.Down, 0);
 
         // 몬스터 그림 칸의 바탕색: 그림이 있으면 옅게(그림이 잘 보이게), 없으면 몬스터 색을 진하게(임시 도형)
         public static Color ArtColor(MonsterSpecies species) =>
@@ -291,7 +313,7 @@ namespace WordRPG.UI
             return sprite;
         }
 
-        // 가운데가 밝고 바깥으로 사라지는 흰 원 (빛 번짐 — 타이틀·진화 연출). 색은 Image.color로
+        // 가운데가 밝고 바깥으로 사라지는 흰 원 (빛 번짐 — 타이틀·각성 연출). 색은 Image.color로
         public static Sprite GlowSprite()
         {
             const string key = "glow";
@@ -323,7 +345,7 @@ namespace WordRPG.UI
             return MakeSprite(key, size, pixels, Vector4.zero);
         }
 
-        // 가운데에서 사방으로 뻗는 빛줄기 12개 (진화 연출)
+        // 가운데에서 사방으로 뻗는 빛줄기 12개 (각성 연출)
         public static Sprite RaysSprite()
         {
             const string key = "rays";
@@ -425,6 +447,9 @@ namespace WordRPG.UI
             rt.anchorMin = new Vector2(safe.xMin / Screen.width, safe.yMin / Screen.height);
             rt.anchorMax = new Vector2(safe.xMax / Screen.width, safe.yMax / Screen.height);
         }
+
+        // 숫자 뒤 '(으)로': 0(영)·3(삼)·6(육)은 받침이 있어 '으로', 나머지(1 일, 7 칠, 8 팔은 ㄹ받침)는 '로'.  +3 → "+3으로"
+        public static string NumberRo(int number) => "036".IndexOf((char)('0' + System.Math.Abs(number) % 10)) >= 0 ? "으로" : "로";
 
         // 한국어 조사: 받침 있으면 withBatchim, 없으면 withoutBatchim. ("으로/로"는 ㄹ받침이면 "로")
         //   WithJosa("펜촉이", "이", "가") → "펜촉이가",  WithJosa("백과거북", "으로", "로") → "백과거북으로"

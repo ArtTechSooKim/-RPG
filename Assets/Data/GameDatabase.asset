@@ -13,21 +13,23 @@ MonoBehaviour:
   m_Name: GameDatabase
   m_EditorClassIdentifier: WordRPG::WordRPG.Game.GameDatabase
   monsters:
-  - {fileID: 11400000, guid: e16212585b6de204ca4fca78b70e330c, type: 2}
   - {fileID: 11400000, guid: d12a616f9221242458895cf41f4ebaed, type: 2}
-  - {fileID: 11400000, guid: 0e41be42d3bea184b864ea57bddb3161, type: 2}
   - {fileID: 11400000, guid: 9507c4de3ec057e4ab55cc3e9121a137, type: 2}
   - {fileID: 11400000, guid: a9849eb4d6ef12c4f99d035f411e7e52, type: 2}
-  - {fileID: 11400000, guid: 631605aa251b1d14bb7087d9076ec491, type: 2}
-  - {fileID: 11400000, guid: 21e9aad72bff69c42aecd8f3e7abae02, type: 2}
-  - {fileID: 11400000, guid: 4b70c8cf898642649aaca5818a68c7b4, type: 2}
-  - {fileID: 11400000, guid: 7ad48d2cd0c54fb43a0dd28ad17ff656, type: 2}
   - {fileID: 11400000, guid: f6441ca533a7e6b4a94eb940b2b1d1e0, type: 2}
   items:
   - {fileID: 11400000, guid: 4ef0a20b2f82e9c4c8ea2a134a013bf4, type: 2}
   - {fileID: 11400000, guid: 2dd71ba23711eac418813eea2da4c791, type: 2}
+  - {fileID: 11400000, guid: 56596be176cf57541a9ab3caafeb386a, type: 2}
+  - {fileID: 11400000, guid: 03136cba480d605499404eebbaaac6f5, type: 2}
   - {fileID: 11400000, guid: d068093b31fa6bd479a9978022d8bc1f, type: 2}
   - {fileID: 11400000, guid: 83903ba43d39288409cddb3a5f7b0f43, type: 2}
   areas:
   - {fileID: 11400000, guid: 2f0f21b4f39acf14fab8b7273b5e1a17, type: 2}
   - {fileID: 11400000, guid: a2d06106feb91f048ad3b3d9f1f26ff0, type: 2}
+  relics:
+  - {fileID: 11400000, guid: 0a6bb6350c64997468755f814f9f9371, type: 2}
+  - {fileID: 11400000, guid: c3cf9b0f8943bed43976182ff5144417, type: 2}
+  - {fileID: 11400000, guid: 0ba3987476a72634fa572485e2677452, type: 2}
+  - {fileID: 11400000, guid: 0e6430d280433c24a9d7318f56367003, type: 2}
+  - {fileID: 11400000, guid: ff050fa09ca22b7468f3aa60eedd749f, type: 2}

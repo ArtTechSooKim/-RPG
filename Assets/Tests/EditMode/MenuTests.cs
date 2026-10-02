@@ -11,10 +11,6 @@ namespace WordRPG.Tests
     // 설정 값 · 징표 진열장 · 소지품 '쓰는 곳' 규칙
     public class MenuTests
     {
-        private static MonsterSpecies Hero() =>
-            TestData.Species("hero", new MonsterStats(30, 10, 5), new MonsterStats(3, 2, 1),
-                TestData.Skill("poke", SkillKind.Damage, SkillTarget.SingleEnemy, 10));
-
         private static WordDatabase Region(string id, string name, ItemData keepsake, int gold = 0)
         {
             var region = ScriptableObject.CreateInstance<WordDatabase>()
@@ -72,7 +68,7 @@ namespace WordRPG.Tests
             var meadow = Region("meadow", "초원", Keepsake("keepsake_meadow"), 500);
             var noKeepsake = Region("plain", "들판", null);
             var library = Region("library", "서고", Keepsake("keepsake_library"));
-            var session = GameSession.NewGame(new[] { Hero() }, 1);
+            var session = GameSession.NewGame(TestData.Hero(new MonsterStats(30, 14, 8)), 1);
 
             var shelf = Keepsakes.Collect(new[] { meadow, meadow, noKeepsake, null, library }, session);
 
@@ -88,7 +84,7 @@ namespace WordRPG.Tests
         {
             var meadow = Region("meadow", "초원", Keepsake("keepsake_meadow"));
             var library = Region("library", "서고", Keepsake("keepsake_library"));
-            var session = GameSession.NewGame(new[] { Hero() }, 1);
+            var session = GameSession.NewGame(TestData.Hero(new MonsterStats(30, 14, 8)), 1);
 
             session.Record.MarkRegionClaimed("meadow");
             session.Inventory.Add(library.CompletionKeepsake);
@@ -107,27 +103,10 @@ namespace WordRPG.Tests
             var database = ScriptableObject.CreateInstance<GameDatabase>();
             database.ReplaceContents(new MonsterSpecies[0], new ItemData[0], new[] { field, dungeon });
 
-            var shelf = Keepsakes.Collect(database, GameSession.NewGame(new[] { Hero() }, 1));
+            var shelf = Keepsakes.Collect(database, GameSession.NewGame(TestData.Hero(new MonsterStats(30, 14, 8)), 1));
 
             Assert.AreEqual(1, shelf.Count, "던전이 초원 단어장을 같이 써도 징표 칸은 하나");
-            Assert.AreEqual(0, Keepsakes.Collect((GameDatabase)null, GameSession.NewGame(new[] { Hero() }, 1)).Count);
-        }
-
-        // ------------------------------------------------------------------ 소지품 '쓰는 곳'
-
-        [Test]
-        public void FindUserReturnsPartyMonsterThatEvolvesWithItem()
-        {
-            var ink = TestData.Item("shiny_ink");
-            var cover = TestData.Item("hard_cover");
-            var knight = Hero().Set("speciesId", "knight");
-            var nib = Hero().Set("speciesId", "nib").Set("evolvesTo", knight).Set("evolveItem", ink).Set("evolveItemCount", 3);
-            var shell = Hero().Set("speciesId", "shell"); // 진화 없음
-            var session = GameSession.NewGame(new[] { shell, nib }, 5);
-
-            Assert.AreSame(session.Party[1], Evolution.FindUser(session.Party, ink));
-            Assert.IsNull(Evolution.FindUser(session.Party, cover), "파티에 쓰는 몬스터가 없음");
-            Assert.IsNull(Evolution.FindUser(session.Party, null));
+            Assert.AreEqual(0, Keepsakes.Collect((GameDatabase)null, GameSession.NewGame(TestData.Hero(new MonsterStats(30, 14, 8)), 1)).Count);
         }
     }
 }

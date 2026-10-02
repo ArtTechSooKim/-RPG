@@ -6,7 +6,7 @@ using WordRPG.Field;
 
 namespace WordRPG.UI
 {
-    // 필드 오브젝트 위 이름표 (Figma 'Name Tag'): 진화의 제단·상점·회복의 샘·보스·출입구에
+    // 필드 오브젝트 위 이름표 (Figma 'Name Tag'): 성유물 제단·상점·회복의 샘·보스·출입구에
     // 가로·세로 2칸 안으로 다가가면 서서히 나타난다. 이름표 칸은 맵 글자에서 자동으로 찾으므로 지역이 늘어나도 그대로 동작
     public class FieldNameTags
     {

@@ -10,7 +10,7 @@ namespace WordRPG.Monsters
         Guard   // 보호막 (이번 라운드 적 공격을 흡수)
     }
 
-    // 사용자 기준 대상. 적이 쓰면 'Enemy'는 플레이어 파티를 가리킨다
+    // 사용자 기준 대상. 적이 쓰면 'Enemy'는 주인공 쪽을 가리킨다
     public enum SkillTarget
     {
         SingleEnemy,

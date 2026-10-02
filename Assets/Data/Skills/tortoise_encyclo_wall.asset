@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.SkillData
   skillId: tortoise_encyclo_wall
   displayName: "\uBC31\uACFC \uBC29\uBCBD"
-  description: "\uB450\uAEBC\uC6B4 \uBC31\uACFC\uC0AC\uC804\uC73C\uB85C \uC544\uAD70
-    \uC804\uCCB4\uB97C \uC9C0\uD0A8\uB2E4."
+  description: "\uBC31\uACFC\uC0AC\uC804\uC744 \uD3BC\uCCD0 \uB2E8\uB2E8\uD55C \uBC29\uBCBD\uC744
+    \uC138\uC6B4\uB2E4."
   kind: 2
   target: 3
   power: 10

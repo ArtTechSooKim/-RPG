@@ -1,17 +1,19 @@
 using System;
+using System.Collections.Generic;
 
 namespace WordRPG.Monsters
 {
-    // 실제 파티/필드에 존재하는 몬스터 한 마리. MonoBehaviour가 아니라 씬 없이 생성·시뮬레이션 가능
-    public class MonsterInstance
+    // 필드에서 만나는 적 몬스터 한 마리. MonoBehaviour가 아니라 씬 없이 생성·시뮬레이션 가능
+    public class MonsterInstance : ICombatant
     {
-        public MonsterSpecies Species { get; private set; }
+        public MonsterSpecies Species { get; }
         public int Level { get; private set; }
         public int Exp { get; private set; } // 현재 레벨에서 쌓은 경험치
         public int CurrentHp { get; private set; }
 
         public MonsterStats Stats => Species.GetStats(Level);
         public string DisplayName => Species.DisplayName;
+        public IReadOnlyList<SkillData> Skills => Species.Skills;
         public bool IsFainted => CurrentHp <= 0;
         public bool IsMaxLevel => Level >= LevelCurve.MaxLevel;
 
@@ -63,13 +65,7 @@ namespace WordRPG.Monsters
             return healed;
         }
 
-        // 마을 휴식 등 완전 회복 (기절 포함)
+        // 완전 회복 (기절 포함)
         public void RestoreFully() => CurrentHp = Stats.MaxHp;
-
-        internal void ChangeSpecies(MonsterSpecies newSpecies)
-        {
-            Species = newSpecies ?? throw new ArgumentNullException(nameof(newSpecies));
-            RestoreFully();
-        }
     }
 }

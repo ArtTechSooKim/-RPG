@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71c0dd365e2553c48922bec3a339f174, type: 3}
+  m_Name: hero_swing
+  m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.SkillData
+  skillId: hero_swing
+  displayName: "\uD718\uB450\uB974\uAE30"
+  description: "\uB4E4\uACE0 \uC788\uB294 \uC0AC\uC804\uC73C\uB85C \uD798\uAECF \uD718\uB450\uB978\uB2E4."
+  kind: 0
+  target: 0
+  power: 18
+  quizDirection: 0

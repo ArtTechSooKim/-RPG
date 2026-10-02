@@ -1,3 +1,4 @@
+using WordRPG.Items;
 using WordRPG.Monsters;
 using WordRPG.Words;
 
@@ -11,6 +12,7 @@ namespace WordRPG.Battle
         Damage,       // Actor, Target, Amount(HP 피해), Absorbed(보호막 흡수), IsCritical
         Heal,         // Actor, Target, Amount, IsCritical
         Shield,       // Actor, Target, Amount, IsCritical
+        ItemUsed,     // Actor, Item, Amount(회복한 HP)
         Defeated,     // Target
         RoundStarted, // Round
         Victory,
@@ -24,6 +26,7 @@ namespace WordRPG.Battle
         public BattleUnit Actor { get; private set; }
         public BattleUnit Target { get; private set; }
         public SkillData Skill { get; private set; }
+        public ItemData Item { get; private set; }
         public int Amount { get; private set; }
         public int Absorbed { get; private set; }
         public bool IsCritical { get; private set; }
@@ -50,6 +53,9 @@ namespace WordRPG.Battle
 
         public static BattleEvent Shield(BattleUnit actor, BattleUnit target, SkillData skill, int amount, bool critical) =>
             new BattleEvent(BattleEventType.Shield) { Actor = actor, Target = target, Skill = skill, Amount = amount, IsCritical = critical };
+
+        public static BattleEvent ItemUsed(BattleUnit actor, ItemData item, int healed) =>
+            new BattleEvent(BattleEventType.ItemUsed) { Actor = actor, Target = actor, Item = item, Amount = healed };
 
         public static BattleEvent Defeated(BattleUnit target) =>
             new BattleEvent(BattleEventType.Defeated) { Target = target };

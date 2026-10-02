@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 35710cec1d88f164fb5d9f37dda09273, type: 3}
+  m_Name: relic_book
+  m_EditorClassIdentifier: WordRPG::WordRPG.Heroes.RelicData
+  relicId: relic_book
+  displayName: "\uBC31\uACFC\uC0AC\uC804"
+  description: "\uCC45\uAECD\uC9C8\uC774 \uC9C0\uACE0 \uB2E4\uB2C8\uB358 \uB450\uAEBC\uC6B4
+    \uC0AC\uC804. \uD3BC\uCE58\uBA74 \uB2E8\uB2E8\uD55C \uBC29\uD328\uAC00 \uB41C\uB2E4."
+  role: 1
+  icon: {fileID: 0}
+  placeholderColor: {r: 0.6, g: 0.4, b: 0.2, a: 1}
+  skill: {fileID: 11400000, guid: 479e79226885bcb4387c6bfa2c8bcc1a, type: 2}
+  awakenedSkill: {fileID: 11400000, guid: c80bf315202942846b8511a825cbfaec, type: 2}
+  awakenLevel: 3
+  baseBonus:
+    maxHp: 10
+    attack: 0
+    defense: 4
+  bonusPerLevel:
+    maxHp: 4
+    attack: 0
+    defense: 1
+  upgradeItem: {fileID: 11400000, guid: 4ef0a20b2f82e9c4c8ea2a134a013bf4, type: 2}
+  upgradeCosts:
+  - itemCount: 1
+    gold: 30
+  - itemCount: 2
+    gold: 60
+  - itemCount: 2
+    gold: 90
+  - itemCount: 3
+    gold: 120
+  - itemCount: 3
+    gold: 150

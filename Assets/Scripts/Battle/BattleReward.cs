@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using WordRPG.Heroes;
 using WordRPG.Items;
 using WordRPG.Monsters;
 
@@ -58,12 +59,10 @@ namespace WordRPG.Battle
             return new BattleReward(exp, gold, items);
         }
 
-        // 파티 전원(기절한 몬스터 포함)이 같은 경험치를 받는다. 반환: 몬스터별 오른 레벨 수
-        public static int[] Apply(BattleReward reward, IReadOnlyList<MonsterInstance> party, Inventory inventory)
+        // 주인공이 경험치를 받고, 골드·떨어뜨린 재료는 소지품으로. 반환: 오른 레벨 수
+        public static int Apply(BattleReward reward, Hero hero, Inventory inventory)
         {
-            var levelsGained = new int[party.Count];
-            for (int i = 0; i < party.Count; i++) levelsGained[i] = party[i].GainExp(reward.Exp);
-
+            int levelsGained = hero.GainExp(reward.Exp);
             if (reward.Gold > 0) inventory.AddGold(reward.Gold);
             foreach (var item in reward.Items) inventory.Add(item.Item, item.Count);
             return levelsGained;

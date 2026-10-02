@@ -8,6 +8,8 @@ using UnityEngine.UI;
 using WordRPG.Battle;
 using WordRPG.Field;
 using WordRPG.Game;
+using WordRPG.Heroes;
+using WordRPG.Items;
 using WordRPG.Monsters;
 using WordRPG.UI;
 using WordRPG.Words;
@@ -41,14 +43,14 @@ namespace WordRPG.Tests
             return db;
         }
 
-        private BattleScreen CreateScreen(MonsterSpecies hero, MonsterSpecies enemy, int partySize)
-        {
-            var species = new MonsterSpecies[partySize];
-            for (int i = 0; i < partySize; i++) species[i] = hero;
+        // 주인공: 기본 기술 = basic (성유물 없음)
+        private static HeroData Hero(MonsterStats stats, SkillData basic) => TestData.Hero(stats).Set("basicSkill", basic);
 
+        private BattleScreen CreateScreen(HeroData hero, MonsterSpecies enemy, GameDatabase database = null, GameSession session = null)
+        {
             var go = new GameObject("BattleScreenUnderTest");
             var screen = go.AddComponent<BattleScreen>();
-            screen.Configure(Table(enemy), Words(), GameSession.NewGame(species, 1), animScale: 0.01f);
+            screen.Configure(Table(enemy), Words(), session ?? GameSession.NewGame(hero, 1), animScale: 0.01f, gameDatabase: database);
             return screen;
         }
 
@@ -57,10 +59,10 @@ namespace WordRPG.Tests
         {
             LogAssert.ignoreFailingMessages = false;
             var strike = TestData.Skill("strike", SkillKind.Damage, SkillTarget.SingleEnemy, 40);
-            var hero = TestData.Species("hero", new MonsterStats(100, 30, 10), new MonsterStats(0, 0, 0), strike);
+            var hero = Hero(new MonsterStats(100, 30, 10), strike);
             var enemy = TestData.Species("enemy", new MonsterStats(40, 1, 50), new MonsterStats(0, 0, 0), strike)
                 .Set("expReward", 20).Set("goldReward", 7);
-            var screen = CreateScreen(hero, enemy, partySize: 2);
+            var screen = CreateScreen(hero, enemy);
 
             yield return null;
             yield return null;
@@ -70,7 +72,7 @@ namespace WordRPG.Tests
             Assert.AreEqual("승리!", screen.ResultTitle);
             Assert.AreEqual(BattlePhase.Victory, screen.Engine.Phase);
             Assert.Greater(screen.Engine.CorrectAnswers, 0);
-            Assert.Greater(screen.Party[0].Exp + screen.Party[0].Level, 1, "경험치가 지급돼야 함");
+            Assert.Greater(screen.Hero.Exp + screen.Hero.Level, 1, "경험치가 지급돼야 함");
             Assert.Greater(screen.Vocabulary.Entries.Count, 0, "맞힌 단어가 학습 기록에 남아야 함");
 
             // 결과 버튼을 누르면 다음 전투가 시작된다
@@ -90,9 +92,9 @@ namespace WordRPG.Tests
         {
             var weak = TestData.Skill("weak", SkillKind.Damage, SkillTarget.SingleEnemy, 1);
             var smash = TestData.Skill("smash", SkillKind.Damage, SkillTarget.SingleEnemy, 500);
-            var hero = TestData.Species("hero", new MonsterStats(10, 5, 1), new MonsterStats(0, 0, 0), weak);
+            var hero = Hero(new MonsterStats(10, 5, 1), weak);
             var enemy = TestData.Species("enemy", new MonsterStats(500, 50, 50), new MonsterStats(0, 0, 0), smash);
-            var screen = CreateScreen(hero, enemy, partySize: 1);
+            var screen = CreateScreen(hero, enemy);
 
             yield return null;
             yield return null;
@@ -104,10 +106,12 @@ namespace WordRPG.Tests
             var wrongWord = screen.Vocabulary.Entries[0];
             Assert.IsTrue(wrongWord.InWrongNote, "틀린 단어는 오답 노트에 있어야 함");
 
-            // 재도전하면 파티가 회복된다
+            StringAssert.Contains("주인공이 쓰러졌다", AllText(screen.transform.Find("BattleCanvas/SafeArea/Bottom/ResultPanel")));
+
+            // 재도전하면 주인공이 회복된다
             ActiveButton(screen.transform, "ResultButton_Primary").onClick.Invoke();
             for (int i = 0; i < 30 && screen.IsResultVisible; i++) yield return null;
-            Assert.AreEqual(screen.Party[0].Stats.MaxHp, screen.Party[0].CurrentHp);
+            Assert.AreEqual(screen.Hero.Stats.MaxHp, screen.Hero.CurrentHp);
 
             Object.Destroy(screen.gameObject);
         }
@@ -121,17 +125,17 @@ namespace WordRPG.Tests
             try
             {
                 var strike = TestData.Skill("strike", SkillKind.Damage, SkillTarget.SingleEnemy, 40);
-                var hero = TestData.Species("hero", new MonsterStats(100, 30, 10), new MonsterStats(5, 1, 1), strike);
+                var hero = Hero(new MonsterStats(100, 30, 10), strike).Set("growthPerLevel", new MonsterStats(5, 1, 1));
                 var enemy = TestData.Species("enemy", new MonsterStats(40, 1, 50), new MonsterStats(0, 0, 0), strike)
                     .Set("expReward", 20).Set("goldReward", 7);
                 var database = ScriptableObject.CreateInstance<GameDatabase>();
-                database.ReplaceContents(new[] { hero, enemy }, new Items.ItemData[0]);
+                database.ReplaceContents(new[] { enemy }, new ItemData[0]);
 
                 GameManager StartManager()
                 {
                     var managerGo = new GameObject("GameManager");
                     managerGo.SetActive(false);
-                    managerGo.AddComponent<GameManager>().Configure(database, new[] { hero, hero }, 1);
+                    managerGo.AddComponent<GameManager>().Configure(database, hero);
                     managerGo.SetActive(true); // 여기서 Awake → 세이브 읽기
                     return GameManager.Instance;
                 }
@@ -151,8 +155,8 @@ namespace WordRPG.Tests
                 Assert.IsTrue(System.IO.File.Exists(System.IO.Path.Combine(dir, "save.json")), "자동 저장 파일");
 
                 int discovered = manager.Session.Vocabulary.DiscoveredCount;
-                int exp = manager.Session.Party[0].Exp;
-                int level = manager.Session.Party[0].Level;
+                int exp = manager.Session.Hero.Exp;
+                int level = manager.Session.Hero.Level;
                 int gold = manager.Session.Inventory.Gold;
                 Assert.Greater(discovered, 0);
                 Assert.Greater(gold, 0);
@@ -168,8 +172,8 @@ namespace WordRPG.Tests
                 Assert.IsTrue(restarted.LoadedFromSave);
                 StringAssert.Contains("이어하기", restarted.StatusMessage);
                 Assert.AreEqual(discovered, restarted.Session.Vocabulary.DiscoveredCount);
-                Assert.AreEqual(level, restarted.Session.Party[0].Level);
-                Assert.AreEqual(exp, restarted.Session.Party[0].Exp);
+                Assert.AreEqual(level, restarted.Session.Hero.Level);
+                Assert.AreEqual(exp, restarted.Session.Hero.Exp);
                 Assert.AreEqual(gold, restarted.Session.Inventory.Gold);
                 Assert.AreEqual(1, restarted.Session.Record.BattlesWon);
 
@@ -188,9 +192,9 @@ namespace WordRPG.Tests
         public IEnumerator DexShowsUndiscoveredWordsAsHidden()
         {
             var strike = TestData.Skill("strike", SkillKind.Damage, SkillTarget.SingleEnemy, 40);
-            var hero = TestData.Species("hero", new MonsterStats(100, 30, 10), new MonsterStats(0, 0, 0), strike);
+            var hero = Hero(new MonsterStats(100, 30, 10), strike);
             var enemy = TestData.Species("enemy", new MonsterStats(40, 1, 50), new MonsterStats(0, 0, 0), strike);
-            var screen = CreateScreen(hero, enemy, partySize: 1);
+            var screen = CreateScreen(hero, enemy);
             yield return null;
             yield return null;
 
@@ -227,7 +231,7 @@ namespace WordRPG.Tests
         public IEnumerator CompletingDexGivesKeepsakeAndGold()
         {
             var strike = TestData.Skill("strike", SkillKind.Damage, SkillTarget.SingleEnemy, 40);
-            var hero = TestData.Species("hero", new MonsterStats(100, 30, 10), new MonsterStats(0, 0, 0), strike);
+            var hero = Hero(new MonsterStats(100, 30, 10), strike);
             var enemy = TestData.Species("enemy", new MonsterStats(40, 1, 50), new MonsterStats(0, 0, 0), strike)
                 .Set("goldReward", 0);
             var keepsake = TestData.Item("keepsake_test").Set("displayName", "시험 징표");
@@ -236,7 +240,7 @@ namespace WordRPG.Tests
                 .Set("completionKeepsake", keepsake).Set("completionGold", 777);
             oneWord.ReplaceWords(new List<WordEntry> { new WordEntry("", "abandon", "버리다, 포기하다", "v") });
 
-            var session = GameSession.NewGame(new[] { hero }, 1);
+            var session = GameSession.NewGame(hero, 1);
             var go = new GameObject("DexCompletionTest");
             var screen = go.AddComponent<BattleScreen>();
             screen.Configure(Table(enemy), oneWord, session, animScale: 0.01f);
@@ -258,6 +262,70 @@ namespace WordRPG.Tests
             Assert.AreEqual(777, session.Inventory.Gold, "도감을 열어도 중복 지급 없음");
 
             Object.Destroy(go);
+        }
+
+        // 기술 버튼 = 기본 기술 + 끼운 성유물 기술 (어느 성유물인지 표시), 맨 아래 [가방]으로 상처약 → 문제 없이 회복 + 한 턴
+        [UnityTest]
+        public IEnumerator RelicSkillsAndPotionThroughTheUi()
+        {
+            var strike = TestData.Skill("strike", SkillKind.Damage, SkillTarget.SingleEnemy, 10);
+            var splash = TestData.Skill("splash", SkillKind.Damage, SkillTarget.AllEnemies, 10).Set("displayName", "잉크 뿌리기");
+            var quill = TestData.Relic("relic_quill", splash, new MonsterStats(0, 2, 0)).Set("displayName", "깃펜");
+            var hero = Hero(new MonsterStats(100, 10, 10), strike);
+            var enemy = TestData.Species("enemy", new MonsterStats(500, 5, 50), new MonsterStats(0, 0, 0), strike);
+            var potion = TestData.Potion("potion", 40).Set("displayName", "상처약");
+            var database = ScriptableObject.CreateInstance<GameDatabase>();
+            database.ReplaceContents(new[] { enemy }, new[] { potion }, null, new[] { quill });
+            var session = GameSession.NewGame(hero, 1);
+            session.GrantRelic(quill);
+            session.Inventory.Add(potion, 2);
+            var screen = CreateScreen(hero, enemy, database, session);
+            yield return null;
+            yield return null;
+            yield return WaitFor(() => ActiveButton(screen.transform, "SkillButton_0") != null);
+
+            var skillText = AllText(screen.transform.Find("BattleCanvas/SafeArea/Bottom/SkillPanel"));
+            StringAssert.Contains("기본 · ", skillText);
+            StringAssert.Contains("깃펜 · ", skillText, "성유물 기술은 어느 성유물인지");
+            StringAssert.Contains("잉크 뿌리기", skillText);
+            Assert.IsFalse(FindButton(screen.transform, "ItemButton").interactable, "HP가 가득하면 상처약 잠금");
+
+            // HP를 깎고 한 턴 진행 → 다음 차례에 [가방]이 열린다 → 상처약
+            session.Hero.TakeDamage(60);
+            ActiveButton(screen.transform, "SkillButton_0").onClick.Invoke();
+            yield return PlayOneTurn(screen);
+            yield return WaitFor(() => ActiveButton(screen.transform, "ItemButton") != null, 5f);
+            Assert.IsNotNull(ActiveButton(screen.transform, "ItemButton"), "다친 상태면 [가방]을 누를 수 있다");
+            int answered = screen.Engine.CorrectAnswers + screen.Engine.WrongAnswers;
+            int round = screen.Engine.Round;
+            ActiveButton(screen.transform, "ItemButton").onClick.Invoke();
+            yield return null;
+            StringAssert.Contains("상처약  × 2", AllText(screen.transform.Find("BattleCanvas/SafeArea/Bottom/SkillPanel")));
+            int hpBefore = session.Hero.CurrentHp;
+            ActiveButton(screen.transform, "SkillButton_0").onClick.Invoke();
+            yield return WaitFor(() => screen.Engine.Round > round, 5f);
+
+            Assert.AreEqual(1, session.Inventory.GetCount(potion));
+            Assert.Greater(session.Hero.CurrentHp, hpBefore, "상처약 40 회복 (적 공격 몇 점보다 큼)");
+            Assert.AreEqual(answered, screen.Engine.CorrectAnswers + screen.Engine.WrongAnswers, "상처약은 문제 없이");
+
+            Object.Destroy(screen.gameObject);
+        }
+
+        // 기술을 고른 뒤: 새 단어 카드 확인 → 정답 → 연출이 끝나 다시 기술 고르기가 될 때까지
+        private static IEnumerator PlayOneTurn(BattleScreen screen)
+        {
+            for (int frame = 0; frame < 600; frame++)
+            {
+                var confirm = ActiveButton(screen.transform, "CardConfirmButton");
+                if (confirm != null) confirm.onClick.Invoke();
+                var engine = screen.Engine;
+                if (engine.Phase == BattlePhase.AnsweringQuiz && engine.CurrentQuestion != null)
+                    ActiveButton(screen.transform, $"Choice_{engine.CurrentQuestion.CorrectIndex}")?.onClick.Invoke();
+                else if (engine.Phase == BattlePhase.ChoosingSkill && frame > 2 && ActiveButton(screen.transform, "SkillButton_0") != null)
+                    yield break;
+                yield return null;
+            }
         }
     }
 }

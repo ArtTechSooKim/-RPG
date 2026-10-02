@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using WordRPG.Battle;
+using WordRPG.Heroes;
 using WordRPG.Items;
 using WordRPG.Monsters;
 using WordRPG.Words;
@@ -261,27 +262,112 @@ namespace WordRPG.Tests
     public class BattleRewardTests
     {
         [Test]
-        public void DropsFollowChanceAndApplyToEveryone()
+        public void DropsFollowChanceAndHeroGetsExp()
         {
             var always = TestData.Item("always");
             var never = TestData.Item("never");
             var enemy = TestData.Species("slime", new MonsterStats(10, 1, 1), new MonsterStats(0, 0, 0))
                 .Set("expReward", 10).Set("goldReward", 4)
                 .Set("drops", new List<ItemDrop> { new ItemDrop(always, 1f, 2), new ItemDrop(never, 0f) });
-            var member = TestData.Species("hero", new MonsterStats(30, 10, 10), new MonsterStats(1, 1, 1));
-            var party = new List<MonsterInstance> { new MonsterInstance(member, 1), new MonsterInstance(member, 1, currentHp: 0) };
+            var hero = new Hero(TestData.Hero(new MonsterStats(30, 10, 10)), 1);
             var inventory = new Inventory();
 
             var reward = BattleRewardCalculator.Calculate(
                 new List<MonsterInstance> { new MonsterInstance(enemy, 1), new MonsterInstance(enemy, 1) },
                 correctAnswers: 0, new BattleConfig(), new Random(1));
-            var levels = BattleRewardCalculator.Apply(reward, party, inventory);
+            int levels = BattleRewardCalculator.Apply(reward, hero, inventory);
 
             Assert.AreEqual(20, reward.Exp);
             Assert.AreEqual(8, inventory.Gold);
             Assert.AreEqual(4, inventory.GetCount(always));
             Assert.AreEqual(0, inventory.GetCount(never));
-            CollectionAssert.AreEqual(new[] { 1, 1 }, levels, "기절한 몬스터도 경험치를 받는다");
+            Assert.AreEqual(1, levels, "Lv1→2에 경험치 20");
+            Assert.AreEqual(2, hero.Level);
+        }
+    }
+
+    // 주인공 혼자 싸우기: 기술 = 기본 기술 + 끼운 성유물, 상처약은 문제 없이 한 턴
+    public class HeroBattleTests
+    {
+        private BattleConfig config;
+        private FakeQuizProvider quiz;
+        private SkillData blast;
+        private RelicData quill;
+        private ItemData potion;
+        private MonsterSpecies slime;
+
+        [SetUp]
+        public void SetUp()
+        {
+            config = new BattleConfig(10f, 3f, 1.5f, 0f, 2);
+            quiz = new FakeQuizProvider();
+            blast = TestData.Skill("blast", SkillKind.Damage, SkillTarget.AllEnemies, 20, QuizDirection.MeaningToEnglish);
+            quill = TestData.Relic("quill", blast, new MonsterStats(0, 10, 0));
+            potion = TestData.Potion("potion", 40);
+            var bite = TestData.Skill("bite", SkillKind.Damage, SkillTarget.SingleEnemy, 10);
+            slime = TestData.Species("slime", new MonsterStats(100, 10, 10), new MonsterStats(0, 0, 0), bite);
+        }
+
+        private (BattleEngine battle, Hero hero) Start(params RelicData[] relics)
+        {
+            var hero = new Hero(TestData.Hero(new MonsterStats(100, 10, 10)), 1);
+            foreach (var relic in relics) hero.AddRelic(relic);
+            var battle = new BattleEngine(new ICombatant[] { hero }, new List<MonsterInstance> { new MonsterInstance(slime, 1) },
+                quiz, config, new Random(1));
+            return (battle, hero);
+        }
+
+        [Test]
+        public void HeroUsesBasicAndRelicSkillsWithRelicBonus()
+        {
+            var (battle, hero) = Start(quill);
+            Assert.AreSame(hero, battle.Party[0].Hero);
+            Assert.AreEqual(2, battle.Party[0].Skills.Count, "기본 기술 + 깃펜 기술");
+            Assert.AreEqual(20, battle.Party[0].Attack, "공격 10 + 성유물 10");
+
+            battle.SelectSkill(blast);
+            battle.SubmitAnswer(0, 5f);
+            // 20 x 20 / (20 + 10) = 13.3 → 13
+            Assert.AreEqual(87, battle.Enemies[0].Hp);
+        }
+
+        [Test]
+        public void SkillOfUnequippedRelicCannotBeUsed()
+        {
+            var (battle, hero) = Start(quill);
+            hero.Unequip(hero.Relics[0]);
+            Assert.Throws<ArgumentException>(() => battle.SelectSkill(blast));
+        }
+
+        [Test]
+        public void PotionHealsWithoutQuizAndEndsTurn()
+        {
+            var (battle, hero) = Start();
+            hero.TakeDamage(60);
+            var inventory = new Inventory();
+            inventory.Add(potion, 2);
+
+            var events = battle.UseItem(potion, inventory);
+
+            Assert.AreEqual(0, quiz.AskedDirections.Count, "문제 없이");
+            Assert.AreEqual(1, inventory.GetCount(potion));
+            var used = events.First(e => e.Type == BattleEventType.ItemUsed);
+            Assert.AreEqual(40, used.Amount);
+            Assert.AreSame(potion, used.Item);
+            Assert.IsTrue(events.Any(e => e.Type == BattleEventType.Damage && e.Target == battle.Party[0]), "적 차례가 이어진다");
+            Assert.AreEqual(2, battle.Round);
+            Assert.AreEqual(BattlePhase.ChoosingSkill, battle.Phase);
+        }
+
+        [Test]
+        public void PotionNeedsStockAndMustHeal()
+        {
+            var (battle, _) = Start();
+            Assert.Throws<InvalidOperationException>(() => battle.UseItem(potion, new Inventory()), "가방에 없음");
+            var material = TestData.Item("ink");
+            var inventory = new Inventory();
+            inventory.Add(material);
+            Assert.Throws<ArgumentException>(() => battle.UseItem(material, inventory), "회복 아이템이 아님");
         }
     }
 }

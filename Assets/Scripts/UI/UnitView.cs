@@ -5,7 +5,7 @@ using WordRPG.Battle;
 
 namespace WordRPG.UI
 {
-    // 전투 화면의 몬스터 카드 1장 (아군/적 공용) — Figma 'Monster Card'.
+    // 전투 화면의 카드 1장 (주인공/적 몬스터 공용) — Figma 'Monster Card'.
     // 둥근 카드 + 그림 칸(몬스터 그림이 있으면 그림, 없으면 이름 첫 글자) + 이름 + HP 바 + 보호막 태그
     public class UnitView
     {
@@ -79,16 +79,25 @@ namespace WordRPG.UI
         public void Bind(BattleUnit unit)
         {
             Unit = unit;
-            var species = unit.Monster.Species;
-            baseColor = UiKit.ArtColor(species);
-            string name = species.DisplayName;
+            string name = unit.DisplayName;
             initial.text = name.Length > 0 ? name.Substring(0, 1) : "?";
-            title.text = $"{name}  Lv{unit.Monster.Level}";
+            title.text = $"{name}  Lv{unit.Level}";
 
-            // 몬스터 그림이 지정돼 있으면 첫 글자 대신 그림
-            artSprite.sprite = species.Sprite;
-            artSprite.enabled = species.Sprite != null;
-            initial.enabled = species.Sprite == null;
+            // 그림: 적은 몬스터 그림, 주인공은 초상(없으면 필드 주인공 정면). 그림이 없으면 첫 글자
+            Sprite sprite;
+            if (unit.Monster != null)
+            {
+                baseColor = UiKit.ArtColor(unit.Monster.Species);
+                sprite = unit.Monster.Species.Sprite;
+            }
+            else
+            {
+                baseColor = Palette.PanelLight;
+                sprite = unit.Hero != null ? UiKit.HeroPortrait(unit.Hero.Data) : null;
+            }
+            artSprite.sprite = sprite;
+            artSprite.enabled = sprite != null;
+            initial.enabled = sprite == null;
 
             SetFrame(null);
             Sync(unit.Hp, unit.Shield);

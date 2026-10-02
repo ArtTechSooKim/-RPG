@@ -25,7 +25,7 @@ namespace WordRPG.Monsters
         }
     }
 
-    // 몬스터 종(種) 데이터. 같은 SO가 아군 파티로도, 필드의 적으로도 쓰인다
+    // 몬스터 종(種) 데이터 — 필드에서 만나는 적. (아군 몬스터는 성유물로 바뀌었다: Heroes/RelicData)
     [CreateAssetMenu(fileName = "NewMonster", menuName = "WordRPG/Monster Species", order = 10)]
     public class MonsterSpecies : ScriptableObject
     {
@@ -48,12 +48,6 @@ namespace WordRPG.Monsters
         [Header("스킬")]
         [SerializeField] private List<SkillData> skills = new List<SkillData>();
 
-        [Header("진화 (evolvesTo가 비어 있으면 진화 없음)")]
-        [SerializeField] private MonsterSpecies evolvesTo;
-        [SerializeField] private int evolveLevel = 5;
-        [SerializeField] private ItemData evolveItem;
-        [SerializeField] private int evolveItemCount = 3;
-
         [Header("적으로 등장할 때")]
         [Tooltip("레벨 1 기준. 실제 경험치 = 값 x 레벨")]
         [SerializeField] private int expReward = 5;
@@ -69,10 +63,6 @@ namespace WordRPG.Monsters
         public MonsterStats BaseStats => baseStats;
         public MonsterStats GrowthPerLevel => growthPerLevel;
         public IReadOnlyList<SkillData> Skills => skills;
-        public MonsterSpecies EvolvesTo => evolvesTo;
-        public int EvolveLevel => evolveLevel;
-        public ItemData EvolveItem => evolveItem;
-        public int EvolveItemCount => evolveItemCount;
         public int ExpReward => expReward;
         public int GoldReward => goldReward;
         public IReadOnlyList<ItemDrop> Drops => drops;

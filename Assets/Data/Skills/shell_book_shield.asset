@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.SkillData
   skillId: shell_book_shield
   displayName: "\uCC45 \uBC29\uD328"
-  description: "\uC544\uAD70 \uC804\uCCB4\uC5D0 \uBCF4\uD638\uB9C9\uC744 \uCE5C\uB2E4."
+  description: "\uB450\uAEBC\uC6B4 \uCC45\uC73C\uB85C \uBAB8\uC744 \uAC00\uB824 \uBCF4\uD638\uB9C9\uC744
+    \uCE5C\uB2E4."
   kind: 2
   target: 3
   power: 4

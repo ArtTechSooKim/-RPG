@@ -11,7 +11,7 @@ namespace WordRPG.Tests
     public class FieldInteractionTests
     {
         //   y=3  #####
-        //   y=2  #ES.#   ← 진화의 제단 (1,2), 상점 (2,2)
+        //   y=2  #ES.#   ← 성유물 제단 (1,2), 상점 (2,2)
         //   y=1  #FP.#   ← 회복의 샘 (1,1), 시작 (2,1)
         //   y=0  #####
         private static readonly FieldMap Town = FieldMap.Parse("#####\n#ES.#\n#FP.#\n#####");
@@ -79,7 +79,7 @@ namespace WordRPG.Tests
                 .Set("shop", shop).Set("boss", new BossEncounter(king, 7))
                 .Set("exits", new List<AreaExit> { new AreaExit(library, 0) });
 
-            Assert.AreEqual("진화의 제단", area.LandmarkName(new Vector2Int(1, 2)));
+            Assert.AreEqual("성유물 제단", area.LandmarkName(new Vector2Int(1, 2)));
             Assert.AreEqual("초원 마을 잡화점", area.LandmarkName(new Vector2Int(2, 2)), "상점은 상점 이름");
             Assert.AreEqual("회복의 샘", area.LandmarkName(new Vector2Int(3, 2)));
             Assert.AreEqual("까먹대왕", area.LandmarkName(new Vector2Int(4, 2)), "보스는 보스 이름");

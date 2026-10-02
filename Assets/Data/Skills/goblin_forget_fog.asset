@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.SkillData
   skillId: goblin_forget_fog
   displayName: "\uB9DD\uAC01\uC758 \uC548\uAC1C"
-  description: "\uAE30\uC5B5\uC744 \uD750\uB9AC\uB294 \uC548\uAC1C\uB85C \uD30C\uD2F0
-    \uC804\uCCB4\uB97C \uACF5\uACA9\uD55C\uB2E4."
+  description: "\uAE30\uC5B5\uC744 \uD750\uB9AC\uB294 \uC548\uAC1C\uB85C \uC8FC\uC778\uACF5\uC744
+    \uACF5\uACA9\uD55C\uB2E4."
   kind: 0
   target: 1
   power: 10
