@@ -79,6 +79,7 @@ namespace WordRPG.UI
         private Text cardTitle, cardWord, cardMeaning, cardExtra, cardConfirmLabel;
         private Image cardBorder;
         private Button cardConfirm;
+        private Image cardGlow, cardStamp; // 새 단어 '발견!' 연출 (Figma '전투 — 새 단어 발견')
 
         private Text resultTitle, resultBody;
         private RectTransform resultLines;
@@ -269,7 +270,7 @@ namespace WordRPG.UI
 
                 // 2. 처음 보는 단어면 뜻부터 보여준다
                 if (question.IsNewWord)
-                    yield return ShowWordCard($"새 단어! 도감 등록 ({LearnedCount() + 1}/{words.Words.Count})",
+                    yield return ShowWordCard($"새 단어 · 도감 등록 {LearnedCount() + 1}/{words.Words.Count}",
                         question.Word, "확인", Palette.Gold);
 
                 // 3. 문제
@@ -398,12 +399,32 @@ namespace WordRPG.UI
             }
             cardExtra.text = extra.ToString();
             cardConfirmLabel.text = buttonText;
-            cardBorder.color = titleColor == Palette.Gold ? Palette.Gold : Palette.PanelLight;
+            bool discovery = titleColor == Palette.Gold; // 처음 보는 단어 = 발견!
+            cardBorder.color = discovery ? Palette.Gold : Palette.PanelLight;
             cardConfirmed = false;
             ShowPanel(cardPanel);
-            if (titleColor == Palette.Gold) Sound.Play(Sfx.NewWord);
+            cardGlow.gameObject.SetActive(discovery);
+            cardStamp.gameObject.SetActive(discovery);
+            if (discovery) Sound.PlayJingle(Sfx.NewWord); // 짧은 '발견' 멜로디 (배경 음악은 잠깐 멈춤)
 
-            while (!cardConfirmed) yield return null;
+            // '발견!' 도장이 크게 찍히듯 줄어들고, 단어 뒤 빛이 숨 쉬듯 반짝인다
+            float t = 0f;
+            while (!cardConfirmed)
+            {
+                if (discovery)
+                {
+                    float pop = Mathf.Clamp01(t / (0.3f * Mathf.Max(0.01f, animationScale)));
+                    float overshoot = 1f + 0.25f * Mathf.Sin(pop * Mathf.PI);
+                    cardStamp.rectTransform.localScale = Vector3.one * Mathf.Lerp(2.4f, 1f, pop) * (pop < 1f ? overshoot : 1f);
+                    cardStamp.color = new Color(Palette.Gold.r, Palette.Gold.g, Palette.Gold.b, pop);
+                    float glow = 0.28f + 0.14f * Mathf.Sin(t * 3f);
+                    cardGlow.color = new Color(Palette.Gold.r, Palette.Gold.g, Palette.Gold.b, glow);
+                    cardGlow.rectTransform.localScale = Vector3.one * (1f + 0.05f * Mathf.Sin(t * 3f));
+                }
+                t += Time.unscaledDeltaTime;
+                yield return null;
+            }
+            cardStamp.rectTransform.localScale = Vector3.one;
         }
 
         private IEnumerator PlayEvents(IReadOnlyList<BattleEvent> events)
@@ -956,7 +977,7 @@ namespace WordRPG.UI
         public void SetBackdrop(FieldTheme theme, bool boss)
         {
             if (backdropFloor == null) return;
-            backdropFloor.sprite = FieldArt.ForTile(theme == FieldTheme.Library ? FieldTile.Floor : FieldTile.Grass, theme, false);
+            backdropFloor.sprite = FieldArt.ForTile(theme == FieldTheme.Library ? FieldTile.Floor : FieldTile.Grass, theme, false); // 숲은 고사리
             backdropWall.sprite = FieldArt.ForTile(FieldTile.Wall, theme, false);
             backdropTint.color = boss ? new Color(0.2f, 0.04f, 0.3f, 0.8f) : new Color(0, 0, 0, 0.72f);
         }
@@ -1092,6 +1113,11 @@ namespace WordRPG.UI
         {
             cardPanel = UiKit.Stretch("CardPanel", parent).gameObject;
             UiKit.RoundPanel("Bg", cardPanel.transform, Palette.Panel, UiKit.RadiusLg);
+            // 새 단어일 때만: 단어 뒤 금빛 + 왼쪽 위 '발견!' 도장
+            cardGlow = UiKit.IconImage("DiscoveryGlow", cardPanel.transform, UiKit.GlowSprite(), 0.5f, 0.6f, 0.5f, 0.6f);
+            cardGlow.rectTransform.sizeDelta = new Vector2(900, 420);
+            cardGlow.preserveAspect = false;
+            cardGlow.raycastTarget = false;
             cardBorder = UiKit.Outline(UiKit.Panel("Border", cardPanel.transform, Palette.Gold), UiKit.RadiusLg, 4);
             cardBorder.raycastTarget = false;
             cardTitle = UiKit.Display(UiKit.Label("Title", cardPanel.transform, "", 44, Palette.Gold, 0, 0.8f, 1, 0.97f,
@@ -1107,6 +1133,15 @@ namespace WordRPG.UI
             cardConfirmLabel = UiKit.LabelOf(cardConfirm);
             cardConfirmLabel.color = Palette.OnAccent;
             cardConfirm.onClick.AddListener(() => cardConfirmed = true);
+
+            cardStamp = UiKit.Pill(UiKit.Panel("DiscoveryStamp", cardPanel.transform, Palette.Gold, 0, 1, 0, 1));
+            cardStamp.raycastTarget = false;
+            cardStamp.rectTransform.sizeDelta = new Vector2(210, 84);
+            cardStamp.rectTransform.anchoredPosition = new Vector2(120, -6);
+            cardStamp.rectTransform.localEulerAngles = new Vector3(0, 0, 10f);
+            UiKit.Display(UiKit.OneLine(UiKit.Label("Text", cardStamp.transform, "발견!", 50, Palette.OnAccent, 0, 0, 1, 1)));
+            cardGlow.gameObject.SetActive(false);
+            cardStamp.gameObject.SetActive(false);
         }
 
         private void BuildResultPanel(Transform parent)

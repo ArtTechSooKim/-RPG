@@ -33,23 +33,43 @@ namespace WordRPG.Field
         }
     }
 
-    // 출입구(D) 하나의 연결: 도착 지역 + 도착 지역 맵의 몇 번째 D에 나타나는지
+    // 출입구(D) 하나의 연결: 도착 지역 + 도착 지역 맵의 몇 번째 D에 나타나는지.
+    // openedByBossOf를 정하면 그 지역의 보스를 물리치기 전까지 잠겨 있다 (예: 서고 보스 → 초원의 숲 입구)
     [Serializable]
     public class AreaExit
     {
         [SerializeField] private FieldArea target;
         [Tooltip("도착 지역 맵에서 D를 위→아래, 왼→오른 순으로 센 번호 (0부터)")]
         [SerializeField] private int targetDoorIndex;
+        [Tooltip("이 지역의 보스를 물리쳐야 열림 (비우면 처음부터 열림)")]
+        [SerializeField] private FieldArea openedByBossOf;
 
         public FieldArea Target => target;
         public int TargetDoorIndex => targetDoorIndex;
+        public FieldArea OpenedByBossOf => openedByBossOf != null && openedByBossOf.Boss != null ? openedByBossOf : null;
 
         private AreaExit() { } // Unity 직렬화용
 
-        public AreaExit(FieldArea target, int targetDoorIndex)
+        public AreaExit(FieldArea target, int targetDoorIndex, FieldArea openedByBossOf = null)
         {
             this.target = target;
             this.targetDoorIndex = targetDoorIndex;
+            this.openedByBossOf = openedByBossOf;
+        }
+    }
+
+    // 보스를 물리치면 열리는 출입구 하나 (어느 지역의 어느 칸)
+    public readonly struct AreaGate
+    {
+        public FieldArea Area { get; }
+        public Vector2Int Cell { get; }
+        public AreaExit Exit { get; }
+
+        public AreaGate(FieldArea area, Vector2Int cell, AreaExit exit)
+        {
+            Area = area;
+            Cell = cell;
+            Exit = exit;
         }
     }
 
@@ -84,7 +104,7 @@ namespace WordRPG.Field
         [SerializeField] private string displayName; // 예: "초원"
         [SerializeField] private FieldTheme theme = FieldTheme.Meadow;
 
-        [Tooltip(". 길  , 풀숲(조우)  # 나무  ~ 물  P 시작 위치  D 출입구  /  옆에서 [확인]으로 사용: F 회복의 샘  C 보물상자  E 성유물 제단  S 상점  B 보스")]
+        [Tooltip(". 길  : 잔디(조우 없음)  , 풀숲(조우)  # 나무  ~ 물  P 시작 위치  D 출입구  /  옆에서 [확인]으로 사용: F 회복의 샘  C 보물상자  E 성유물 제단  S 상점  B 보스")]
         [TextArea(12, 40)]
         [SerializeField] private string map;
 
@@ -163,6 +183,24 @@ namespace WordRPG.Field
                     return exit != null && exit.Target != null ? exit.Target.DisplayName : null;
                 default: return null;
             }
+        }
+
+        // bossArea의 보스를 물리치면 열리는 출입구들 (연출에서 카메라가 찾아가 보여 준다)
+        public static List<AreaGate> GatesOpenedBy(FieldArea bossArea, IEnumerable<FieldArea> areas)
+        {
+            var gates = new List<AreaGate>();
+            if (bossArea == null || areas == null) return gates;
+            foreach (var area in areas)
+            {
+                if (area == null) continue;
+                var doors = area.Map.Doors;
+                for (int i = 0; i < area.exits.Count && i < doors.Count; i++)
+                {
+                    if (area.exits[i] != null && area.exits[i].OpenedByBossOf == bossArea)
+                        gates.Add(new AreaGate(area, doors[i], area.exits[i]));
+                }
+            }
+            return gates;
         }
 
         public ChestContent GetChestContent(Vector2Int position)

@@ -15,10 +15,25 @@ namespace WordRPG.UI
         public static Sprite ForTile(FieldTile tile, FieldTheme theme, bool done)
         {
             bool hasDone = done && (tile == FieldTile.Chest || tile == FieldTile.Boss);
-            string key = $"{theme}_{tile}{(hasDone ? "_done" : "")}";
-            if (Cache.TryGetValue(key, out var cached))
-                return cached != null ? cached : PlaceholderArt.ForTile(tile, theme, done);
+            return Load($"{theme}_{tile}{(hasDone ? "_done" : "")}") ?? PlaceholderArt.ForTile(tile, theme, done);
+        }
 
+        // 출입구: 잠겼으면 {테마}_Door_locked(막힌 길), 아니면 도착 지역 테마 전용 그림 {테마}_Door_{도착 테마}
+        // (예: 초원 → 숲은 그늘진 숲길 입구)이 있으면 그것, 없으면 {테마}_Door
+        public static Sprite ForDoor(FieldTheme theme, FieldTheme? target, bool locked)
+        {
+            if (locked) return Load($"{theme}_Door_locked") ?? PlaceholderArt.LockedDoor(theme);
+            if (target.HasValue && target.Value != theme)
+            {
+                var special = Load($"{theme}_Door_{target.Value}");
+                if (special != null) return special;
+            }
+            return ForTile(FieldTile.Door, theme, false);
+        }
+
+        private static Sprite Load(string key)
+        {
+            if (Cache.TryGetValue(key, out var cached)) return cached;
             var texture = Resources.Load<Texture2D>(Folder + key);
             Sprite sprite = null;
             if (texture != null)
@@ -28,7 +43,7 @@ namespace WordRPG.UI
                 sprite.name = key;
             }
             Cache[key] = sprite;
-            return sprite != null ? sprite : PlaceholderArt.ForTile(tile, theme, done);
+            return sprite;
         }
     }
 }

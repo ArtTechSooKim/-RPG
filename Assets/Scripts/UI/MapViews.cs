@@ -22,12 +22,14 @@ namespace WordRPG.UI
         public static Color32 ColorOf(FieldTile tile, FieldTheme theme, bool done)
         {
             bool library = theme == FieldTheme.Library;
-            var floor = library ? new Color32(74, 63, 69, 255) : new Color32(217, 188, 133, 255);
+            bool forest = theme == FieldTheme.Forest;
+            var floor = library ? new Color32(74, 63, 69, 255) : forest ? new Color32(150, 100, 64, 255) : new Color32(217, 188, 133, 255);
             switch (tile)
             {
-                case FieldTile.Wall: return library ? new Color32(154, 78, 38, 255) : new Color32(36, 80, 42, 255);
-                case FieldTile.Grass: return library ? new Color32(110, 98, 115, 255) : new Color32(63, 122, 53, 255);
-                case FieldTile.Water: return library ? new Color32(90, 63, 138, 255) : new Color32(79, 182, 224, 255);
+                case FieldTile.Wall: return library ? new Color32(154, 78, 38, 255) : forest ? new Color32(18, 52, 26, 255) : new Color32(36, 80, 42, 255);
+                case FieldTile.Grass: return library ? new Color32(110, 98, 115, 255) : forest ? new Color32(70, 128, 58, 255) : new Color32(63, 122, 53, 255);
+                case FieldTile.Lawn: return library ? new Color32(88, 104, 86, 255) : forest ? new Color32(48, 92, 44, 255) : new Color32(150, 190, 70, 255);
+                case FieldTile.Water: return library ? new Color32(90, 63, 138, 255) : forest ? new Color32(60, 150, 130, 255) : new Color32(79, 182, 224, 255);
                 case FieldTile.Chest: return done ? floor : Chest;
                 case FieldTile.Boss: return done ? floor : Boss;
                 case FieldTile.Fountain: return Fountain;
@@ -69,13 +71,15 @@ namespace WordRPG.UI
         }
     }
 
-    // 지도 그림 + 내 위치 점 (금테 흰 점). 미니맵과 큰 지도가 같이 쓴다
+    // 지도 그림 + 내 위치 점 (금테 흰 점). 미니맵과 큰 지도가 같이 쓴다.
+    // window = 그림에서 보여 줄 칸 범위 (큰 지역의 미니맵은 주인공 둘레만, 큰 지도는 전체)
     public class MapPicture
     {
         public RectTransform Rect { get; private set; }
         private RawImage image;
         private RectTransform player;
         private int width = 1, height = 1;
+        private RectInt window = new RectInt(0, 0, 1, 1);
 
         public static MapPicture Create(Transform parent, float minX, float minY, float maxX, float maxY, float dotSize)
         {
@@ -98,22 +102,34 @@ namespace WordRPG.UI
             image.texture = texture;
             width = Mathf.Max(1, texture.width);
             height = Mathf.Max(1, texture.height);
+            SetWindow(new RectInt(0, 0, width, height));
+        }
+
+        public void SetWindow(RectInt cells)
+        {
+            window = cells;
+            image.uvRect = new Rect((float)cells.x / width, (float)cells.y / height,
+                (float)cells.width / width, (float)cells.height / height);
         }
 
         public void SetPlayer(Vector2Int cell)
         {
-            var anchor = new Vector2((cell.x + 0.5f) / width, (cell.y + 0.5f) / height);
+            var anchor = new Vector2((cell.x - window.x + 0.5f) / window.width, (cell.y - window.y + 0.5f) / window.height);
             player.anchorMin = player.anchorMax = anchor;
             player.anchoredPosition = Vector2.zero;
         }
 
         public Vector2 PlayerAnchor => player.anchorMin;
+        public RectInt Window => window;
     }
 
-    // 필드 왼쪽 위 미니맵 (누르면 큰 지도). 크기는 지역 맵 크기에 맞춘다 (한 칸 = 8px)
+    // 필드 왼쪽 위 미니맵 (누르면 큰 지도). 한 칸 = 8px. 작은 지역은 맵 전체,
+    // 가로 26칸·세로 30칸보다 큰 지역은 주인공 둘레만 보여 주고 걸을 때마다 따라 움직인다
     public class MinimapView
     {
         public const float CellPixels = 8f;
+        public const int MaxCellsAcross = 26;
+        public const int MaxCellsHigh = 30;
         public Button Button { get; private set; }
         public MapPicture Picture { get; private set; }
 
@@ -123,6 +139,8 @@ namespace WordRPG.UI
         private FieldTheme theme;
         private Func<Vector2Int, bool> done;
         private Func<Vector2Int, bool> explored;
+        private Vector2Int viewSize = Vector2Int.one;
+        private Vector2Int playerCell;
 
         public static MinimapView Create(Transform parent)
         {
@@ -144,16 +162,37 @@ namespace WordRPG.UI
             theme = fieldTheme;
             done = isDone;
             explored = isExplored;
-            root.sizeDelta = new Vector2(map.Width * CellPixels + 24, map.Height * CellPixels + 24);
+            viewSize = new Vector2Int(Mathf.Min(map.Width, MaxCellsAcross), Mathf.Min(map.Height, MaxCellsHigh));
+            root.sizeDelta = new Vector2(viewSize.x * CellPixels + 24, viewSize.y * CellPixels + 24);
             Redraw();
         }
 
-        // 상자를 열거나 보스를 쓰러뜨렸을 때
+        // 걸음마다: 내 위치 점 + (큰 지역이면) 보이는 범위를 주인공 둘레로
+        public void SetPlayer(Vector2Int cell)
+        {
+            playerCell = cell;
+            if (map == null) return;
+            Picture.SetWindow(Window(map.Width, map.Height, viewSize.x, viewSize.y, cell));
+            Picture.SetPlayer(cell);
+        }
+
+        // 맵에서 view 크기만큼, center가 가운데 오게 (맵 끝에서는 맵 안으로 붙인다)
+        public static RectInt Window(int mapWidth, int mapHeight, int viewWidth, int viewHeight, Vector2Int center)
+        {
+            viewWidth = Mathf.Min(viewWidth, mapWidth);
+            viewHeight = Mathf.Min(viewHeight, mapHeight);
+            int x = Mathf.Clamp(center.x - viewWidth / 2, 0, mapWidth - viewWidth);
+            int y = Mathf.Clamp(center.y - viewHeight / 2, 0, mapHeight - viewHeight);
+            return new RectInt(x, y, viewWidth, viewHeight);
+        }
+
+        // 상자를 열거나 보스를 쓰러뜨렸을 때, 새로 탐험했을 때
         public void Redraw()
         {
             if (map == null) return;
             texture = MinimapArt.Build(map, theme, done, texture, explored);
             Picture.SetTexture(texture);
+            SetPlayer(playerCell);
         }
 
         public Texture2D Texture => texture;

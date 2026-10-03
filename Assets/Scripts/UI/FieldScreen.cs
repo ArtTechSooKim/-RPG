@@ -14,7 +14,8 @@ using WordRPG.Monsters;
 namespace WordRPG.UI
 {
     // 탑다운 필드: 한 칸씩 이동, 풀숲 조우 → 전투(BattleScreen을 위에 덮음) → 원래 자리로 복귀.
-    // 출입구(D)를 밟으면 다른 지역으로 (같은 씬에서 맵만 바꿔 그림).
+    // 출입구(D)를 밟으면 다른 지역으로 (같은 씬에서 맵만 바꿔 그림). 보스를 물리쳐야 열리는 출입구는 그 전까지 막혀 있고,
+    // 보스를 물리치면 카메라가 그 출입구로 가서 길이 열리는 모습을 보여 준 뒤 돌아온다 (RevealGates).
     // 보물상자·회복의 샘·성유물 제단·상점·보스는 옆에 서서 패드 가운데 [확인](키보드 Space·Enter·Z)으로 사용.
     // 가까이 가면 오브젝트 위에 이름표가 뜬다. 입력은 화면 아래 가상 패드 + 키보드(방향키/WASD).
     // 이동·조우 규칙은 FieldWalker / EncounterCounter(순수 C#)가 하고 여기서는 화면과 입력만 다룬다
@@ -54,6 +55,11 @@ namespace WordRPG.UI
         private bool confirmReady;
 
         private Camera cam;
+        private Vector3? cameraFocus; // 연출 중 카메라가 볼 곳 (없으면 주인공)
+        private bool revealingGate;
+        private readonly List<AreaGate> revealedGates = new List<AreaGate>();
+        private string lastGateBanner = "";
+        private Vector3 lastGateCamera;
         private Transform player;
         private SpriteRenderer playerRenderer;
         private Tilemap tilemap;
@@ -95,6 +101,11 @@ namespace WordRPG.UI
         public string ToastMessage => toastPanel != null && toastPanel.activeSelf ? toastText.text : "";
         public IEnumerable<string> VisibleNameTags => nameTags.VisibleNames;
         public bool ConfirmReady => confirmReady; // 지금 [확인]으로 쓸 것이 옆에 있는지
+        public bool IsRevealingGate => revealingGate; // 보스를 물리쳐 열린 길을 보여 주는 중
+        public IReadOnlyList<AreaGate> RevealedGates => revealedGates; // 지금까지 연출로 보여 준 출입구
+        public string LastGateBanner => lastGateBanner;
+        public Vector3 LastGateCamera => lastGateCamera; // 길이 열리는 순간 카메라 위치
+        public Vector3 CameraPosition => cam.transform.position;
 
         // 코드로 만들 때(테스트) Start 전에 호출. session을 안 주면 GameManager 것을 쓴다
         // database: 세이브의 마지막 지역이 다른 곳이면 거기서 시작하기 위해 지역을 찾는 데 쓴다 (소지품 화면의 아이템 찾기에도)
@@ -245,8 +256,29 @@ namespace WordRPG.UI
                 case StepKind.BlockedByObject:
                     confirmHint = 0.8f; // 부딪히면 쓰지 않고 [확인] 버튼만 깜빡여 알려 준다
                     break;
+                case StepKind.BlockedByGate:
+                    ShowGateHint(outcome.Target);
+                    break;
             }
         }
+
+        // 잠긴 출입구: 어느 보스를 물리치면 열리는지 알려 준다
+        private void ShowGateHint(Vector2Int cell)
+        {
+            var exit = area.GetExit(cell);
+            var bossArea = exit?.OpenedByBossOf;
+            if (bossArea == null) return;
+            string target = exit.Target != null ? exit.Target.DisplayName : "저쪽";
+            string boss = bossArea.Boss.Species.DisplayName;
+            string message = $"{UiKit.WithJosa(target, "으로", "로")} 가는 길이 덤불로 막혀 있다…\n" +
+                             $"{bossArea.DisplayName}의 {UiKit.WithJosa(boss, "을", "를")} 물리치면 열릴 것 같다";
+            if (ToastMessage != message) ShowToast(message, 3f);
+        }
+
+        // 그 칸의 출입구가 지금 잠겨 있는지 (지금 지역 기준)
+        private bool IsDoorLocked(Vector2Int cell) => IsDoorLocked(area, cell);
+
+        private bool IsDoorLocked(FieldArea fieldArea, Vector2Int cell) => !session.World.IsExitOpen(fieldArea.GetExit(cell));
 
         // [확인]: 바라보는 칸(없으면 옆 칸)의 상자·샘·제단·상점·보스를 쓴다. 쓴 것이 있으면 true
         private bool TryInteract()
@@ -312,7 +344,7 @@ namespace WordRPG.UI
         private void OnStepFinished()
         {
             session.World.SetPosition(area.AreaId, walker.Position);
-            minimap.Picture.SetPlayer(walker.Position);
+            minimap.SetPlayer(walker.Position);
             RefreshNameTags();
             if (session.World.Reveal(area.AreaId, walker.Map.Width, walker.Map.Height, walker.Position) > 0) minimap.Redraw();
             var tile = walker.Map.Get(walker.Position);
@@ -424,7 +456,18 @@ namespace WordRPG.UI
             battle.BeginBattle(enemies, area.Words, OnBattleFinished, intro, area.Theme, boss);
         }
 
-        private Music AreaMusic => area.Theme == FieldTheme.Library ? Music.Library : Music.Meadow;
+        private Music AreaMusic
+        {
+            get
+            {
+                switch (area.Theme)
+                {
+                    case FieldTheme.Library: return Music.Library;
+                    case FieldTheme.Forest: return Music.Forest;
+                    default: return Music.Meadow;
+                }
+            }
+        }
 
         private void OnBattleFinished(bool won)
         {
@@ -444,9 +487,13 @@ namespace WordRPG.UI
                 string name = area.Boss.Species.DisplayName;
                 var relic = session.GrantRelic(area.Boss.RewardRelic);
                 saveProgress?.Invoke();
-                ShowToast(relic != null
+                string message = relic != null
                     ? $"★ {UiKit.WithJosa(name, "을", "를")} 물리쳤다!\n성유물 '{relic.Data.DisplayName}' 획득 — {RelicHint(relic)}"
-                    : $"★ {UiKit.WithJosa(name, "을", "를")} 물리쳤다!\n{area.DisplayName}에 잊혀진 기억이 돌아왔다", 4.5f);
+                    : $"★ {UiKit.WithJosa(name, "을", "를")} 물리쳤다!\n{area.DisplayName}에 잊혀진 기억이 돌아왔다";
+                // 이 보스가 여는 출입구가 있으면 카메라가 가서 보여 준다
+                var gates = database != null ? FieldArea.GatesOpenedBy(area, database.Areas) : new List<AreaGate>();
+                if (gates.Count > 0) StartCoroutine(RevealGates(gates, message));
+                else ShowToast(message, 4.5f);
             }
             else if (!won)
             {
@@ -459,6 +506,105 @@ namespace WordRPG.UI
                 ShowToast($"{area.DisplayName} 시작 지점으로 돌아왔다. HP가 회복되었다!");
             }
             RefreshHud();
+        }
+
+        // ------------------------------------------------------------------ 길 열림 연출
+
+        // 승리 알림을 잠깐 보여 준 뒤, 열린 출입구마다: 어두워짐 → 그 지역의 출입구 앞으로 카메라 이동 →
+        // 막힌 덤불이 흔들리며 사라지고 '열렸다!' → 어두워짐 → 원래 자리로
+        private IEnumerator RevealGates(List<AreaGate> gates, string victoryMessage)
+        {
+            transitioning = true;
+            revealingGate = true;
+            ShowToast(victoryMessage, 30f);
+            yield return WaitUnscaled(2.4f);
+            HideToast();
+
+            foreach (var gate in gates) yield return RevealGate(gate);
+
+            revealingGate = false;
+            transitioning = false;
+            var last = gates[gates.Count - 1];
+            string target = last.Exit.Target != null ? last.Exit.Target.DisplayName : "새 지역";
+            ShowToast($"{last.Area.DisplayName}에서 {UiKit.WithJosa(target, "으로", "로")} 가는 길이 열렸다!", 4f);
+        }
+
+        private IEnumerator RevealGate(AreaGate gate)
+        {
+            var cutscene = GateCutscene.Create(transform);
+            yield return cutscene.Fade(0f, 1f, 0.35f * animationScale);
+
+            // 그 지역을 그려 두고 (이 출입구만 아직 잠긴 모습으로) 카메라를 출입구 조금 앞에서 출발
+            hudCanvas.enabled = false;
+            player.gameObject.SetActive(false);
+            DrawTiles(gate.Area, cell => cell == gate.Cell || IsDoorLocked(gate.Area, cell));
+            var gateCenter = CellCenter(gate.Cell);
+            var approach = ApproachDirection(gate.Area.Map, gate.Cell);
+            // 출입구는 대개 맵 끝에 있으므로 카메라는 출입구보다 몇 칸 안쪽을 비춘다 (맵 밖 빈 곳이 덜 보이게)
+            var focus = gateCenter - approach * 3f;
+            cameraFocus = focus - approach * 4f;
+            cutscene.ShowLetterbox(gate.Area.DisplayName);
+            yield return cutscene.Fade(1f, 0f, 0.35f * animationScale);
+
+            // 카메라가 천천히 출입구로
+            float pan = 1.2f * animationScale;
+            var from = cameraFocus.Value;
+            for (float t = 0; t < pan; t += Time.unscaledDeltaTime)
+            {
+                cameraFocus = Vector3.Lerp(from, focus, Mathf.SmoothStep(0f, 1f, t / pan));
+                yield return null;
+            }
+            cameraFocus = focus;
+            yield return WaitUnscaled(0.4f);
+
+            // 덤불이 흔들리다가 연기와 함께 사라짐 → 열린 출입구
+            Sound.PlayJingle(Sfx.GateOpen);
+            float shake = 0.6f * animationScale;
+            for (float t = 0; t < shake; t += Time.unscaledDeltaTime)
+            {
+                cameraFocus = focus + new Vector3(Mathf.Sin(t * 70f), Mathf.Cos(t * 55f), 0f) * 0.08f;
+                yield return null;
+            }
+            cameraFocus = focus;
+            UpdateCamera();
+            StartCoroutine(cutscene.PlaySmoke(cam, gateCenter, animationScale));
+            tilemap.SetTile(new Vector3Int(gate.Cell.x, gate.Cell.y, 0), DoorTile(gate.Area, gate.Cell, false));
+            string target = gate.Exit.Target != null ? gate.Exit.Target.DisplayName : "새 지역";
+            cutscene.ShowBanner($"{UiKit.WithJosa(target, "으로", "로")} 가는 길이 열렸다!");
+            lastGateBanner = cutscene.BannerText;
+            lastGateCamera = cam.transform.position;
+            revealedGates.Add(gate);
+            yield return WaitUnscaled(2.2f);
+
+            // 원래 자리로
+            yield return cutscene.Fade(0f, 1f, 0.35f * animationScale);
+            cameraFocus = null;
+            cutscene.HideLetterbox();
+            DrawTiles(area, IsDoorLocked);
+            nameTags.SetArea(area, IsDoorLocked);
+            RefreshNameTags();
+            player.gameObject.SetActive(true);
+            hudCanvas.enabled = true;
+            UpdateCamera();
+            yield return cutscene.Fade(1f, 0f, 0.35f * animationScale);
+            Destroy(cutscene.gameObject);
+        }
+
+        // 출입구로 걸어 들어가는 방향 (출입구 옆 걸을 수 있는 칸 → 출입구). 카메라가 그 길을 따라 다가간다
+        private static Vector3 ApproachDirection(FieldMap map, Vector2Int door)
+        {
+            foreach (var direction in new[] { Direction.Left, Direction.Down, Direction.Right, Direction.Up })
+            {
+                var from = door - direction.ToOffset();
+                if (map.IsWalkable(from)) return new Vector3(direction.ToOffset().x, direction.ToOffset().y, 0f);
+            }
+            return Vector3.up;
+        }
+
+        private IEnumerator WaitUnscaled(float seconds)
+        {
+            float end = Time.unscaledTime + seconds * animationScale;
+            while (Time.unscaledTime < end) yield return null;
         }
 
         private Direction? ReadDirection()
@@ -486,7 +632,7 @@ namespace WordRPG.UI
             moving = false;
             player.position = CellCenter(walker.Position);
             playerRenderer.sprite = PlayerArt.Get(walker.Facing, 0);
-            minimap?.Picture.SetPlayer(walker.Position);
+            minimap?.SetPlayer(walker.Position);
         }
 
         // 지역을 바꿔 그린다 (처음 시작할 때, 출입구를 지날 때)
@@ -494,38 +640,60 @@ namespace WordRPG.UI
         {
             area = newArea;
             var map = area.Map;
-            walker = new FieldWalker(map, position);
+            walker = new FieldWalker(map, position, IsDoorLocked);
             encounterCounter = new EncounterCounter(area.EncounterRate, area.MinStepsBetweenEncounters);
             session.World.SetPosition(area.AreaId, position);
 
-            tilemap.ClearAllTiles();
-            for (int x = 0; x < map.Width; x++)
-            for (int y = 0; y < map.Height; y++)
-            {
-                var cell = new Vector2Int(x, y);
-                var kind = map.Get(cell);
-                bool done = kind == FieldTile.Chest && session.World.IsChestOpened(area.ChestId(cell))
-                            || kind == FieldTile.Boss && session.World.IsBossDefeated(area.BossId);
-                tilemap.SetTile(new Vector3Int(x, y, 0), TileFor(kind, done));
-            }
-
-            cam.backgroundColor = PlaceholderArt.OutsideColor(area.Theme);
+            DrawTiles(area, IsDoorLocked);
             if (!inBattle) Sound.PlayMusic(AreaMusic);
             session.World.Reveal(area.AreaId, map.Width, map.Height, position);
             minimap.SetArea(map, area.Theme, IsCellDone, cell => session.World.IsExplored(area.AreaId, cell));
-            nameTags.SetArea(area);
+            nameTags.SetArea(area, IsDoorLocked);
             RefreshNameTags();
             SnapPlayer();
             UpdateCamera();
             RefreshHud();
         }
 
-        private Tile TileFor(FieldTile kind, bool done)
+        // 지역 타일 전체를 그린다 (연 상자·쓰러뜨린 보스·잠긴 출입구 반영). 길 열림 연출에서는 다른 지역도 그린다
+        private void DrawTiles(FieldArea fieldArea, Func<Vector2Int, bool> lockedDoor)
         {
-            string key = $"{area.Theme}_{kind}_{done}";
+            var map = fieldArea.Map;
+            tilemap.ClearAllTiles();
+            for (int x = 0; x < map.Width; x++)
+            for (int y = 0; y < map.Height; y++)
+            {
+                var cell = new Vector2Int(x, y);
+                var kind = map.Get(cell);
+                bool done = kind == FieldTile.Chest && session.World.IsChestOpened(fieldArea.ChestId(cell))
+                            || kind == FieldTile.Boss && session.World.IsBossDefeated(fieldArea.BossId);
+                tilemap.SetTile(new Vector3Int(x, y, 0),
+                    kind == FieldTile.Door ? DoorTile(fieldArea, cell, lockedDoor(cell)) : TileFor(kind, done, fieldArea.Theme));
+            }
+            cam.backgroundColor = PlaceholderArt.OutsideColor(fieldArea.Theme);
+        }
+
+        private Tile TileFor(FieldTile kind, bool done, FieldTheme? theme = null)
+        {
+            var t = theme ?? area.Theme;
+            string key = $"{t}_{kind}_{done}";
             if (!tileCache.TryGetValue(key, out var tile))
             {
-                tile = MakeTile(FieldArt.ForTile(kind, area.Theme, done));
+                tile = MakeTile(FieldArt.ForTile(kind, t, done));
+                tileCache[key] = tile;
+            }
+            return tile;
+        }
+
+        // 출입구 그림: 잠김 / 도착 지역 테마 전용(예: 초원의 숲길 입구) / 기본
+        private Tile DoorTile(FieldArea fieldArea, Vector2Int cell, bool locked)
+        {
+            var exit = fieldArea.GetExit(cell);
+            FieldTheme? target = exit != null && exit.Target != null ? exit.Target.Theme : (FieldTheme?)null;
+            string key = $"{fieldArea.Theme}_Door_{target}_{locked}";
+            if (!tileCache.TryGetValue(key, out var tile))
+            {
+                tile = MakeTile(FieldArt.ForDoor(fieldArea.Theme, target, locked));
                 tileCache[key] = tile;
             }
             return tile;
@@ -568,8 +736,8 @@ namespace WordRPG.UI
             if (cam == null) return;
             float visibleHeight = tilesAcross / Mathf.Max(0.1f, cam.aspect);
             cam.orthographicSize = visibleHeight / 2f;
-            // 아래쪽은 가상 패드가 가리므로 플레이어가 화면 높이 60% 지점에 오게 카메라를 내린다
-            var target = player.position + Vector3.down * (visibleHeight * 0.10f);
+            // 아래쪽은 가상 패드가 가리므로 플레이어가 화면 높이 60% 지점에 오게 카메라를 내린다 (연출 중에는 그곳이 가운데)
+            var target = cameraFocus ?? player.position + Vector3.down * (visibleHeight * 0.10f);
             cam.transform.position = new Vector3(target.x, target.y, -10f);
         }
 

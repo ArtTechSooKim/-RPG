@@ -7,7 +7,8 @@ namespace WordRPG.Field
     {
         Moved,
         Blocked,    // 나무·물·맵 끝 — 방향만 바뀜
-        BlockedByObject // 상자·샘·제단·상점·보스에 막힘 — 사용은 [확인] 버튼으로 (FieldInteraction)
+        BlockedByObject, // 상자·샘·제단·상점·보스에 막힘 — 사용은 [확인] 버튼으로 (FieldInteraction)
+        BlockedByGate    // 잠긴 출입구 — 보스를 물리쳐야 열림 (AreaExit.OpenedByBossOf)
     }
 
     public readonly struct StepOutcome
@@ -30,13 +31,17 @@ namespace WordRPG.Field
     // 격자 위 한 칸씩 이동. 막힌 칸 쪽으로 누르면 방향만 바뀐다 (상자·제단 등은 그쪽을 보고 [확인])
     public class FieldWalker
     {
+        private readonly Func<Vector2Int, bool> isLockedDoor;
+
         public FieldMap Map { get; }
         public Vector2Int Position { get; private set; }
         public Direction Facing { get; private set; } = Direction.Down;
 
-        public FieldWalker(FieldMap map, Vector2Int position)
+        // lockedDoor: 그 칸의 출입구가 지금 잠겨 있는지 (없으면 모든 출입구가 열림)
+        public FieldWalker(FieldMap map, Vector2Int position, Func<Vector2Int, bool> lockedDoor = null)
         {
             Map = map ?? throw new ArgumentNullException(nameof(map));
+            isLockedDoor = lockedDoor;
             WarpTo(position);
         }
 
@@ -46,9 +51,13 @@ namespace WordRPG.Field
             var target = Position + direction.ToOffset();
             var tile = Map.Get(target);
 
+            if (tile == FieldTile.Door && isLockedDoor != null && isLockedDoor(target))
+                return new StepOutcome(StepKind.BlockedByGate, target, tile);
+
             switch (tile)
             {
                 case FieldTile.Floor:
+                case FieldTile.Lawn:
                 case FieldTile.Grass:
                 case FieldTile.Door:
                     Position = target;

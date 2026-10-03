@@ -10,10 +10,12 @@ using WordRPG.Monsters;
 namespace WordRPG.UI
 {
     // 성유물 제단 (Figma '성유물 제단' / 'Relic Upgrade Card'): 모은 성유물마다 다음 단계 비용(재료·골드)을 보여주고 강화.
-    // 재료·골드를 쓰므로 버튼을 두 번 눌러야 한다. +3이 되면 각성 연출(기술이 더 강한 기술로)
+    // 재료·골드를 쓰므로 버튼을 두 번 눌러야 한다. +3이 되면 각성 연출(기술이 더 강한 기술로).
+    // 카드는 모은 성유물 수만큼 만들고, 화면보다 많으면 위아래로 밀어서 본다 (ScrollRect)
     public class RelicAltarView
     {
-        public const int MaxCards = 5; // 지금 데이터의 성유물 수. 더 늘리면 스크롤로 바꿀 것
+        public const float CardHeight = 200f;
+        private const float CardGap = 16f;
 
         private class Card
         {
@@ -33,6 +35,8 @@ namespace WordRPG.UI
         public AwakeningCutscene Cutscene { get; private set; }
 
         private readonly List<Card> cards = new List<Card>();
+        private RectTransform cardList;
+        private ScrollRect scroll;
         private RectTransform materials;
         private Text resultText;
         private GameSession session;
@@ -59,7 +63,24 @@ namespace WordRPG.UI
             layout.childControlWidth = layout.childControlHeight = true;
             layout.childForceExpandWidth = layout.childForceExpandHeight = false;
 
-            for (int i = 0; i < MaxCards; i++) view.cards.Add(view.BuildCard(root, i));
+            // 카드 목록 (넘치면 스크롤)
+            var viewport = UiKit.Rect("CardScroll", root, 0.03f, 0.25f, 0.97f, 0.815f);
+            viewport.gameObject.AddComponent<RectMask2D>();
+            viewport.gameObject.AddComponent<Image>().color = Color.clear; // 빈 곳을 끌어도 스크롤되게
+            view.cardList = UiKit.Rect("Cards", viewport, 0, 1, 1, 1);
+            view.cardList.pivot = new Vector2(0.5f, 1f);
+            var list = view.cardList.gameObject.AddComponent<VerticalLayoutGroup>();
+            list.spacing = CardGap;
+            list.childControlWidth = list.childControlHeight = true;
+            list.childForceExpandWidth = true;
+            list.childForceExpandHeight = false;
+            view.cardList.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            view.scroll = viewport.gameObject.AddComponent<ScrollRect>();
+            view.scroll.content = view.cardList;
+            view.scroll.viewport = viewport;
+            view.scroll.horizontal = false;
+            view.scroll.movementType = ScrollRect.MovementType.Clamped;
+            view.scroll.scrollSensitivity = 40f;
 
             var resultBox = UiKit.RoundPanel("ResultBox", root, Palette.PanelLight, UiKit.RadiusMd, 0.03f, 0.115f, 0.97f, 0.235f);
             view.resultText = UiKit.Label("Result", resultBox.transform, "", 32, Palette.Text, 0, 0, 1, 1,
@@ -74,9 +95,10 @@ namespace WordRPG.UI
             return view;
         }
 
-        private Card BuildCard(RectTransform root, int index)
+        private Card BuildCard(int index)
         {
-            var panel = UiKit.RoundPanel($"RelicCard_{index}", root, Palette.Panel, UiKit.RadiusLg);
+            var panel = UiKit.RoundPanel($"RelicCard_{index}", cardList, Palette.Panel, UiKit.RadiusLg);
+            panel.gameObject.AddComponent<LayoutElement>().preferredHeight = CardHeight;
             var card = new Card { Root = panel.gameObject };
             card.Swatch = UiKit.RoundPanel("Swatch", panel.transform, Palette.PanelLight, UiKit.RadiusMd, 0.025f, 0.1f, 0.2f, 0.9f);
             card.Sprite = UiKit.IconImage("Sprite", card.Swatch.transform, null, 0.1f, 0.1f, 0.9f, 0.9f);
@@ -105,6 +127,7 @@ namespace WordRPG.UI
             resultText.text = "강화할 성유물을 고르세요\n+3에서 각성하면 기술이 더 강한 기술로 바뀌어요";
             Root.SetActive(true);
             Refresh();
+            scroll.verticalNormalizedPosition = 1f; // 맨 위부터
         }
 
         public void Hide()
@@ -118,20 +141,14 @@ namespace WordRPG.UI
         {
             RefreshMaterials();
             var relics = session.Hero.Relics;
-            int n = Mathf.Min(relics.Count, cards.Count);
-            // 카드 수에 맞춰 세로로 나눠 놓는다 (3장까지는 넉넉하게)
-            const float top = 0.815f, bottom = 0.25f, gap = 0.012f;
-            float h = n > 0 ? Mathf.Min(0.16f, (top - bottom - (n - 1) * gap) / n) : 0.16f;
+            int n = relics.Count;
+            while (cards.Count < n) cards.Add(BuildCard(cards.Count));
             for (int i = 0; i < cards.Count; i++)
             {
                 var card = cards[i];
                 bool has = i < n;
                 card.Root.SetActive(has);
                 if (!has) continue;
-                var rt = (RectTransform)card.Root.transform;
-                float cardTop = top - i * (h + gap);
-                rt.anchorMin = new Vector2(0.03f, cardTop - h);
-                rt.anchorMax = new Vector2(0.97f, cardTop);
 
                 var relic = relics[i];
                 card.Swatch.color = Color.Lerp(Palette.PanelLight, relic.Data.PlaceholderColor, 0.22f);

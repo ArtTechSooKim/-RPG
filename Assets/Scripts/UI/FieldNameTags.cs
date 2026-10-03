@@ -49,15 +49,18 @@ namespace WordRPG.UI
             }
         }
 
-        // 지역이 바뀌면 이름표를 다시 만든다 (이름이 없는 칸 — 연결 안 된 출입구 등 — 은 건너뜀)
-        public void SetArea(FieldArea area)
+        // 지역이 바뀌면 이름표를 다시 만든다 (이름이 없는 칸 — 연결 안 된 출입구 등 — 은 건너뜀).
+        // lockedDoor: 잠긴 출입구는 '숲 · 잠김'처럼 표시
+        public void SetArea(FieldArea area, Func<Vector2Int, bool> lockedDoor = null)
         {
             foreach (var tag in tags) UnityEngine.Object.Destroy(tag.Root.gameObject);
             tags.Clear();
             foreach (var cell in FieldInteraction.Landmarks(area.Map))
             {
                 string name = area.LandmarkName(cell);
-                if (!string.IsNullOrEmpty(name)) tags.Add(MakeTag(cell, name));
+                if (string.IsNullOrEmpty(name)) continue;
+                if (area.Map.Get(cell) == FieldTile.Door && lockedDoor != null && lockedDoor(cell)) name += " · 잠김";
+                tags.Add(MakeTag(cell, name));
             }
         }
 

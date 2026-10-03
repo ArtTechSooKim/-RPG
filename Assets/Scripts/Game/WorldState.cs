@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using WordRPG.Field;
 
 namespace WordRPG.Game
 {
@@ -62,6 +63,10 @@ namespace WordRPG.Game
             var record = explored.Find(e => e.AreaId == area);
             return record != null && record.IsExplored(cell);
         }
+
+        // 출입구가 지금 열려 있는지: 여는 보스가 정해져 있으면 그 보스를 물리쳤을 때만
+        public bool IsExitOpen(AreaExit exit) =>
+            exit == null || exit.OpenedByBossOf == null || IsBossDefeated(exit.OpenedByBossOf.BossId);
 
         public bool IsChestOpened(string chestId) => openedChests.Contains(chestId);
 

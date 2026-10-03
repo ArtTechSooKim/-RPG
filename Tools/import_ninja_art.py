@@ -25,6 +25,11 @@ MONSTERS = {
     "scribble_bat": ("Actor/Monsters/BlueBat/SpriteSheet.png", 16),      # 낙서 박쥐
     "forget_goblin": ("Actor/Monsters/KappaGreen/SpriteSheet.png", 16),  # 까먹깨비
     "boss_forget_king": ("Actor/Boss/GiantSpirit/Idle.png", 50),         # 까먹대왕
+    # 숲 (두 번째 지역)
+    "spell_mushroom": ("Actor/Monsters/Mushroom/mushroom.png", 16),      # 철자버섯
+    "squiggle_snake": ("Actor/Monsters/Snake2/Snake2.png", 16),          # 꼬부랑뱀
+    "question_owl": ("Actor/Monsters/Owl/Owl.png", 16),                  # 물음표부엉이
+    "boss_muddle_raccoon": ("Actor/Boss/GiantRacoon/Idle.png", 60),      # 헷갈너구리
 }
 
 PLAYER = "Actor/Characters/Boy/SpriteSheet.png"
@@ -35,13 +40,17 @@ RELICS = {
     "relic_book": ("Items/Object/Book.png", None),                        # 백과사전 (예전 책껍질)
     "relic_lantern": ("Actor/Monsters/LanternRed/SpriteSheet.png", 16),   # 등불 (예전 등불이)
     "relic_wand": ("Items/Weapons/MagicWand/Sprite.png", None),           # 마법 지팡이
-    "relic_grail": ("Items/Treasure/GoldCup.png", None),                  # 기억의 성배 (보스 보상)
+    "relic_grail": ("Items/Treasure/GoldCup.png", None),                  # 기억의 성배 (서고 보스 보상)
+    "relic_whip": ("Items/Weapons/Whip/Sprite.png", None),                # 덩굴 채찍 (숲 상자)
+    "relic_hourglass": ("Items/Object/Hourglass.png", None),              # 시간의 모래시계 (숲 상자)
+    "relic_leaf": ("Items/Food/TeaLeaf.png", None),                       # 세계수 잎 (숲 보스 보상)
 }
 
 # itemId: 그림 경로 (도트 아이템)
 ITEMS = {
     "potion": "Items/Potion/Medipack.png",       # 상처약
     "potion_large": "Items/Potion/LifePot.png",  # 큰 상처약
+    "keepsake_forest": "Items/Food/Nut.png",     # 도토리 책갈피 (숲 도감 완성 징표)
 }
 
 # 소리: 파일 이름 = 게임 코드의 이름(Music·Sfx 열거형을 소문자로)
@@ -51,6 +60,7 @@ MUSIC = {
     "library": "Audio/Musics/13 - Mystical.ogg",
     "battle": "Audio/Musics/17 - Fight.ogg",
     "boss": "Audio/Musics/28 - Tension.ogg",
+    "forest": "Audio/Musics/11 - Clearing.ogg",
 }
 SFX = {
     "click": "Audio/Sounds/Menu/Move2.wav",  # 가벼운 찰칵 (0.04초)
@@ -66,13 +76,14 @@ SFX = {
     "victory": "Audio/Jingles/Success1.wav",
     "defeat": "Audio/Jingles/GameOver.wav",
     "levelup": "Audio/Jingles/LevelUp1.wav",
-    "newword": "Audio/Sounds/Bonus/PowerUp1.wav",
+    "newword": "Audio/Jingles/Secret3.wav",  # 새 단어 '발견!' 징글 (나오는 동안 배경 음악을 잠깐 멈춤)
     "coin": "Audio/Sounds/Bonus/Coin.wav",
     "fountain": "Audio/Sounds/Magic & Skill/Heal2.wav",
     "evolvelight": "Audio/Sounds/Magic & Skill/Spirit.wav",
     "evolve": "Audio/Jingles/Secret1.wav",
     "dexcomplete": "Audio/Jingles/Success3.wav",
     "door": "Audio/Sounds/Whoosh & Slash/Whoosh2.wav",
+    "gateopen": "Audio/Jingles/Secret2.wav",  # 보스를 물리쳐 새 길이 열릴 때
 }
 AUDIO_OUT = os.path.join(PROJECT, "Assets", "Resources", "Audio")
 
@@ -120,7 +131,8 @@ def crop_front(src, size, dst):
 
 # ------------------------------------------------------------------ 필드 타일
 # 맵 글자 한 칸 = 16×16 한 장. 바닥 위에 물건을 겹쳐 그린 결과를 Tiles/{테마}_{종류}[_done].png 로 저장
-# (_done: 연 보물상자, 쓰러뜨린 보스 자리). 보스는 그림이 커서 3배(48px) 타일로 만든다
+# (_done: 연 보물상자, 쓰러뜨린 보스 자리). 보스는 그림이 커서 3·4배(48·64px) 타일로 만든다
+# 출입구: Door_locked = 보스를 물리쳐야 열리는 막힌 길, Door_{도착 테마} = 그 지역으로 가는 출입구만 다른 그림
 
 class Pack:
     def __init__(self, root):
@@ -163,6 +175,29 @@ def ink(tile):
     return out
 
 
+def tint(tile, mul):
+    """색을 채널별로 곱해 어둡게·물들인다 (숲의 짙은 나무·늪)"""
+    out = tile.copy()
+    px = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, a = px[x, y]
+            px[x, y] = (min(255, int(r * mul[0])), min(255, int(g * mul[1])), min(255, int(b * mul[2])), a)
+    return out
+
+
+def shade_top(tile, rows, mul):
+    """윗부분 몇 줄을 어둡게(mul<1: 나무 그늘이 드리운 숲길 입구) 또는 밝게(mul>1: 햇빛 드는 출구)"""
+    out = tile.copy()
+    px = out.load()
+    for y in range(rows):
+        k = mul + (1 - mul) * y / rows
+        for x in range(out.width):
+            r, g, b, a = px[x, y]
+            px[x, y] = (min(255, int(r * k)), min(255, int(g * k)), min(255, int(b * k)), a)
+    return out
+
+
 def copy_relics_and_items(pack):
     for folder in ("Relics", "Items"):
         os.makedirs(os.path.join(OUT, folder), exist_ok=True)
@@ -179,6 +214,9 @@ def copy_relics_and_items(pack):
 
 def build_tiles(pack):
     boss = pack.frame("Actor/Boss/GiantSpirit/Idle.png", 0, 50).crop((1, 1, 49, 49))
+    raccoon = pack.frame("Actor/Boss/GiantRacoon/Idle.png", 0, 60)
+    raccoon = raccoon.crop(raccoon.getbbox())
+    brambles = pack.tile("TilesetNature.png", 4, 9)  # 엉킨 마른 덤불 = 막힌 길
     book = pack.image("Items/Object/Book.png")
     big_chest = [pack.frame("Items/Treasure/BigTreasureChest.png", i, 16) for i in range(2)]
     small_chest = [pack.frame("Items/Treasure/LittleTreasureChest.png", i, 16) for i in range(2)]
@@ -186,15 +224,18 @@ def build_tiles(pack):
     stall = pack.tile("TilesetElement.png", 14, 0)
 
     themes = {}
-    # 초원: 모래 길, 진한 풀숲(긴 풀잎), 덤불 벽, 물결 물, 굴 입구, 작은 연못(회복의 샘)
+    # 초원: 모래 길, 짧은 잔디, 진한 풀숲(긴 풀잎), 덤불 벽, 물결 물, 굴 입구, 작은 연못(회복의 샘)
     sand = pack.tile("TilesetFloor.png", 1, 1)
     lime = pack.tile("TilesetField.png", 1, 4)
     themes["Meadow"] = {
         "Floor": sand,
+        "Lawn": lime,  # 짧은 잔디 (조우 없음)
         "Grass": over(pack.tile("TilesetField.png", 1, 7), pack.tile("TilesetNature.png", 7, 10)),
         "Wall": over(lime, pack.tile("TilesetNature.png", 1, 10)),
         "Water": pack.tile("TilesetWater.png", 11, 2),
         "Door": over(lime, pack.tile("TilesetNature.png", 7, 13)),
+        "Door_locked": over(lime, brambles),
+        "Door_Forest": shade_top(pack.tile("TilesetFloor.png", 12, 8), 9, 0.45),  # 그늘진 숲길 입구
         "Fountain": pack.tile("TilesetWater.png", 3, 3),
         "Chest": over(sand, big_chest[0]),
         "Chest_done": over(sand, big_chest[1]),
@@ -208,10 +249,12 @@ def build_tiles(pack):
     stone = pack.tile("Interior/TilesetInteriorFloor.png", 16, 13)
     themes["Library"] = {
         "Floor": stone,
+        "Lawn": pack.tile("Interior/TilesetInteriorFloor.png", 12, 7),  # 열람실 초록 카펫 (조우 없음)
         "Grass": over(stone, pack.tile("TilesetFloorDetail.png", 1, 3)),  # 흩어진 종이 조각
         "Wall": over(stone, pack.tile("TilesetElement.png", 3, 8)),
         "Water": ink(pack.tile("TilesetWater.png", 11, 2)),
         "Door": over(stone, pack.tile("TilesetElement.png", 8, 13)),
+        "Door_locked": over(stone, pack.tile("TilesetElement.png", 1, 11)),  # 쇠창살
         "Fountain": over(stone, pack.tile("TilesetDungeon.png", 4, 2)),
         "Chest": over(stone, small_chest[0]),
         "Chest_done": over(stone, small_chest[1]),
@@ -219,6 +262,27 @@ def build_tiles(pack):
         "Shop": over(stone, stall),
         "Boss": over(stone, boss, scale=3),
         "Boss_done": over(stone, book),
+    }
+
+    # 숲: 흙길, 진한 풀 위 고사리(조우), 짙은 덤불 벽, 초록빛 늪, 햇빛 드는 출구(초원으로)
+    dirt = pack.tile("TilesetFloor.png", 12, 8)
+    moss = pack.tile("TilesetField.png", 1, 7)
+    deep = tint(moss, (0.62, 0.72, 0.62))
+    themes["Forest"] = {
+        "Floor": dirt,
+        "Lawn": moss,  # 이끼 낀 땅 (조우 없음)
+        "Grass": over(moss, pack.tile("TilesetNature.png", 4, 11)),
+        "Wall": over(deep, tint(pack.tile("TilesetNature.png", 10, 9), (0.55, 0.75, 0.55))),
+        "Water": tint(pack.tile("TilesetWater.png", 11, 2), (0.55, 0.85, 0.7)),
+        "Door": shade_top(sand, 16, 1.25),  # 밝은 모래길 = 초원으로 나가는 길
+        "Door_locked": over(moss, brambles),
+        "Fountain": pack.tile("TilesetWater.png", 3, 3),
+        "Chest": over(dirt, big_chest[0]),
+        "Chest_done": over(dirt, big_chest[1]),
+        "Altar": over(dirt, gem),
+        "Shop": over(dirt, stall),
+        "Boss": over(dirt, raccoon, scale=4),
+        "Boss_done": over(dirt, book),
     }
 
     folder = os.path.join(OUT, "Tiles")

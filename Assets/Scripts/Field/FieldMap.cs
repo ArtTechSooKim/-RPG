@@ -14,15 +14,18 @@ namespace WordRPG.Field
         Chest,    // 보물상자 (막힘, 옆에서 [확인] → 열기)
         Altar,    // 성유물 제단 (막힘, 옆에서 [확인] → 성유물 강화 화면)
         Shop,     // 상점 (막힘, 옆에서 [확인] → 상점 화면)
-        Door,     // 출입구 — 걸어 들어가면 다른 지역으로 이동
-        Boss      // 보스 (막힘, 옆에서 [확인] → 보스 전투)
+        Door,     // 출입구 — 걸어 들어가면 다른 지역으로 이동 (보스를 물리쳐야 열리는 것도 있음: AreaExit)
+        Boss,     // 보스 (막힘, 옆에서 [확인] → 보스 전투)
+        Lawn      // 짧은 잔디·카펫·이끼 땅 — 걸을 수 있고 조우 없음 (탁 트인 곳)
     }
 
-    // 지역 분위기에 따라 같은 칸도 다르게 그린다 (초원: 나무·풀숲·물 / 서고: 책장·흩어진 책장·잉크 웅덩이)
+    // 지역 분위기에 따라 같은 칸도 다르게 그린다 (초원: 나무·풀숲·물 / 서고: 책장·흩어진 책장·잉크 웅덩이 / 숲: 짙은 덤불·고사리·늪)
+    // 에셋에 번호로 저장되므로 새 테마는 맨 뒤에 추가
     public enum FieldTheme
     {
         Meadow,
-        Library
+        Library,
+        Forest
     }
 
     public enum Direction
@@ -48,7 +51,7 @@ namespace WordRPG.Field
     }
 
     // 맵 텍스트 → 격자.
-    //   '.' 길   ',' 풀숲(조우)   '#' 나무(막힘)   '~' 물(막힘)   'P' 시작 위치(길)
+    //   '.' 길   ':' 잔디(조우 없음)   ',' 풀숲(조우)   '#' 나무(막힘)   '~' 물(막힘)   'P' 시작 위치(길)
     //   옆에서 [확인]으로 쓰는 칸: 'F' 회복의 샘   'C' 보물상자   'E' 성유물 제단   'S' 상점   'B' 보스
     //   'D' 출입구 (밟으면 다른 지역으로)
     // 좌표: x는 오른쪽, y는 위쪽 (맨 아래 줄이 y=0) — Unity 월드 좌표와 같은 방향
@@ -107,6 +110,7 @@ namespace WordRPG.Field
                     switch (c)
                     {
                         case '.': tiles[x, y] = FieldTile.Floor; break;
+                        case ':': tiles[x, y] = FieldTile.Lawn; break;
                         case ',': tiles[x, y] = FieldTile.Grass; break;
                         case '#': tiles[x, y] = FieldTile.Wall; break;
                         case '~': tiles[x, y] = FieldTile.Water; break;
@@ -147,7 +151,7 @@ namespace WordRPG.Field
         public FieldTile Get(Vector2Int p) => InBounds(p) ? tiles[p.x, p.y] : FieldTile.Wall;
 
         public static bool IsWalkable(FieldTile tile) =>
-            tile == FieldTile.Floor || tile == FieldTile.Grass || tile == FieldTile.Door;
+            tile == FieldTile.Floor || tile == FieldTile.Lawn || tile == FieldTile.Grass || tile == FieldTile.Door;
 
         // 걸을 수는 없지만 옆에서 [확인]을 누르면 무언가 일어나는 칸
         public static bool IsInteractive(FieldTile tile) =>

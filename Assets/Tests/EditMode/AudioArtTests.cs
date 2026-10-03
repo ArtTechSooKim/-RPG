@@ -42,6 +42,19 @@ namespace WordRPG.Tests
         }
 
         [Test]
+        public void EveryThemeHasLockedDoorArt()
+        {
+            foreach (FieldTheme theme in Enum.GetValues(typeof(FieldTheme)))
+            {
+                string path = $"Art/NinjaAdventure/Tiles/{theme}_Door_locked";
+                Assert.IsNotNull(Resources.Load<Texture2D>(path), $"Resources/{path} 없음 (보스를 물리쳐야 열리는 출입구)");
+                Assert.AreNotSame(FieldArt.ForDoor(theme, null, false), FieldArt.ForDoor(theme, null, true), $"{theme}: 잠긴 출입구는 다른 그림");
+            }
+            Assert.AreNotSame(FieldArt.ForDoor(FieldTheme.Meadow, FieldTheme.Library, false),
+                FieldArt.ForDoor(FieldTheme.Meadow, FieldTheme.Forest, false), "초원 → 숲 출입구는 숲길 입구 그림");
+        }
+
+        [Test]
         public void PlayerSheetHasFourDirectionsOfWalkFrames()
         {
             var sheet = Resources.Load<Texture2D>(PlayerArt.SheetPath);

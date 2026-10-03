@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ec416e140bfc414b93cb9aa6306ba85, type: 3}
+  m_Name: boss_muddle_raccoon
+  m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.MonsterSpecies
+  speciesId: boss_muddle_raccoon
+  displayName: "\uD5F7\uAC08\uB108\uAD6C\uB9AC"
+  description: "\uC232\uC758 \uB2E8\uC5B4\uB97C \uB4A4\uC8FD\uBC15\uC8FD \uC11E\uC5B4
+    \uBC84\uB9AC\uB294 \uCEE4\uB2E4\uB780 \uB108\uAD6C\uB9AC. \uC232 \uAE4A\uC740
+    \uACF5\uD130\uC5D0 \uC0B0\uB2E4."
+  role: 0
+  sprite: {fileID: 21300000, guid: 740dd81b9bc98fc4b8d9902f256f28b0, type: 3}
+  placeholderColor: {r: 0.8, g: 0.35, b: 0.25, a: 1}
+  baseStats:
+    maxHp: 70
+    attack: 16
+    defense: 14
+  growthPerLevel:
+    maxHp: 9
+    attack: 3
+    defense: 2
+  skills:
+  - {fileID: 11400000, guid: bfc2bb4c159efc94b8ffbf80fb958af0, type: 2}
+  - {fileID: 11400000, guid: 073b4f7c5b69b1144bc3eed1b6142f57, type: 2}
+  - {fileID: 11400000, guid: 9bd8ba9cf382cfa4b918684e60cde2db, type: 2}
+  expReward: 45
+  goldReward: 60
+  drops:
+  - item: {fileID: 11400000, guid: d068093b31fa6bd479a9978022d8bc1f, type: 2}
+    chance: 1
+    count: 2
+  - item: {fileID: 11400000, guid: 4ef0a20b2f82e9c4c8ea2a134a013bf4, type: 2}
+    chance: 1
+    count: 2
+  - item: {fileID: 11400000, guid: 83903ba43d39288409cddb3a5f7b0f43, type: 2}
+    chance: 1
+    count: 2

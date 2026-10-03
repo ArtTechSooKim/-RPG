@@ -45,7 +45,7 @@ namespace WordRPG.Tests
         {
             foreach (FieldTheme theme in System.Enum.GetValues(typeof(FieldTheme)))
             foreach (var landmark in new[] { FieldTile.Chest, FieldTile.Fountain, FieldTile.Altar, FieldTile.Shop, FieldTile.Door, FieldTile.Boss })
-            foreach (var terrain in new[] { FieldTile.Floor, FieldTile.Grass, FieldTile.Wall, FieldTile.Water })
+            foreach (var terrain in new[] { FieldTile.Floor, FieldTile.Lawn, FieldTile.Grass, FieldTile.Wall, FieldTile.Water })
                 Assert.AreNotEqual(MinimapArt.ColorOf(terrain, theme, false), MinimapArt.ColorOf(landmark, theme, false),
                     $"{theme}: {landmark}와 {terrain} 색이 같음");
         }

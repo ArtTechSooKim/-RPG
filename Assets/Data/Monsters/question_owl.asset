@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ec416e140bfc414b93cb9aa6306ba85, type: 3}
+  m_Name: question_owl
+  m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.MonsterSpecies
+  speciesId: question_owl
+  displayName: "\uBB3C\uC74C\uD45C\uBD80\uC5C9\uC774"
+  description: "\uBB34\uC5C7\uC774\uB4E0 '\uADF8\uAC8C \uBB50\uB354\uB77C?' \uD558\uACE0
+    \uB418\uBB3B\uB294 \uBD80\uC5C9\uC774. \uBC24\uB0AE\uC5C6\uC774 \uC232\uC744
+    \uC9C0\uD0A8\uB2E4."
+  role: 1
+  sprite: {fileID: 21300000, guid: fe309bbe785a19c43937d721d95257f4, type: 3}
+  placeholderColor: {r: 0.85, g: 0.5, b: 0.25, a: 1}
+  baseStats:
+    maxHp: 34
+    attack: 12
+    defense: 12
+  growthPerLevel:
+    maxHp: 6
+    attack: 2
+    defense: 2
+  skills:
+  - {fileID: 11400000, guid: c61dc38d20ded1b49805d0d033a2a899, type: 2}
+  expReward: 13
+  goldReward: 12
+  drops:
+  - item: {fileID: 11400000, guid: 83903ba43d39288409cddb3a5f7b0f43, type: 2}
+    chance: 0.4
+    count: 1
+  - item: {fileID: 11400000, guid: 4ef0a20b2f82e9c4c8ea2a134a013bf4, type: 2}
+    chance: 0.2
+    count: 1

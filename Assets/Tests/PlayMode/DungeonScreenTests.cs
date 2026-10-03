@@ -168,6 +168,81 @@ namespace WordRPG.Tests
         }
 
         [UnityTest]
+        public IEnumerator BossOpensLockedGateAndCameraShowsIt()
+        {
+            var hero = Hero();
+            var bite = TestData.Skill("bite", SkillKind.Damage, SkillTarget.SingleEnemy, 1);
+            var king = TestData.Species("king", new MonsterStats(40, 1, 50), new MonsterStats(0, 0, 0), bite)
+                .Set("displayName", "까먹대왕");
+            //  마을  y=3 ##D##  ← 숲 (보스 방의 보스를 물리쳐야 열림)      보스 방  y=3 #####
+            //        y=2 #...#                                           y=2 #.B.#
+            //        y=1 #.P.#                                           y=1 #.P.#
+            //        y=0 ##D##  ← 보스 방                                y=0 ##D##
+            var town = Area("town", "마을", "##D##\n#...#\n#.P.#\n##D##", hero);
+            var forest = Area("forest", "숲", "###\n#P#\n#D#", hero).Set("theme", FieldTheme.Forest);
+            var lair = Area("lair", "보스 방", "#####\n#.B.#\n#.P.#\n##D##", hero).Set("theme", FieldTheme.Library)
+                .Set("boss", new BossEncounter(king, 3));
+            town.Set("exits", new List<AreaExit> { new AreaExit(forest, 0, lair), new AreaExit(lair, 0) });
+            forest.Set("exits", new List<AreaExit> { new AreaExit(town, 0) });
+            lair.Set("exits", new List<AreaExit> { new AreaExit(town, 1) });
+            var database = ScriptableObject.CreateInstance<GameDatabase>();
+            database.ReplaceContents(new[] { hero, king }, new ItemData[0], new[] { town, forest, lair });
+            var session = GameSession.NewGame(Player(), 1);
+            var field = CreateField(town, session, database);
+            yield return null;
+            yield return null;
+
+            CollectionAssert.Contains(field.VisibleNameTags, "숲 · 잠김", "잠긴 출입구 이름표");
+
+            // 위로 한 칸 → 숲 출입구는 덤불로 막혀 있음
+            yield return HoldPad(field, "Pad_Up", () => field.IsMoving);
+            yield return WaitFor(() => !field.IsMoving);
+            yield return HoldPad(field, "Pad_Up", () => field.ToastMessage.Contains("막혀"));
+            Assert.AreEqual(new Vector2Int(2, 2), field.PlayerCell, "잠긴 출입구는 못 지나감");
+            StringAssert.Contains("보스 방의 까먹대왕을 물리치면", field.ToastMessage);
+            Assert.AreSame(town, field.CurrentArea);
+
+            // 아래로 → 보스 방 → 보스를 물리침
+            yield return HoldPad(field, "Pad_Down", () => field.IsMoving);
+            yield return HoldPad(field, "Pad_Down", () => field.IsMoving);
+            yield return WaitFor(() => field.CurrentArea == lair && !field.IsInBattle);
+            yield return HoldPad(field, "Pad_Up", () => field.IsMoving);
+            yield return WaitFor(() => !field.IsMoving);
+            yield return FacePad(field, "Pad_Up", Direction.Up);
+            yield return PressConfirm(field);
+            yield return WaitFor(() => field.Battle.IsRunning);
+            yield return PlayUntilResult(field.Battle, answerCorrectly: true);
+            FindButton(field.Battle.transform, "ResultButton_Primary").onClick.Invoke();
+
+            // 카메라가 마을의 숲 출입구로 가서 길이 열리는 것을 보여 주고 돌아옴
+            yield return WaitFor(() => field.IsRevealingGate);
+            Assert.IsTrue(field.IsInBattle, "연출 중에는 움직이거나 메뉴를 열 수 없음");
+            yield return WaitFor(() => !field.IsInBattle && !field.IsRevealingGate);
+            Assert.AreEqual(1, field.RevealedGates.Count);
+            Assert.AreSame(town, field.RevealedGates[0].Area);
+            Assert.AreEqual(new Vector2Int(2, 3), field.RevealedGates[0].Cell);
+            Assert.LessOrEqual(Vector2.Distance(field.LastGateCamera, new Vector2(2.5f, 3.5f)), 3.2f, "길이 열릴 때 카메라는 출입구 근처를 비춤");
+            StringAssert.Contains("숲으로 가는 길이 열렸다", field.LastGateBanner);
+            Assert.AreSame(lair, field.CurrentArea, "연출이 끝나면 보스 방으로 돌아옴");
+            Assert.AreEqual(new Vector2Int(2, 1), field.PlayerCell);
+            Assert.Less(Vector2.Distance(field.CameraPosition, new Vector2(2.5f, 1.5f)), 3f, "카메라도 주인공에게 돌아옴");
+            StringAssert.Contains("숲으로 가는 길이 열렸다", field.ToastMessage);
+            Assert.IsTrue(session.World.IsExitOpen(town.Exits[0]));
+
+            // 마을로 돌아가 열린 길로 숲에 들어감
+            yield return HoldPad(field, "Pad_Down", () => field.IsMoving);
+            yield return WaitFor(() => field.CurrentArea == town && !field.IsInBattle);
+            yield return HoldPad(field, "Pad_Up", () => field.IsMoving);
+            CollectionAssert.Contains(field.VisibleNameTags, "숲", "열린 뒤에는 '잠김' 없이");
+            for (int i = 0; i < 2; i++) yield return HoldPad(field, "Pad_Up", () => field.IsMoving || field.CurrentArea == forest);
+            yield return WaitFor(() => field.CurrentArea == forest && !field.IsInBattle);
+            Assert.AreSame(forest, field.CurrentArea);
+
+            Object.Destroy(field.gameObject);
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator StartsInTheAreaWhereTheGameWasSaved()
         {
             var hero = Hero();

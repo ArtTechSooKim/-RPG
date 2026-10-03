@@ -25,21 +25,30 @@ namespace WordRPG.UI
 
         public static readonly Color OutsideMap = new Color(0.10f, 0.22f, 0.12f);
 
-        public static Color OutsideColor(FieldTheme theme) =>
-            theme == FieldTheme.Library ? new Color(0.12f, 0.08f, 0.06f) : OutsideMap;
+        public static Color OutsideColor(FieldTheme theme)
+        {
+            switch (theme)
+            {
+                case FieldTheme.Library: return new Color(0.12f, 0.08f, 0.06f);
+                case FieldTheme.Forest: return new Color(0.05f, 0.14f, 0.08f);
+                default: return OutsideMap;
+            }
+        }
 
         // opened: 보물상자는 연 상태, 보스는 쓰러뜨린 뒤 모습
         public static Sprite ForTile(FieldTile tile, FieldTheme theme = FieldTheme.Meadow, bool opened = false)
         {
             bool library = theme == FieldTheme.Library;
-            Func<int, int, Color> ground = library ? (Func<int, int, Color>)Planks : Path;
+            bool forest = theme == FieldTheme.Forest;
+            Func<int, int, Color> ground = library ? Planks : forest ? Dirt : (Func<int, int, Color>)Path;
             string t = theme + "_";
             switch (tile)
             {
-                case FieldTile.Grass: return library ? Make(t + "grass", Pages) : Make(t + "grass", Grass);
-                case FieldTile.Wall: return library ? Make(t + "wall", Bookshelf) : Make(t + "wall", Tree);
-                case FieldTile.Water: return library ? Make(t + "water", InkPool) : Make(t + "water", Water);
-                case FieldTile.Door: return Make(t + "door", (x, y) => DoorPixel(x, y, library));
+                case FieldTile.Grass: return library ? Make(t + "grass", Pages) : forest ? Make(t + "grass", Fern) : Make(t + "grass", Grass);
+                case FieldTile.Lawn: return library ? Make(t + "lawn", Carpet) : forest ? Make(t + "lawn", Moss) : Make(t + "lawn", Lawn);
+                case FieldTile.Wall: return library ? Make(t + "wall", Bookshelf) : forest ? Make(t + "wall", DeepTree) : Make(t + "wall", Tree);
+                case FieldTile.Water: return library ? Make(t + "water", InkPool) : forest ? Make(t + "water", Swamp) : Make(t + "water", Water);
+                case FieldTile.Door: return Make(t + "door", (x, y) => DoorPixel(x, y, library, forest));
                 case FieldTile.Fountain: return Make(t + "fountain", Layer(Fountain, ground));
                 case FieldTile.Chest:
                     return opened ? Make(t + "chest_open", Layer(ChestOpen, ground)) : Make(t + "chest", Layer(ChestClosed, ground));
@@ -49,6 +58,13 @@ namespace WordRPG.UI
                     return opened ? Make(t + "boss_cleared", Layer(OpenBook, ground)) : Make(t + "boss", Layer(BossPixel, ground));
                 default: return Make(t + "floor", ground);
             }
+        }
+
+        // 잠긴 출입구: 출입구 위를 엉킨 가시덤불이 막고 있다
+        public static Sprite LockedDoor(FieldTheme theme)
+        {
+            var door = ForTile(FieldTile.Door, theme).texture;
+            return Make(theme + "_door_locked", Layer(Brambles, (x, y) => door.GetPixel(x, y)));
         }
 
         private static Func<int, int, Color> Layer(Func<int, int, Color> top, Func<int, int, Color> bottom) =>
@@ -85,6 +101,53 @@ namespace WordRPG.UI
         }
 
         private static Color Water(int x, int y) => (x + y * 3) % 8 == 0 && y % 4 == 1 ? WaterWave : WaterColor;
+
+        // 짧은 잔디 (조우 없음)
+        private static Color Lawn(int x, int y) => Noise(x, y, 5) < 0.06f ? GrassBlade : Ground;
+
+        private static Color Brambles(int x, int y)
+        {
+            if (x < 1 || x > 14 || y > 13) return Color.clear;
+            bool vine = (x + y) % 5 == 0 || (x - y + 16) % 6 == 0;
+            if (vine) return new Color(0.35f, 0.2f, 0.1f);
+            return (x * 3 + y) % 7 == 0 ? new Color(0.75f, 0.2f, 0.15f) : Color.clear; // 가시 끝
+        }
+
+        // ------------------------------------------------------------ 숲 테마
+
+        private static readonly Color MossColor = new Color(0.24f, 0.45f, 0.22f);
+
+        private static Color Dirt(int x, int y) =>
+            Noise(x, y, 11) < 0.15f ? new Color(0.45f, 0.3f, 0.18f) : new Color(0.55f, 0.38f, 0.24f);
+
+        private static Color Moss(int x, int y) => Noise(x, y, 13) < 0.08f ? new Color(0.3f, 0.55f, 0.27f) : MossColor;
+
+        // 고사리 — 조우 칸
+        private static Color Fern(int x, int y)
+        {
+            int dx = Math.Abs(x - 7);
+            if (y >= 2 && y <= 13 && (dx == 0 || y > 4 && dx == (13 - y) / 2)) return new Color(0.12f, 0.35f, 0.14f);
+            if (y >= 3 && y <= 12 && dx <= (13 - y) / 2 + 1 && (x + y) % 2 == 0) return new Color(0.35f, 0.62f, 0.28f);
+            return MossColor;
+        }
+
+        private static Color DeepTree(int x, int y)
+        {
+            float dx = x - 7.5f, dy = y - 8f;
+            float d = Mathf.Sqrt(dx * dx + dy * dy);
+            if (d <= 7.2f) return dx < -1f && dy > 1f ? new Color(0.14f, 0.36f, 0.18f) : new Color(0.07f, 0.24f, 0.11f);
+            return new Color(0.12f, 0.28f, 0.14f);
+        }
+
+        private static Color Swamp(int x, int y) =>
+            (x * 5 + y * 3) % 11 == 0 ? new Color(0.45f, 0.7f, 0.55f) : new Color(0.16f, 0.42f, 0.36f);
+
+        // 서고 열람실 카펫 (조우 없음)
+        private static Color Carpet(int x, int y)
+        {
+            if (x == 0 || y == 0) return new Color(0.32f, 0.42f, 0.32f);
+            return (x + y) % 4 == 0 ? new Color(0.42f, 0.52f, 0.4f) : new Color(0.46f, 0.56f, 0.44f);
+        }
 
         private static Color Fountain(int x, int y)
         {
@@ -181,9 +244,10 @@ namespace WordRPG.UI
             return new Color(0.11f, 0.09f, 0.24f);
         }
 
-        // 출입구: 초원은 바위 동굴 입구, 서고는 나무 문틀 — 안쪽이 어둡다
-        private static Color DoorPixel(int x, int y, bool library)
+        // 출입구: 초원은 바위 동굴 입구, 서고는 나무 문틀 — 안쪽이 어둡다. 숲은 햇빛 드는 모래길 (초원으로 나가는 길)
+        private static Color DoorPixel(int x, int y, bool library, bool forest)
         {
+            if (forest) return y >= 10 ? new Color(0.93f, 0.85f, 0.6f) : PathColor;
             var wall = library ? new Color(0.25f, 0.15f, 0.08f) : new Color(0.45f, 0.45f, 0.5f);
             var rim = library ? new Color(0.55f, 0.38f, 0.2f) : new Color(0.32f, 0.32f, 0.36f);
             float dx = x - 7.5f;

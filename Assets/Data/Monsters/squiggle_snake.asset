@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ec416e140bfc414b93cb9aa6306ba85, type: 3}
+  m_Name: squiggle_snake
+  m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.MonsterSpecies
+  speciesId: squiggle_snake
+  displayName: "\uAF2C\uBD80\uB791\uBC40"
+  description: "\uBAB8\uC744 \uAF2C\uBD80\uB791 \uAE00\uC528\uCC98\uB7FC \uBE44\uD2C0\uC5B4
+    \uC77D\uB294 \uC0AC\uB78C\uC744 \uD5F7\uAC08\uB9AC\uAC8C \uD558\uB294 \uBC40."
+  role: 0
+  sprite: {fileID: 21300000, guid: b2b38693b4ee67c4092dbb936cc17d0b, type: 3}
+  placeholderColor: {r: 0.4, g: 0.65, b: 0.3, a: 1}
+  baseStats:
+    maxHp: 24
+    attack: 14
+    defense: 8
+  growthPerLevel:
+    maxHp: 5
+    attack: 3
+    defense: 1
+  skills:
+  - {fileID: 11400000, guid: dca0d060478b0834eb69b9c3e9bdff1e, type: 2}
+  expReward: 11
+  goldReward: 10
+  drops:
+  - item: {fileID: 11400000, guid: 4ef0a20b2f82e9c4c8ea2a134a013bf4, type: 2}
+    chance: 0.35
+    count: 1
+  - item: {fileID: 11400000, guid: d068093b31fa6bd479a9978022d8bc1f, type: 2}
+    chance: 0.2
+    count: 1
