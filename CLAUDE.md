@@ -116,7 +116,8 @@ Assets/
   Tests/PlayMode/       WordRPG.Tests.PlayMode.asmdef (UI 버튼을 눌러 전투 한 판 진행)
   Data/                 Words, Hero(hero.asset), Relics, Monsters(적), Skills, Items, Encounters, Areas, Shops (SO 에셋), GameDatabase.asset
   Scenes/               Title.unity (빌드 첫 씬) → Field.unity (본 게임), Battle.unity (전투만 반복하는 연습 씬)
-Docs/                   PRD.txt, GDD.md, 아트에셋목록.md
+Docs/                   PRD.txt, GDD.md, 아트에셋목록.md, 아이폰출시방법.txt(TestFlight 올리는 순서), 작업메모.md
+.github/workflows/      ios-testflight.yml (GitHub Mac 서버에서 서명·TestFlight 업로드)
 Tools/                  import_ninja_art.py (에셋 팩 → 프로젝트, Pillow 필요), zip_ios_for_mac.py (Xcode 프로젝트 → Mac용 zip, 실행 권한 유지)
 ```
 
@@ -138,6 +139,8 @@ UNITY="C:/Program Files/Unity/Hub/Editor/6000.3.11f1/Editor/Unity.exe"
 #   사용자 프로젝트의 플랫폼을 바꾸지 않으려면 Library 없는 복사본에서 빌드 (Docs/작업메모.md)
 "$UNITY" -batchmode -quit -projectPath . -buildTarget iOS -executeMethod WordRPG.EditorTools.MobileBuild.BuildIos -logFile build-ios.log
 python Tools/zip_ios_for_mac.py [Xcode 프로젝트 폴더, 기본 Builds/iOS]
+# Mac 없이 TestFlight로: zip을 릴리스로 올리면 .github/workflows/ios-testflight.yml이 서명·업로드 (gh = %LOCALAPPDATA%/gh-cli/bin/gh.exe)
+"$LOCALAPPDATA/gh-cli/bin/gh.exe" release create ios-build-0.1-1 Builds/WordRPG-iOS-0.1-build1.zip --prerelease --title "iOS 빌드 0.1 (1)"
 "$UNITY" -batchmode -quit -projectPath . -buildTarget Android -executeMethod WordRPG.EditorTools.MobileBuild.BuildAndroidApk -logFile build-android.log
 # 샘플 데이터 + 씬 생성
 "$UNITY" -batchmode -quit -nographics -projectPath . -executeMethod WordRPG.EditorTools.SceneBuilder.CreateAllScenes -logFile build.log
@@ -147,3 +150,4 @@ python Tools/zip_ios_for_mac.py [Xcode 프로젝트 폴더, 기본 Builds/iOS]
 
 - F: 드라이브는 소유권을 기록하지 않는 파일시스템이라 Git이 `safe.directory` 등록을 요구함 (등록 완료)
 - 상위 폴더 `F:\GameProject`는 별개 저장소(Spiritual-Warfare)이므로 거기서 git 명령 실행 주의
+- **저장소가 공개**: 애플 키(.p8)·인증서는 .gitignore로 막혀 있음. 키 번호·발급자 ID 같은 값도 저장소 문서에 적지 말 것 (GitHub 비밀값으로만)

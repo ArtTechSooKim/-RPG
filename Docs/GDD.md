@@ -371,7 +371,12 @@
   **아이폰에서는 끝내기 확인을 띄우지 않음** (애플 지침: 앱이 스스로 종료하면 안 됨 — `GameManager.CanQuit`)
 - 앱 아이콘: Figma 'App Icon (#28)' → `Assets/Branding/AppIcon.png` 1024px, **투명 채널 없음**(앱스토어 조건, MobileBuildTests가 검사)
 - 회사 이름(companyName)은 `DefaultCompany` 그대로 — 바꾸면 PC 세이브(persistentDataPath)·설정(PlayerPrefs) 위치가 바뀜
-- 아이폰 빌드 흐름 (사용자는 Mac 있음): Windows에서 iOS Build Support로 Xcode 프로젝트(`Builds/iOS`) →
+- **Mac 없이 올리기 (지금 방법, 2026-10-03 — 사용자 Mac이 오래돼 Xcode 불가)**: `.github/workflows/ios-testflight.yml`.
+  Windows에서 Xcode 프로젝트 zip을 만들어 `gh release create ios-build-<버전>-<번호> <zip> --prerelease`로 올리면 GitHub macOS 러너가
+  최신 Xcode로 서명 없이 Archive(`CODE_SIGNING_ALLOWED=NO`) → `-exportArchive`(method app-store-connect, destination upload,
+  자동 서명 = 애플 클라우드 서명, API 키 인증, 빌드 번호 자동 증가) → 릴리스 삭제. 비밀값: APPSTORE_KEY_ID·APPSTORE_ISSUER_ID·
+  APPSTORE_KEY_P8·APPLE_TEAM_ID. 앱스토어 커넥트 약관이 만료되면 API·업로드가 모두 403 (REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED)
+- (참고) Mac에서 직접: Windows에서 iOS Build Support로 Xcode 프로젝트(`Builds/iOS`) →
   `python Tools/zip_ios_for_mac.py` (실행 파일에 Unix 권한 755를 넣어 묶음 — 안 그러면 Xcode의 process_symbols.sh·il2cpp 도구가
   Permission denied) → `Builds/WordRPG-iOS-{버전}-build{번호}.zip` → Mac의 Xcode에서 서명·실행·Archive → 앱스토어 커넥트 업로드
   (앱 번호 6787575524) → TestFlight 시험 → 심사. Mac 단계 설명서 = `Docs/아이폰출시방법.txt` (zip에도 들어감).

@@ -109,3 +109,9 @@ InitTestScene*.unity*
 # IDE 설정 (Unity가 자동 생성)
 .vscode/
 .idea/
+
+# 애플 API 키·인증서 — 공개 저장소에 절대 올리지 말 것
+*.p8
+*.p12
+*.mobileprovision
+AuthKey_*

@@ -1,6 +1,28 @@
 ==================================================================
- 영단어RPG — Mac에서 아이폰 빌드 · TestFlight 올리기
+ 영단어RPG — 아이폰 빌드 · TestFlight 올리기
 ==================================================================
+
+ ★ 지금 쓰는 방법: Mac 없이 GitHub의 Mac 서버로 (2026-10-03 — 사용자 Mac이 오래돼 Xcode 설치 불가)
+ -----------------------------------------------------------------------------------------------
+  준비 (처음 한 번)
+   1) 앱스토어 커넥트에서 약관 동의 (계정 주인 로그인 → 위쪽 안내). 동의가 안 돼 있으면 애플이 업로드를 막음
+   2) 앱스토어 커넥트 > 사용자 및 액세스 > 통합 > App Store Connect API > 팀 키 > + (액세스 '관리자') → .p8 다운로드
+      → F:\GameProject\WordRPG 폴더에 두기 (깃에 안 올라가게 막혀 있음)
+   3) GitHub 로그인 (Claude가 코드를 알려 주면 github.com/login/device 에서 입력)
+   4) Claude가 GitHub 저장소 비밀값 4개를 넣음: APPSTORE_KEY_ID, APPSTORE_ISSUER_ID, APPSTORE_KEY_P8, APPLE_TEAM_ID
+      (직접 넣으려면 저장소 Settings > Secrets and variables > Actions > New repository secret)
+  올릴 때마다 (Claude에게 "TestFlight에 올려 줘")
+   - Windows에서 Unity로 Xcode 프로젝트 → zip → GitHub '릴리스'(ios-build-…)로 올림
+   - GitHub의 Mac 서버가 서명하고 앱스토어 커넥트에 업로드 (20~40분), 빌드 번호는 자동으로 다음 번호
+   - 진행 상황: github.com/ArtTechSooKim/WordRPG/actions
+  업로드가 끝나면
+   - 앱스토어 커넥트 > 앱 > TestFlight 에 빌드가 나타남 ('처리 중' → 완료, 10~30분)
+   - TestFlight > 내부 테스트 > + 로 그룹을 만들고 나를 테스터로 추가 → 아이폰에 'TestFlight' 앱을 깔면 영단어RPG를 설치할 수 있음
+   - 확인할 것: 한글 글꼴, 방향 패드 조작감, 화면 위(노치)·아래(홈 막대)에 가리는 곳, 소리(무음 스위치)·진동,
+     앱을 내렸다가 다시 열었을 때 이어지는지
+
+ (참고) Mac에서 직접 올리는 방법 — Xcode가 깔리는 Mac이 생기면
+ -------------------------------------------------------------
  Windows에서 만든 Xcode 프로젝트(WordRPG-iOS-버전.zip)를 Mac에서 열어 서명하고 올린다.
  zip은 Windows의 F:\GameProject\WordRPG\Builds\ 폴더에 있음 (USB·클라우드 드라이브 등으로 Mac에 옮기기)
  앱 고유 이름(번들 ID): com.arttechsoo.wordrpg   /   앱스토어 커넥트 앱 번호: 6787575524
