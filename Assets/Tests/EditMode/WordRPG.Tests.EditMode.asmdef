@@ -3,6 +3,7 @@
     "rootNamespace": "WordRPG.Tests",
     "references": [
         "WordRPG",
+        "WordRPG.Editor",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

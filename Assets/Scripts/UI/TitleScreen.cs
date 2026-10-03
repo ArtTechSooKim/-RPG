@@ -53,7 +53,8 @@ namespace WordRPG.UI
             if (dialog == null) return;
             if (dialog.IsOpen) dialog.Hide();
             else if (settingsView.IsOpen) settingsView.Hide();
-            else dialog.Show("게임을 끝낼까요?", "다음에 켜면 [이어하기]로 계속할 수 있어요.", "끝내기", false, GameManager.QuitGame);
+            else if (GameManager.CanQuit)
+                dialog.Show("게임을 끝낼까요?", "다음에 켜면 [이어하기]로 계속할 수 있어요.", "끝내기", false, GameManager.QuitGame);
         }
 
         public bool IsDialogOpen => dialog != null && dialog.IsOpen;

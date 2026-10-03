@@ -130,6 +130,9 @@ namespace WordRPG.Game
             Save();
         }
 
+        // 아이폰은 앱이 스스로 꺼지면 안 된다 (애플 지침 — 홈으로 나가서 닫음) → 끝내기 확인 창을 띄우지 않는다
+        public static bool CanQuit => Application.platform != RuntimePlatform.IPhonePlayer;
+
         // 뒤로가기 → '게임을 끝낼까요?' → 끝내기: 저장하고 앱 종료 (에디터에서는 아무 일도 없음)
         public static void QuitGame()
         {

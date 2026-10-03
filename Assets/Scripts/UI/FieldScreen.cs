@@ -328,7 +328,8 @@ namespace WordRPG.UI
             else if (dexView.IsOpen) dexView.Hide();
             else if (settingsView.IsOpen) settingsView.Hide();
             else if (mapView.IsOpen) mapView.Hide();
-            else quitDialog.Show("게임을 끝낼까요?", "지금까지의 기록은 자동으로 저장돼요.", "끝내기", false, GameManager.QuitGame);
+            else if (GameManager.CanQuit)
+                quitDialog.Show("게임을 끝낼까요?", "지금까지의 기록은 자동으로 저장돼요.", "끝내기", false, GameManager.QuitGame);
         }
 
         private static bool ConfirmKeyPressed()

@@ -20,7 +20,8 @@
 | 상점 | **상처약만** 판다 (2026-10-02 사용자 결정 — 강화 재료를 사면 너무 쉬움). 상처약은 필드·전투 둘 다 사용 |
 | 맵/이동 | **탑다운 타일맵 + 풀숲 랜덤 조우** |
 | 화면 방향 | **세로 고정** |
-| 프로젝트 경로 | `F:\GameProject\WordRPG` (한글 경로는 Android 빌드 실패 위험) |
+| 프로젝트 경로 | `F:\GameProject\WordRPG` (한글 경로는 모바일 빌드 실패 위험) |
+| 출시 | **아이폰 앱스토어** (2026-10-03 사용자 결정 — 안드로이드는 출시 안 함). 번들 ID **`com.arttechsoo.wordrpg`** (확정, 바꾸면 안 됨) |
 | 게임 이름 | **영단어RPG** (타이틀 로고, 앱 이름 productName도 같음 → 저장 위치 그대로) |
 | 아트·소리 | **Ninja Adventure 팩(CC0)** — 이름·컨셉은 유지, 비슷한 그림을 씌움. 성유물은 팩의 깃털·책·등불·지팡이·금잔 그림 |
 | 미니맵 | **탐험 안개** 있음 — 걸은 곳 둘레만 보임 (7장) |
@@ -45,10 +46,9 @@
 
 - 단어 출처: 직접 작성(현재 초안 100개) vs 공개 단어 리스트(NGSL 계열 CC BY-SA, 출처 표기 필요). 한국어 뜻은 어느 쪽이든 직접 검수
 - 난이도 명칭 (TOEIC 명칭·문제는 쓰지 않음)
-- 앱 번들 ID (현재 `com.DefaultCompany.2D-Project`, 스토어 등록 후 변경 불가)
-- 출시 플랫폼 순서 (Android 우선 권장 — Unity Hub에서 Android Build Support 설치 필요)
 - 렌더 파이프라인 (현재 Built-in. URP 2D 전환은 에셋이 적은 지금이 가장 쉬움)
-- 안 쓰는 패키지 정리 (Visual Scripting, Multiplayer Center, Collab 등)
+- 안 쓰는 패키지 정리 (Visual Scripting, Multiplayer Center, Collab 등). 특히 `com.unity.ai.inference`(Sentis)는 Resources의 셰이더가
+  앱에 그대로 들어가 **약 29MB** 차지 (2026-10-03 안드로이드 시험 빌드에서 확인, 게임 코드는 안 씀) → 빼는 것 사용자 결정 대기
 - 수익화 (광고/인앱) — PRD STEP 6
 
 ---
@@ -173,7 +173,7 @@
 - **저장 데이터 지우기**: 설정 화면(필드 오른쪽 [설정] 또는 타이틀 오른쪽 위) → 빨간 버튼 → 확인 창 [지우기] → 타이틀로
 - **설정**(배경 음악·효과음 음량, 진동)은 세이브와 따로 기기에 저장 (PlayerPrefs) → 저장 데이터를 지워도 설정은 남음.
   소리는 아직 없어서 음량은 값만 저장. 진동은 오답일 때 휴대폰에서만
-- 위치: PC는 `%USERPROFILE%\AppData\LocalLow\DefaultCompany\영단어RPG\save.json`, Android는 앱 전용 폴더.
+- 위치: PC는 `%USERPROFILE%\AppData\LocalLow\DefaultCompany\영단어RPG\save.json`, 아이폰은 앱의 Documents 폴더(아이클라우드 백업에 포함).
   ⚠ 회사명·앱 이름·번들 ID를 바꾸면 저장 위치가 바뀌어 기존 세이브를 못 찾음 (출시 전에 확정할 것)
 
 ## 6. 단어 도감 (구현됨 — 사용자 아이디어, 2026-10-01)
@@ -356,16 +356,22 @@
 - 상자 6개: 덩굴 채찍+60G · 단단한 표지 x3 · 빛나는 잉크 x3(개울 징검다리 건너) · 반짝 가루 x3(늪 한가운데) · 시간의 모래시계+60G · 150G
 - 음악: 'Clearing' (Ninja Adventure 11번)
 
-## 9-2. 모바일 (STEP 5, 2026-10-03~)
+## 9-2. 모바일 · 앱스토어 출시 (STEP 5, 2026-10-03~)
 
-- 안드로이드 먼저, 세로 고정, `Application.targetFrameRate = 60` (모바일 기본 30fps는 걷기가 끊겨 보임). 노치는 `UiKit.ApplySafeArea`
-- **뒤로가기 버튼** (Input System에서는 Escape 키): 맨 위 창부터 닫는다 — 필드: 기술 배우기 → 제단(각성 연출 중 무시) → 가방 →
-  상점 → 도감 → 설정 → 지도 → 아무것도 없으면 '게임을 끝낼까요?'(저장 후 `Application.Quit`). 전투: 도감 닫기 / 고르기 [취소]와 같음,
-  **도망은 없음**. 타이틀: 설정 닫기 → 끝낼지 확인. 화면 전환 중엔 무시 (FieldScreen/BattleScreen/TitleScreen.HandleBack)
-- 앱 아이콘: Figma 'App Icon (#28)' → `Assets/Branding/AppIcon.png` 1024px. 적응형 아이콘(안드로이드 8+)은 Android 모듈 설치 후
-- 빌드: 메뉴 `WordRPG > Build` (MobileBuild.cs) — IL2CPP · ARM64 · 최소 API 25 · 대상 API 자동, 패키지 이름 제안 `com.arttechsoo.wordrpg`
-  (사용자 확인 대기). 회사 이름(companyName)은 바꾸지 않음 — PC 세이브(persistentDataPath)·설정(PlayerPrefs) 위치가 바뀌기 때문
-- 출시 전 할 일: 패키지 이름 확정, 서명 키(keystore), 구글 플레이 콘솔, 스크린샷·설명·개인정보 처리방침
+- **출시 = 아이폰 앱스토어** (2026-10-03 사용자 결정). 안드로이드 빌드 메뉴는 시험용으로 남김
+- 세로 고정, `Application.targetFrameRate = 60` (모바일 기본 30fps는 걷기가 끊겨 보임). 노치·홈 막대는 `UiKit.ApplySafeArea`
+- 아이폰 설정 (`WordRPG > Build > Apply Mobile Settings`, 빌드할 때도 자동): 번들 ID `com.arttechsoo.wordrpg`, **아이폰 전용**
+  (아이패드에서는 아이폰 화면으로 실행 → 아이패드 스크린샷 불필요), **전체 화면 필요**(세로만 지원하는 앱의 업로드 검사 조건),
+  상태 표시줄 숨김, IL2CPP, iOS 15 이상(Unity 6.3 기본), 자동 서명, 빌드 번호 1(올릴 때마다 +1).
+  빌드 후 Info.plist에 `ITSAppUsesNonExemptEncryption = false` (통신·암호화 없음 → 수출 규정 질문 생략)
+- **뒤로가기** (Input System에서는 Escape 키 = 안드로이드 뒤로 버튼·PC Esc): 맨 위 창부터 닫는다 — 필드: 기술 배우기 → 제단(각성 연출 중 무시) →
+  가방 → 상점 → 도감 → 설정 → 지도 → 아무것도 없으면 '게임을 끝낼까요?'(저장 후 `Application.Quit`). 전투: 도감 닫기 / 고르기 [취소]와 같음,
+  **도망은 없음**. 타이틀: 설정 닫기 → 끝낼지 확인. 화면 전환 중엔 무시 (FieldScreen/BattleScreen/TitleScreen.HandleBack).
+  **아이폰에서는 끝내기 확인을 띄우지 않음** (애플 지침: 앱이 스스로 종료하면 안 됨 — `GameManager.CanQuit`)
+- 앱 아이콘: Figma 'App Icon (#28)' → `Assets/Branding/AppIcon.png` 1024px, **투명 채널 없음**(앱스토어 조건, MobileBuildTests가 검사)
+- 회사 이름(companyName)은 `DefaultCompany` 그대로 — 바꾸면 PC 세이브(persistentDataPath)·설정(PlayerPrefs) 위치가 바뀜
+- 아이폰 빌드 흐름: Windows에서 iOS Build Support로 Xcode 프로젝트(`Builds/iOS`) → Mac의 Xcode에서 서명·실행·Archive → 앱스토어 커넥트 업로드
+  → TestFlight 시험 → 심사. 필요: 애플 개발자 프로그램(연 99달러), Mac(없으면 클라우드 빌드), 개인정보 처리방침 주소, 스크린샷
 
 ## 10. MVP 진행 현황
 
@@ -390,4 +396,5 @@
 - [x] **연속 정답 콤보** (2026-10-03): Combo! → Exceptional! 6단계 글자 연출, 단계마다 피해 +5%, 전투를 넘어 이어짐
 - [x] **기술문서** (2026-10-03): 기술 칸 3개(+기본 기술), 보스·상자에서 얻은 문서로 배우기·바꾸기·다시 배우기, '치유의 빛' → '쪽잠자기'
 - [x] **공격 강도** (2026-10-03): ×1 / ×1.2(2개) / ×1.5(3개) / ×2(4개 연속), 하나라도 틀리면 그 턴 공격 실패. 테스트 EditMode 197개, PlayMode 24개
-- [ ] Android 빌드 → 실제 폰에서 확인 (한글 폰트, 패드 조작감, 세이브 위치)
+- [x] **모바일 준비** (2026-10-03): 뒤로가기, 60fps, 앱 아이콘, 빌드 메뉴(아이폰 Xcode 프로젝트·안드로이드 APK/AAB), 아이폰 설정. 출시 = 앱스토어
+- [ ] 아이폰 빌드 → 실제 아이폰에서 확인 (한글 폰트, 패드 조작감, 노치·홈 막대, 세이브) → TestFlight → 앱스토어 심사
