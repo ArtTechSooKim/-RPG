@@ -6,10 +6,24 @@ namespace WordRPG.EditorTools
     // 그림 가져오기 설정
     //  - Assets/Resources/UI/Icons: Figma에서 내보낸 아이콘 → 부드러운 UI 스프라이트
     //  - Assets/Resources/Art: 도트 그림(Ninja Adventure 팩) → 16픽셀 = 1칸, 확대해도 또렷하게(Point)
+    //  - Assets/Branding: 앱 아이콘 (MobileBuild가 플레이어 설정에 넣음)
     internal class UiAssetImporter : AssetPostprocessor
     {
         private void OnPreprocessTexture()
         {
+            // 앱 아이콘(Figma에서 1024px로 내보냄): 압축 없이 원본 그대로 (빌드가 크기별로 줄인다)
+            if (assetPath.StartsWith("Assets/Branding/"))
+            {
+                var brand = (TextureImporter)assetImporter;
+                brand.textureType = TextureImporterType.Default;
+                brand.mipmapEnabled = false;
+                brand.alphaIsTransparency = true;
+                brand.npotScale = TextureImporterNPOTScale.None;
+                brand.maxTextureSize = 1024;
+                brand.textureCompression = TextureImporterCompression.Uncompressed;
+                return;
+            }
+
             bool icon = assetPath.StartsWith("Assets/Resources/UI/Icons/");
             bool pixelArt = assetPath.StartsWith("Assets/Resources/Art/");
             if (!icon && !pixelArt) return;

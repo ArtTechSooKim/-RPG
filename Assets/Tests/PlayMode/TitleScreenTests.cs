@@ -124,6 +124,32 @@ namespace WordRPG.Tests
             yield return null;
         }
 
+        // 안드로이드 뒤로가기: 설정을 닫고, 아무것도 없으면 끝낼지 물음
+        [UnityTest]
+        public IEnumerator BackButtonClosesSettingsThenAsksToQuit()
+        {
+            StartManager();
+            var title = MakeTitle(_ => { });
+            yield return null;
+            yield return null;
+            var root = title.transform;
+            var dialog = root.Find("TitleCanvas/SafeArea/ConfirmDialog").gameObject;
+
+            FindButton(root, "SettingsButton").onClick.Invoke();
+            title.HandleBack();
+            Assert.IsFalse(title.IsSettingsOpen, "뒤로가기 → 설정 닫힘");
+            Assert.IsFalse(title.IsDialogOpen);
+
+            title.HandleBack();
+            Assert.IsTrue(title.IsDialogOpen);
+            StringAssert.Contains("게임을 끝낼까요?", AllText(dialog.transform));
+            title.HandleBack();
+            Assert.IsFalse(title.IsDialogOpen, "한 번 더 누르면 취소");
+
+            Object.Destroy(title.gameObject);
+            yield return null;
+        }
+
         [UnityTest]
         public IEnumerator DeletingSaveInSettingsShowsStartAgain()
         {

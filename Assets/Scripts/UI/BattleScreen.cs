@@ -865,6 +865,19 @@ namespace WordRPG.UI
 
         private static string FormatMultiplier(float value) => value.ToString("0.##");
 
+        // 뒤로가기: 도감이 열려 있으면 닫고, 대상·강도·아이템을 고르는 중이면 [취소]와 같음. 전투에서 도망치기는 없다
+        public void HandleBack()
+        {
+            if (dexView != null && dexView.IsOpen) dexView.Hide();
+            else if (cancelButton != null && cancelButton.gameObject.activeInHierarchy) OnCancelTargeting();
+        }
+
+        // 전투 연습 씬(단독)에서만 직접 받는다 — 필드에서는 FieldScreen이 넘겨 준다
+        private void Update()
+        {
+            if (loopBattles && FieldScreen.BackPressed()) HandleBack();
+        }
+
         private void OnCancelTargeting()
         {
             if (itemMode || intensityMode)

@@ -375,6 +375,15 @@ namespace WordRPG.Tests
             yield return null;
             Assert.IsNotNull(ActiveButton(screen.transform, "SkillButton_0"));
 
+            // 안드로이드 뒤로가기도 [취소]와 같음 (기술 목록에서는 아무 일도 없음 — 전투에서 도망치기는 없다)
+            ActiveButton(screen.transform, "SkillButton_0").onClick.Invoke();
+            yield return null;
+            screen.HandleBack();
+            yield return null;
+            Assert.IsNotNull(ActiveButton(screen.transform, "SkillButton_0"), "뒤로가기 → 기술 목록");
+            screen.HandleBack();
+            Assert.IsNotNull(ActiveButton(screen.transform, "SkillButton_0"));
+
             // ×1.2 = 단어 2개 연속
             ActiveButton(screen.transform, "SkillButton_0").onClick.Invoke();
             yield return null;

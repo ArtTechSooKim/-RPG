@@ -195,6 +195,12 @@ namespace WordRPG.UI
             Close(learned);
         }
 
+        // 뒤로가기: 배우지 않고 닫기 ([나중에]·[배우지 않기]와 같음)
+        public void Cancel()
+        {
+            if (IsOpen) Close(false);
+        }
+
         private void Close(bool learned)
         {
             Root.SetActive(false);

@@ -50,6 +50,7 @@ namespace WordRPG.Game
             }
             Instance = this;
             if (transform.parent == null) DontDestroyOnLoad(gameObject);
+            Application.targetFrameRate = 60; // 모바일 기본 30fps는 걷기·연출이 끊겨 보인다
 
             if (database == null) Debug.LogError("[GameManager] GameDatabase가 비어 있어 세이브의 성유물·아이템을 불러올 수 없습니다");
             if (hero == null) Debug.LogError("[GameManager] 주인공 데이터(HeroData)가 비어 있습니다");
@@ -127,6 +128,13 @@ namespace WordRPG.Game
             DeleteSave();
             playing = true;
             Save();
+        }
+
+        // 뒤로가기 → '게임을 끝낼까요?' → 끝내기: 저장하고 앱 종료 (에디터에서는 아무 일도 없음)
+        public static void QuitGame()
+        {
+            if (Instance != null) Instance.Save();
+            Application.Quit();
         }
 
         // 저장 데이터를 지운 뒤: 타이틀 씬이 빌드에 있으면 타이틀로, 없으면 지금 씬을 처음부터

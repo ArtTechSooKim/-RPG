@@ -86,6 +86,7 @@ namespace WordRPG.UI
         private MinimapView minimap;
         private MapView mapView;
         private SkillLearnView learnView;
+        private ConfirmDialog quitDialog; // 뒤로가기 → '게임을 끝낼까요?'
         private Text heroName, heroHp;
         private Image heroHpFill;
         private readonly List<(Image back, Image icon, Text level, Text empty)> relicSlots = new List<(Image, Image, Text, Text)>();
@@ -98,8 +99,10 @@ namespace WordRPG.UI
         public GameSession Session => session;
         public FieldArea CurrentArea => area;
         public bool IsPanelOpen => dexView.IsOpen || altarView.IsOpen || shopView.IsOpen
-                                   || inventoryView.IsOpen || settingsView.IsOpen || mapView.IsOpen || learnView.IsOpen;
+                                   || inventoryView.IsOpen || settingsView.IsOpen || mapView.IsOpen || learnView.IsOpen
+                                   || (quitDialog != null && quitDialog.IsOpen);
         public SkillLearnView LearnView => learnView;
+        public bool IsQuitDialogOpen => quitDialog.IsOpen;
         public MinimapView Minimap => minimap;
         public string ToastMessage => toastPanel != null && toastPanel.activeSelf ? toastText.text : "";
         public IEnumerable<string> VisibleNameTags => nameTags.VisibleNames;
@@ -197,6 +200,7 @@ namespace WordRPG.UI
         private void Update()
         {
             if (!initialized) return;
+            if (BackPressed()) HandleBack();
             UpdateToast();
             UpdateCamera();
             nameTags.Tick(cam, hudCanvas, Time.unscaledDeltaTime);
@@ -294,6 +298,37 @@ namespace WordRPG.UI
             var cell = walker.Position + direction.Value.ToOffset();
             Interact(walker.Map.Get(cell), cell);
             return true;
+        }
+
+        // 안드로이드 뒤로가기 버튼 = Input System의 Escape 키
+        internal static bool BackPressed()
+        {
+            var keyboard = Keyboard.current;
+            return keyboard != null && keyboard.escapeKey.wasPressedThisFrame;
+        }
+
+        // 뒤로가기: 맨 위 창부터 닫고, 아무 창도 없으면 '게임을 끝낼까요?'. 전투 중이면 전투 화면에 맡기고, 연출 중에는 무시
+        public void HandleBack()
+        {
+            if (inBattle)
+            {
+                battle.HandleBack();
+                return;
+            }
+            if (transitioning) return;
+            if (quitDialog.IsOpen) quitDialog.Hide();
+            else if (learnView.IsOpen) learnView.Cancel();
+            else if (inventoryView.LearnView.IsOpen) inventoryView.LearnView.Cancel();
+            else if (altarView.IsOpen)
+            {
+                if (!altarView.Cutscene.IsPlaying) altarView.Hide(); // 각성 연출 중에는 끝까지 보기
+            }
+            else if (inventoryView.IsOpen) inventoryView.Hide();
+            else if (shopView.IsOpen) shopView.Hide();
+            else if (dexView.IsOpen) dexView.Hide();
+            else if (settingsView.IsOpen) settingsView.Hide();
+            else if (mapView.IsOpen) mapView.Hide();
+            else quitDialog.Show("게임을 끝낼까요?", "지금까지의 기록은 자동으로 저장돼요.", "끝내기", false, GameManager.QuitGame);
         }
 
         private static bool ConfirmKeyPressed()
@@ -907,6 +942,7 @@ namespace WordRPG.UI
             settingsView = SettingsView.Create(hudRoot);
             mapView = MapView.Create(hudRoot);
             learnView = SkillLearnView.Create(hudRoot);
+            quitDialog = ConfirmDialog.Create(hudRoot);
         }
 
         private static HoldButton PadButton(RectTransform parent, string name, string arrow,

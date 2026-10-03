@@ -47,8 +47,20 @@ namespace WordRPG.UI
             Sound.PlayMusic(Music.Title);
         }
 
+        // 뒤로가기: 설정·확인 창을 닫고, 아무것도 없으면 '게임을 끝낼까요?'
+        public void HandleBack()
+        {
+            if (dialog == null) return;
+            if (dialog.IsOpen) dialog.Hide();
+            else if (settingsView.IsOpen) settingsView.Hide();
+            else dialog.Show("게임을 끝낼까요?", "다음에 켜면 [이어하기]로 계속할 수 있어요.", "끝내기", false, GameManager.QuitGame);
+        }
+
+        public bool IsDialogOpen => dialog != null && dialog.IsOpen;
+
         private void Update()
         {
+            if (FieldScreen.BackPressed()) HandleBack();
             // 떠다니는 영단어·별이 천천히 오르내린다
             float t = Time.unscaledTime;
             foreach (var (rt, baseY, phase) in floaters)

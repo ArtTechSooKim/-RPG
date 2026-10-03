@@ -364,6 +364,45 @@ namespace WordRPG.Tests
             yield return null;
         }
 
+        // 안드로이드 뒤로가기: 맨 위 창부터 닫고, 아무 창도 없으면 '게임을 끝낼까요?' (한 번 더 누르면 닫힘)
+        [UnityTest]
+        public IEnumerator BackButtonClosesTopPanelThenAsksToQuit()
+        {
+            var field = MakeField();
+            yield return null;
+            yield return null;
+            var hud = field.transform.Find("FieldHud/SafeArea");
+            var quit = hud.Find("ConfirmDialog").gameObject;
+
+            FindButton(hud, "BagButton").onClick.Invoke();
+            Assert.IsTrue(hud.Find("InventoryView").gameObject.activeSelf);
+            field.HandleBack();
+            Assert.IsFalse(hud.Find("InventoryView").gameObject.activeSelf, "뒤로가기 → 가방 닫힘");
+            Assert.IsFalse(quit.activeSelf, "창을 닫을 때는 끝내기를 묻지 않음");
+
+            FindButton(hud, "SettingsButton").onClick.Invoke();
+            field.HandleBack();
+            Assert.IsFalse(hud.Find("SettingsView").gameObject.activeSelf, "뒤로가기 → 설정 닫힘");
+            Assert.IsFalse(field.IsPanelOpen);
+
+            field.HandleBack();
+            Assert.IsTrue(field.IsQuitDialogOpen, "아무 창도 없으면 끝낼지 물음");
+            Assert.IsTrue(field.IsPanelOpen, "묻는 동안은 걷지 않음");
+            StringAssert.Contains("게임을 끝낼까요?", AllText(quit.transform));
+            StringAssert.Contains("자동으로 저장", AllText(quit.transform));
+
+            field.HandleBack();
+            Assert.IsFalse(field.IsQuitDialogOpen, "한 번 더 누르면 취소");
+
+            field.HandleBack();
+            FindButton(quit.transform, "DialogCancelButton").onClick.Invoke();
+            Assert.IsFalse(field.IsQuitDialogOpen, "[취소]로도 닫힘");
+            Assert.IsFalse(field.IsPanelOpen);
+
+            Object.Destroy(field.gameObject);
+            yield return null;
+        }
+
         [UnityTest]
         public IEnumerator SettingsSaveChangesAndDeleteNeedsConfirm()
         {

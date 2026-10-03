@@ -356,6 +356,17 @@
 - 상자 6개: 덩굴 채찍+60G · 단단한 표지 x3 · 빛나는 잉크 x3(개울 징검다리 건너) · 반짝 가루 x3(늪 한가운데) · 시간의 모래시계+60G · 150G
 - 음악: 'Clearing' (Ninja Adventure 11번)
 
+## 9-2. 모바일 (STEP 5, 2026-10-03~)
+
+- 안드로이드 먼저, 세로 고정, `Application.targetFrameRate = 60` (모바일 기본 30fps는 걷기가 끊겨 보임). 노치는 `UiKit.ApplySafeArea`
+- **뒤로가기 버튼** (Input System에서는 Escape 키): 맨 위 창부터 닫는다 — 필드: 기술 배우기 → 제단(각성 연출 중 무시) → 가방 →
+  상점 → 도감 → 설정 → 지도 → 아무것도 없으면 '게임을 끝낼까요?'(저장 후 `Application.Quit`). 전투: 도감 닫기 / 고르기 [취소]와 같음,
+  **도망은 없음**. 타이틀: 설정 닫기 → 끝낼지 확인. 화면 전환 중엔 무시 (FieldScreen/BattleScreen/TitleScreen.HandleBack)
+- 앱 아이콘: Figma 'App Icon (#28)' → `Assets/Branding/AppIcon.png` 1024px. 적응형 아이콘(안드로이드 8+)은 Android 모듈 설치 후
+- 빌드: 메뉴 `WordRPG > Build` (MobileBuild.cs) — IL2CPP · ARM64 · 최소 API 25 · 대상 API 자동, 패키지 이름 제안 `com.arttechsoo.wordrpg`
+  (사용자 확인 대기). 회사 이름(companyName)은 바꾸지 않음 — PC 세이브(persistentDataPath)·설정(PlayerPrefs) 위치가 바뀌기 때문
+- 출시 전 할 일: 패키지 이름 확정, 서명 키(keystore), 구글 플레이 콘솔, 스크린샷·설명·개인정보 처리방침
+
 ## 10. MVP 진행 현황
 
 - [x] 프로젝트 정리: 영문 경로, Git 연결, LFS, 세로 화면
