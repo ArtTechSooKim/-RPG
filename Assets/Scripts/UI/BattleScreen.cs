@@ -203,7 +203,8 @@ namespace WordRPG.UI
                 quizWords = words;
                 quizService = new WordQuizService(words.Words, session.Vocabulary, masteryRules, rng);
             }
-            engine = new BattleEngine(new ICombatant[] { session.Hero }, enemies, quizService, battleConfig, rng);
+            // 연속 정답 콤보는 전투가 바뀌어도 이어진다
+            engine = new BattleEngine(new ICombatant[] { session.Hero }, enemies, quizService, battleConfig, rng, session.ComboStreak);
 
             foreach (var view in enemyViews) Destroy(view.Root.gameObject);
             enemyViews.Clear();
@@ -280,6 +281,7 @@ namespace WordRPG.UI
 
                 Snapshot();
                 var events = engine.SubmitAnswer(choice, secondsTaken);
+                session.ComboStreak = engine.Streak;
                 saveProgress?.Invoke(); // 단어 학습 기록은 답할 때마다 저장
                 bool correct = choice >= 0 && question.IsCorrect(choice) && secondsTaken <= battleConfig.AnswerTimeLimitSeconds;
 
@@ -433,7 +435,14 @@ namespace WordRPG.UI
             {
                 switch (e.Type)
                 {
+                    case BattleEventType.Combo:
+                        comboStep = Combo.Step(e.Amount);
+                        StartCoroutine(ComboRoutine(e.Amount));
+                        yield return Wait(0.45f);
+                        break;
+
                     case BattleEventType.QuizAnswered:
+                        comboStep = 0;
                         Log((e.Correct ? "정답! " : "오답… ") + MasteryText(e.Mastery));
                         yield return Wait(0.5f);
                         break;
@@ -458,8 +467,10 @@ namespace WordRPG.UI
                         string dmgText = e.Amount > 0 ? $"-{e.Amount}" : "막음!";
                         Sound.Play(e.Amount <= 0 ? Sfx.Shield : e.IsCritical ? Sfx.Critical : Sfx.Hit);
                         PlayFx(e.Target, e.Amount <= 0 ? Fx.Shield : e.IsCritical ? Fx.Explosion : e.Target.IsPlayerSide ? Fx.Claw : Fx.Slash);
+                        // 콤보 중인 아군 공격은 숫자가 단계만큼 더 크게
+                        int boost = e.Actor != null && e.Actor.IsPlayerSide ? comboStep * 5 : 0;
                         Float(e.Target, e.IsCritical ? $"크리티컬! {dmgText}" : dmgText,
-                            e.Amount > 0 ? Palette.Bad : Palette.Info, e.IsCritical ? 58 : 48);
+                            e.Amount > 0 ? Palette.Bad : Palette.Info, (e.IsCritical ? 58 : 48) + boost);
                         Log(e.Absorbed > 0
                             ? $"{e.Target.DisplayName} 피해 {e.Amount} (보호막이 {e.Absorbed} 흡수)"
                             : $"{e.Target.DisplayName} 피해 {e.Amount}" + (e.IsCritical ? " — 크리티컬!" : ""));
@@ -871,6 +882,78 @@ namespace WordRPG.UI
         private IEnumerator Wait(float seconds)
         {
             yield return new WaitForSecondsRealtime(seconds * animationScale);
+        }
+
+        // ------------------------------------------------------------------ 연속 정답 콤보 (Figma 'Combo Text')
+
+        // 단계별 색: Combo! 흰색 → Good! 초록 → Very Good! 하늘 → Excellent! 금 → Outstanding! 주황 → Exceptional! 분홍
+        private static readonly Color[] ComboColors =
+        {
+            Color.white, new Color32(111, 227, 138, 255), new Color32(91, 200, 255, 255),
+            new Color32(255, 209, 64, 255), new Color32(255, 138, 61, 255), new Color32(255, 95, 210, 255)
+        };
+
+        private int comboStep; // 지금 연출 중인 공격의 콤보 단계 (피해 숫자 크기)
+        public string LastComboText { get; private set; } // 마지막으로 띄운 콤보 글자 (테스트용)
+
+        // 글자가 크게 찍히듯 줄어들며 나타났다가 잠깐 머문 뒤 위로 떠오르며 사라진다. 단계가 오를수록 크고 효과음이 높다
+        private IEnumerator ComboRoutine(int streak)
+        {
+            int step = Combo.Step(streak);
+            if (step <= 0) yield break;
+            var color = ComboColors[step - 1];
+            LastComboText = Combo.Label(streak);
+
+            var group = UiKit.Rect("Combo", root, 0.5f, 0.25f, 0.5f, 0.25f); // 주인공 카드 아래 (연출 중엔 기술 패널이 숨어 비어 있음)
+            group.sizeDelta = new Vector2(1000, 300);
+            group.localEulerAngles = new Vector3(0, 0, 6f);
+            var glow = UiKit.IconImage("Glow", group, UiKit.GlowSprite(), 0.5f, 0.5f, 0.5f, 0.5f);
+            glow.preserveAspect = false;
+            glow.rectTransform.sizeDelta = new Vector2(900, 330);
+            var label = UiKit.Display(UiKit.OneLine(UiKit.Label("Label", group, Combo.Label(streak), 84 + (step - 1) * 7, color,
+                0, 0.35f, 1, 1)));
+            var shadow = label.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0, 0, 0, 0.5f);
+            shadow.effectDistance = new Vector2(0, -8);
+            var outline = label.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color32(26, 20, 48, 255);
+            outline.effectDistance = new Vector2(5, -5);
+            int bonus = Mathf.RoundToInt(Combo.DamageBonus(streak, battleConfig.ComboBonusPerStep) * 100f);
+            var detail = UiKit.OneLine(UiKit.Label("Detail", group, $"{streak} 연속 정답 · 피해 +{bonus}%", 32, Color.white,
+                0, 0, 1, 0.35f, TextAnchor.MiddleCenter, FontStyle.Bold));
+            var detailOutline = detail.gameObject.AddComponent<Outline>();
+            detailOutline.effectColor = new Color32(26, 20, 48, 255);
+            detailOutline.effectDistance = new Vector2(3, -3);
+            var group2 = group.gameObject.AddComponent<CanvasGroup>();
+            group2.blocksRaycasts = false;
+            Sound.Play(Sfx.Combo, 1f + 0.08f * (step - 1));
+
+            float pop = 0.18f * animationScale, hold = 0.6f * animationScale, fade = 0.35f * animationScale;
+            for (float t = 0; t < pop; t += Time.unscaledDeltaTime)
+            {
+                float k = t / pop;
+                float overshoot = 1f + 0.18f * Mathf.Sin(k * Mathf.PI);
+                group.localScale = Vector3.one * Mathf.Lerp(2.2f, 1f, k) * overshoot;
+                group2.alpha = k;
+                glow.color = new Color(color.r, color.g, color.b, 0.35f * k);
+                yield return null;
+            }
+            group.localScale = Vector3.one;
+            group2.alpha = 1f;
+            for (float t = 0; t < hold; t += Time.unscaledDeltaTime)
+            {
+                glow.color = new Color(color.r, color.g, color.b, 0.3f + 0.08f * Mathf.Sin(t * 12f));
+                yield return null;
+            }
+            var start = group.anchoredPosition;
+            for (float t = 0; t < fade; t += Time.unscaledDeltaTime)
+            {
+                float k = t / fade;
+                group.anchoredPosition = start + Vector2.up * (70f * k);
+                group2.alpha = 1f - k;
+                yield return null;
+            }
+            Destroy(group.gameObject);
         }
 
         private void Float(BattleUnit unit, string text, Color color, int size)

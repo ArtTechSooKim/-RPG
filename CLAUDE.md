@@ -85,7 +85,7 @@ Assets/
     Monsters/           적 몬스터 MonsterSpecies·SkillData SO, MonsterInstance, ICombatant(싸우는 것 공통), LevelCurve
     Heroes/             HeroData SO(주인공), Hero(레벨·HP·성유물 3칸), RelicData SO(성유물: 기술·각성·보너스·강화 비용), RelicUpgrade(강화 규칙)
     Items/              ItemData SO(재료·상처약·징표), Inventory, ShopData SO + Shop(구매 규칙)
-    Battle/             BattleEngine(기술·상처약), BattleFormulas, BattleReward
+    Battle/             BattleEngine(기술·상처약·연속 정답 수), Combo(콤보 단계·글자·추가 피해), BattleFormulas, BattleReward
     Field/              FieldMap(맵 글자→격자), FieldWalker(이동), EncounterCounter(조우), FieldInteraction([확인] 대상·이름표 규칙),
                         FieldArea(지역 SO: 테마·출입구 연결·보스·상자·상점), EncounterTable
     Game/               GameSession(진행 상태 전체), GameManager(씬 간 유지 + 자동 저장 + 설정), GameDatabase(id→에셋), PlayerRecord,

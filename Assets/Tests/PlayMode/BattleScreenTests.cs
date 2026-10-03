@@ -312,6 +312,39 @@ namespace WordRPG.Tests
             Object.Destroy(screen.gameObject);
         }
 
+        [UnityTest]
+        public IEnumerator ComboTextShowsAndStreakCarriesOverUntilAMiss()
+        {
+            var strike = TestData.Skill("strike", SkillKind.Damage, SkillTarget.SingleEnemy, 40);
+            var hero = Hero(new MonsterStats(500, 30, 10), strike);
+            var tank = TestData.Species("tank", new MonsterStats(9999, 1, 50), new MonsterStats(0, 0, 0), strike);
+            var session = GameSession.NewGame(hero, 1);
+            session.ComboStreak = 4; // 지난 전투에서 4연속 정답
+            var screen = CreateScreen(hero, tank, session: session);
+            yield return null;
+            yield return null;
+
+            ActiveButton(screen.transform, "SkillButton_0").onClick.Invoke();
+            yield return PlayOneTurn(screen);
+            Assert.AreEqual(5, session.ComboStreak, "이어서 5연속");
+            Assert.AreEqual("Excellent!", screen.LastComboText);
+
+            // 이번엔 틀림 → 콤보 끊김
+            ActiveButton(screen.transform, "SkillButton_0").onClick.Invoke();
+            // 새 단어 카드가 먼저 뜨면 닫고, 보기 버튼이 나타날 때까지
+            for (int frame = 0; frame < 600 && ActiveButton(screen.transform, "Choice_0") == null; frame++)
+            {
+                ActiveButton(screen.transform, "CardConfirmButton")?.onClick.Invoke();
+                yield return null;
+            }
+            int wrong = (screen.Engine.CurrentQuestion.CorrectIndex + 1) % screen.Engine.CurrentQuestion.Choices.Count;
+            ActiveButton(screen.transform, $"Choice_{wrong}").onClick.Invoke();
+            yield return WaitFor(() => session.ComboStreak == 0, 5f);
+            Assert.AreEqual(0, session.ComboStreak, "틀리면 처음부터");
+
+            Object.Destroy(screen.gameObject);
+        }
+
         // 기술을 고른 뒤: 새 단어 카드 확인 → 정답 → 연출이 끝나 다시 기술 고르기가 될 때까지
         private static IEnumerator PlayOneTurn(BattleScreen screen)
         {

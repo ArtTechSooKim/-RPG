@@ -16,7 +16,8 @@ namespace WordRPG.Battle
         Defeated,     // Target
         RoundStarted, // Round
         Victory,
-        Defeat
+        Defeat,
+        Combo         // Actor, Amount(연속 정답 수) — 정답 직후, 기술 발동 전 (Combo.Label로 글자)
     }
 
     // 전투 로직이 만들어내는 사건 기록. UI는 이 목록을 순서대로 연출만 한다
@@ -62,6 +63,9 @@ namespace WordRPG.Battle
 
         public static BattleEvent RoundStarted(int round) =>
             new BattleEvent(BattleEventType.RoundStarted) { Round = round };
+
+        public static BattleEvent Combo(BattleUnit actor, int streak) =>
+            new BattleEvent(BattleEventType.Combo) { Actor = actor, Amount = streak };
 
         public static BattleEvent Victory() => new BattleEvent(BattleEventType.Victory);
 

@@ -10,7 +10,7 @@ namespace WordRPG.UI
     {
         Click, Correct, Wrong, Hit, Critical, Heal, Shield, Fail, Faint, Encounter,
         Victory, Defeat, LevelUp, NewWord, Coin, Fountain, EvolveLight, Evolve, DexComplete, Door,
-        GateOpen
+        GateOpen, Combo
     }
 
     // 배경 음악·효과음 (Ninja Adventure 팩 → Resources/Audio/Music·Sfx, 파일 이름 = 열거형 이름 소문자).
@@ -20,7 +20,7 @@ namespace WordRPG.UI
         private const float MusicBase = 0.6f;    // 음악은 효과음보다 조금 작게
         private const float MusicFadeIn = 0.6f;  // 징글이 끝난 뒤 음악이 다시 커지는 시간(초)
 
-        private static AudioSource music, effects;
+        private static AudioSource music, effects, pitched;
         private static Music current = Music.None;
         private static GameSettings settingsOverride;
         private static readonly Dictionary<string, AudioClip> Clips = new Dictionary<string, AudioClip>();
@@ -64,6 +64,16 @@ namespace WordRPG.UI
             if (clip != null) effects.PlayOneShot(clip, SfxVolume);
         }
 
+        // 음높이를 바꿔 재생 (콤보 단계가 오를수록 높게)
+        public static void Play(Sfx effect, float pitch)
+        {
+            if (!Application.isPlaying || !Ensure()) return;
+            var clip = Load("Audio/Sfx/" + effect.ToString().ToLowerInvariant());
+            if (clip == null) return;
+            pitched.pitch = pitch;
+            pitched.PlayOneShot(clip, SfxVolume);
+        }
+
         // 짧은 음악(징글): 나오는 동안 배경 음악을 멈췄다가 끝나면 서서히 다시 튼다 (새 단어 '발견!', 길이 열림)
         public static void PlayJingle(Sfx effect)
         {
@@ -97,7 +107,7 @@ namespace WordRPG.UI
 
         private static bool Ensure()
         {
-            if (music != null && effects != null) return true;
+            if (music != null && effects != null && pitched != null) return true;
             var go = new GameObject("Sound");
             Object.DontDestroyOnLoad(go);
             music = go.AddComponent<AudioSource>();
@@ -105,6 +115,8 @@ namespace WordRPG.UI
             music.playOnAwake = false;
             effects = go.AddComponent<AudioSource>();
             effects.playOnAwake = false;
+            pitched = go.AddComponent<AudioSource>();
+            pitched.playOnAwake = false;
             go.AddComponent<SoundClock>().OnTick = Tick;
             current = Music.None;
             resumeAt = -1f;

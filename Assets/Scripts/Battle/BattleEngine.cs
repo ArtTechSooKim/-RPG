@@ -18,6 +18,7 @@ namespace WordRPG.Battle
     //  정답: 기술 발동 (빨리 맞히면 크리티컬)
     //  오답/시간 초과: 기술 실패, 단어는 오답 노트로
     //  기술 대신 상처약을 쓰면 문제 없이 회복하고 차례를 넘긴다
+    //  연속으로 맞히면 콤보 (Combo): 단계마다 아군 기술 피해가 조금씩 늘고, 틀리면 0으로
     // MonoBehaviour·UI 의존 없음. UI는 SelectSkill/SubmitAnswer를 호출하고 돌려받은 BattleEvent 목록을 연출한다
     public class BattleEngine
     {
@@ -41,15 +42,18 @@ namespace WordRPG.Battle
         public BattleConfig Config => config;
         public int CorrectAnswers { get; private set; }
         public int WrongAnswers { get; private set; }
+        public int Streak { get; private set; } // 지금까지 연속으로 맞힌 수 (이전 전투에서 이어받을 수 있음)
         public IReadOnlyList<MasteryChange> MasteryChanges => masteryChanges;
         public bool IsOver => Phase == BattlePhase.Victory || Phase == BattlePhase.Defeat;
 
+        // startStreak: 이전 전투에서 이어지는 연속 정답 수
         public BattleEngine(IReadOnlyList<ICombatant> partyMembers, IReadOnlyList<MonsterInstance> enemyMonsters,
-            IQuizProvider quiz, BattleConfig config, Random rng)
+            IQuizProvider quiz, BattleConfig config, Random rng, int startStreak = 0)
         {
             this.quiz = quiz ?? throw new ArgumentNullException(nameof(quiz));
             this.config = config ?? new BattleConfig();
             this.rng = rng ?? new Random();
+            Streak = Math.Max(0, startStreak);
 
             for (int i = 0; i < partyMembers.Count; i++) party.Add(new BattleUnit(partyMembers[i], true, i));
             for (int i = 0; i < enemyMonsters.Count; i++) enemies.Add(new BattleUnit(enemyMonsters[i], false, i));
@@ -88,14 +92,24 @@ namespace WordRPG.Battle
 
             var mastery = quiz.SubmitAnswer(CurrentQuestion, correct);
             masteryChanges.Add(mastery);
-            if (correct) CorrectAnswers++;
-            else WrongAnswers++;
+            if (correct)
+            {
+                CorrectAnswers++;
+                Streak++;
+            }
+            else
+            {
+                WrongAnswers++;
+                Streak = 0;
+            }
             events.Add(BattleEvent.QuizAnswered(CurrentActor, correct, mastery));
 
             if (correct)
             {
+                if (Combo.Step(Streak) > 0) events.Add(BattleEvent.Combo(CurrentActor, Streak));
                 bool critical = secondsTaken <= config.CriticalTimeSeconds;
-                ExecuteSkill(CurrentActor, pendingSkill, pendingTarget, critical, events);
+                ExecuteSkill(CurrentActor, pendingSkill, pendingTarget, critical, events,
+                    Combo.DamageBonus(Streak, config.ComboBonusPerStep));
             }
             else
             {
@@ -189,8 +203,9 @@ namespace WordRPG.Battle
             }
         }
 
+        // comboBonus: 연속 정답 콤보 추가 피해 (아군이 문제를 맞혔을 때만, 공격 기술에만)
         private void ExecuteSkill(BattleUnit user, SkillData skill, BattleUnit chosenTarget, bool critical,
-            List<BattleEvent> events)
+            List<BattleEvent> events, float comboBonus = 0f)
         {
             events.Add(BattleEvent.SkillUsed(user, skill));
 
@@ -199,7 +214,7 @@ namespace WordRPG.Battle
                 switch (skill.Kind)
                 {
                     case SkillKind.Damage:
-                        int damage = BattleFormulas.Damage(skill.Power, user.Attack, target.Defense, critical, config, rng);
+                        int damage = BattleFormulas.Damage(skill.Power, user.Attack, target.Defense, critical, config, rng, comboBonus);
                         target.ReceiveDamage(damage, out int hpDamage, out int absorbed);
                         events.Add(BattleEvent.Damage(user, target, skill, hpDamage, absorbed, critical));
                         if (target.IsDefeated) events.Add(BattleEvent.Defeated(target));

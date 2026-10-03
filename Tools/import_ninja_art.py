@@ -84,6 +84,7 @@ SFX = {
     "dexcomplete": "Audio/Jingles/Success3.wav",
     "door": "Audio/Sounds/Whoosh & Slash/Whoosh2.wav",
     "gateopen": "Audio/Jingles/Secret2.wav",  # 보스를 물리쳐 새 길이 열릴 때
+    "combo": "Audio/Sounds/Bonus/PowerUp1.wav",  # 연속 정답 콤보 (단계마다 음높이를 올려 재생)
 }
 AUDIO_OUT = os.path.join(PROJECT, "Assets", "Resources", "Audio")
 

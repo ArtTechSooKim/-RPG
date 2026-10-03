@@ -4,10 +4,11 @@ namespace WordRPG.Battle
 {
     public static class BattleFormulas
     {
-        // 공격력 = 방어력이면 위력의 절반. 최소 1
-        public static int Damage(int power, int attack, int defense, bool critical, BattleConfig config, Random rng)
+        // 공격력 = 방어력이면 위력의 절반. 최소 1. bonus: 연속 정답 콤보 추가 피해 (0.1 = +10%)
+        public static int Damage(int power, int attack, int defense, bool critical, BattleConfig config, Random rng,
+            float bonus = 0f)
         {
-            double value = power * (double)attack / Math.Max(1, attack + defense);
+            double value = power * (double)attack / Math.Max(1, attack + defense) * (1.0 + bonus);
             return Finish(value, critical, config, rng);
         }
 

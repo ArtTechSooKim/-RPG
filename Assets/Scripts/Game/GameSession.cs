@@ -40,6 +40,9 @@ namespace WordRPG.Game
         public WorldState World { get; }
         public IReadOnlyList<string> LoadWarnings => loadWarnings;
 
+        // 연속 정답 수 (전투 콤보). 전투가 끝나도 이어지지만 세이브에는 넣지 않는다 — 게임을 다시 켜면 0부터
+        public int ComboStreak { get; set; }
+
         public bool CanFight => !Hero.IsFainted;
 
         private GameSession(Hero hero, Inventory inventory, VocabularyProgress vocabulary, PlayerRecord record, WorldState world)
