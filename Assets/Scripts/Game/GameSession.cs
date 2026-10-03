@@ -43,6 +43,19 @@ namespace WordRPG.Game
         // 연속 정답 수 (전투 콤보). 전투가 끝나도 이어지지만 세이브에는 넣지 않는다 — 게임을 다시 켜면 0부터
         public int ComboStreak { get; set; }
 
+        private DateTime? comboIdleSinceUtc; // 마지막 전투가 끝난 시각 (전투 중이면 null)
+
+        // 전투를 시작할 때: 지난 전투가 끝나고 Combo.Expiry(3분)가 넘었으면 콤보를 0부터. 이어갈 연속 정답 수를 돌려준다
+        public int StartBattleCombo(DateTime nowUtc)
+        {
+            if (comboIdleSinceUtc.HasValue && nowUtc - comboIdleSinceUtc.Value > Battle.Combo.Expiry) ComboStreak = 0;
+            comboIdleSinceUtc = null;
+            return ComboStreak;
+        }
+
+        // 전투가 끝날 때: 이때부터 3분을 잰다 (전투가 길어져도 그동안은 끊기지 않음)
+        public void EndBattleCombo(DateTime nowUtc) => comboIdleSinceUtc = nowUtc;
+
         public bool CanFight => !Hero.IsFainted;
 
         private GameSession(Hero hero, Inventory inventory, VocabularyProgress vocabulary, PlayerRecord record, WorldState world)

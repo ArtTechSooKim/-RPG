@@ -187,6 +187,7 @@ namespace WordRPG.UI
                 Sound.PlayMusic(Music.Battle);
                 StartNewBattle(encounter.Roll(rng));
                 yield return PlayBattle();
+                session.EndBattleCombo(DateTime.UtcNow);
                 yield return ShowResult();
             }
         }
@@ -195,6 +196,7 @@ namespace WordRPG.UI
         {
             StartNewBattle(enemies, intro);
             yield return PlayBattle();
+            session.EndBattleCombo(DateTime.UtcNow); // 콤보 3분은 전투가 끝난 뒤부터
             yield return ShowResult();
             bool victory = engine.Phase == BattlePhase.Victory;
             HideAllPanels();
@@ -213,7 +215,8 @@ namespace WordRPG.UI
                 quizService = new WordQuizService(words.Words, session.Vocabulary, masteryRules, rng);
             }
             // 연속 정답 콤보는 전투가 바뀌어도 이어진다
-            engine = new BattleEngine(new ICombatant[] { session.Hero }, enemies, quizService, battleConfig, rng, session.ComboStreak);
+            engine = new BattleEngine(new ICombatant[] { session.Hero }, enemies, quizService, battleConfig, rng,
+                session.StartBattleCombo(DateTime.UtcNow));
 
             foreach (var view in enemyViews) Destroy(view.Root.gameObject);
             enemyViews.Clear();

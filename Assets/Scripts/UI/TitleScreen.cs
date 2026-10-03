@@ -7,7 +7,8 @@ using WordRPG.Game;
 
 namespace WordRPG.UI
 {
-    // 타이틀 (Figma '타이틀'): 로고, 시작 몬스터 3마리, 저장 요약, [이어하기] / [처음부터] (저장이 없으면 [시작하기]), 설정.
+    // 타이틀 (Figma '타이틀 (#27)'): 도트 초원 풍경 배경(위아래 어둡게), 로고, 길 위의 주인공 + 둘레에 끼운 성유물,
+    // 저장 요약, [이어하기] / [처음부터] (저장이 없으면 [시작하기]), 설정.
     // 처음부터는 확인 창을 거쳐 저장을 지운다. 시작하면 필드 씬으로
     public class TitleScreen : MonoBehaviour
     {
@@ -21,7 +22,8 @@ namespace WordRPG.UI
         private GameObject saveCard;
         private Text saveLine1, saveLine2;
         private readonly List<(Image back, Text initial, Image sprite)> avatars = new List<(Image, Text, Image)>();
-        private readonly List<(Image card, Text initial, Image sprite)> cards = new List<(Image, Text, Image)>();
+        private Image heroImage;
+        private readonly List<(Image badge, Image icon)> relicBadges = new List<(Image, Image)>();
         private Button continueButton, newGameButton;
         private Text newGameLabel;
         private ConfirmDialog dialog;
@@ -68,12 +70,9 @@ namespace WordRPG.UI
             scaler.matchWidthOrHeight = 0.5f;
 
             UiKit.Panel("Background", canvasGo.transform, Palette.Background);
+            BuildScene(canvasGo.transform);
             root = UiKit.Stretch("SafeArea", canvasGo.transform);
             UiKit.ApplySafeArea(root);
-
-            var glow = UiKit.IconImage("Glow", root, UiKit.GlowSprite(), 0.5f, 0.745f, 0.5f, 0.745f);
-            glow.rectTransform.sizeDelta = new Vector2(1000, 1000);
-            glow.color = new Color(Palette.Gold.r, Palette.Gold.g, Palette.Gold.b, 0.16f);
 
             // 떠다니는 영단어 (Figma 'word-chip')
             var chips = new (string word, float x, float y, float rotation)[]
@@ -95,36 +94,39 @@ namespace WordRPG.UI
                 floaters.Add((rt, -y, i * 1.3f));
             }
 
-            // 로고 (게임 이름: 영단어RPG)
-            UiKit.Display(UiKit.Label("Logo", root, "영단어RPG", 168, Palette.Gold, 0, 0.7f, 1, 0.86f,
+            // 로고 (게임 이름: 영단어RPG) — 풍경 위에서도 또렷하게 그림자
+            var logo = UiKit.Display(UiKit.Label("Logo", root, "영단어RPG", 168, Palette.Gold, 0, 0.7f, 1, 0.86f,
                 TextAnchor.MiddleCenter, FontStyle.Normal, true, 96));
-            UiKit.Label("Subtitle", root, "성유물과 함께하는 영단어 모험", 40, Palette.Text, 0, 0.655f, 1, 0.7f,
+            var logoShadow = logo.gameObject.AddComponent<Shadow>();
+            logoShadow.effectColor = new Color(0, 0, 0, 0.6f);
+            logoShadow.effectDistance = new Vector2(0, -8);
+            var subtitle = UiKit.Label("Subtitle", root, "성유물과 함께하는 영단어 모험", 40, Palette.Text, 0, 0.655f, 1, 0.7f,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
+            subtitle.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.7f);
 
-            // 가운데 = 주인공, 왼쪽·오른쪽 = 끼운 성유물 (앞의 두 칸)
-            var slots = new (float x, float y, float size)[] { (540, 920, 300), (230, 980, 240), (850, 980, 240) };
-            foreach (var (x, y, size) in slots)
+            // 길 위에 선 주인공 (도트 그대로 크게) + 발밑 그림자
+            var ground = UiKit.Pill(UiKit.Panel("HeroShadow", root, new Color(0, 0, 0, 0.35f), 0, 1, 0, 1));
+            ground.raycastTarget = false;
+            ground.rectTransform.sizeDelta = new Vector2(220, 50);
+            Place(ground.rectTransform, 540, 1175);
+            heroImage = UiKit.IconImage("Hero", root, null, 0, 1, 0, 1);
+            heroImage.rectTransform.sizeDelta = new Vector2(192, 192);
+            Place(heroImage.rectTransform, 540, 1071);
+
+            // 끼운 성유물 3칸: 주인공 둘레에 둥실 떠 있는 금테 배지
+            var spots = new (float x, float y)[] { (250, 900), (830, 900), (540, 760) };
+            for (int i = 0; i < spots.Length; i++)
             {
-                var shadow = UiKit.IconImage("Shadow", root, UiKit.GlowSprite(), 0, 1, 0, 1); // 부드러운 그림자
-                shadow.preserveAspect = false;
-                shadow.color = new Color(0, 0, 0, 0.75f);
-                shadow.rectTransform.sizeDelta = new Vector2(size * 1.0f, 70);
-                Place(shadow.rectTransform, x, y + size / 2f + 14);
-                var card = UiKit.RoundPanel("Monster", root, Palette.PanelLight, UiKit.RadiusLg, 0, 1, 0, 1);
-                card.raycastTarget = false;
-                card.rectTransform.sizeDelta = new Vector2(size, size);
-                Place(card.rectTransform, x, y);
-                var initial = UiKit.Display(UiKit.Label("Initial", card.transform, "", Mathf.RoundToInt(size * 0.42f), Palette.Text, 0, 0, 1, 1));
-                var sprite = UiKit.IconImage("Sprite", card.transform, null, 0.12f, 0.12f, 0.88f, 0.88f);
-                cards.Add((card, initial, sprite));
-            }
-            foreach (var (x, y, size) in new (float, float, float)[] { (350, 760, 44), (760, 800, 36), (116, 840, 32), (980, 850, 40), (580, 740, 28) })
-            {
-                var star = UiKit.IconImage("Star", root, UiKit.Icon("star_full"), 0, 1, 0, 1);
-                star.rectTransform.sizeDelta = new Vector2(size, size);
-                Place(star.rectTransform, x, y);
-                star.color = new Color(1, 1, 1, 0.85f);
-                floaters.Add((star.rectTransform, -y, x * 0.01f));
+                var badge = UiKit.Pill(UiKit.Panel($"RelicBadge_{i}", root, new Color(Palette.PanelLight.r, Palette.PanelLight.g, Palette.PanelLight.b, 0.92f), 0, 1, 0, 1));
+                badge.raycastTarget = false;
+                badge.rectTransform.sizeDelta = new Vector2(150, 150);
+                Place(badge.rectTransform, spots[i].x, spots[i].y);
+                var ring = UiKit.Outline(UiKit.Panel("Ring", badge.transform, Palette.Gold), 75, 4);
+                ring.gameObject.AddComponent<AutoPill>();
+                ring.raycastTarget = false;
+                var icon = UiKit.IconImage("Icon", badge.transform, null, 0.13f, 0.13f, 0.87f, 0.87f);
+                relicBadges.Add((badge, icon));
+                floaters.Add((badge.rectTransform, -spots[i].y, i * 2.1f));
             }
 
             // 저장 요약 카드
@@ -167,6 +169,47 @@ namespace WordRPG.UI
             settingsView = SettingsView.Create(root);
         }
 
+        // 배경: 초원 타일로 그린 도트 풍경을 화면을 덮게 (도트 그대로) + 위(로고)·아래(버튼) 어둡게
+        private static void BuildScene(Transform canvas)
+        {
+            var texture = Resources.Load<Texture2D>("Art/NinjaAdventure/Title/title_scene");
+            if (texture == null) return;
+            var holder = UiKit.Stretch("Scene", canvas);
+            var scene = UiKit.IconImage("Image", holder, Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height),
+                new Vector2(0.5f, 0.5f), 16), 0.5f, 0.5f, 0.5f, 0.5f);
+            var fitter = scene.gameObject.AddComponent<AspectRatioFitter>();
+            fitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            fitter.aspectRatio = texture.width / (float)texture.height;
+            var shade = UiKit.Panel("Shade", holder, Color.white);
+            shade.sprite = ShadeSprite();
+            shade.raycastTarget = false;
+        }
+
+        // 위아래는 진하게, 가운데(주인공 자리)는 풍경이 보이게 — Figma 'shade' 그라데이션과 같은 값
+        private static Sprite ShadeSprite()
+        {
+            var stops = new (float pos, float alpha)[] { (0f, 0.97f), (0.32f, 0.85f), (0.42f, 0.1f), (0.58f, 0.05f), (0.7f, 0.55f), (1f, 0.92f) };
+            const int height = 128;
+            var texture = new Texture2D(1, height, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "title_shade" };
+            for (int y = 0; y < height; y++)
+            {
+                float t = y / (height - 1f); // 0 = 아래, 1 = 위
+                float alpha = stops[stops.Length - 1].alpha;
+                for (int i = 1; i < stops.Length; i++)
+                {
+                    if (t > stops[i].pos) continue;
+                    var (p0, a0) = stops[i - 1];
+                    var (p1, a1) = stops[i];
+                    alpha = Mathf.Lerp(a0, a1, (t - p0) / Mathf.Max(0.0001f, p1 - p0));
+                    break;
+                }
+                var c = Palette.Background;
+                texture.SetPixel(0, y, new Color(c.r, c.g, c.b, alpha));
+            }
+            texture.Apply();
+            return Sprite.Create(texture, new Rect(0, 0, 1, height), new Vector2(0.5f, 0.5f), 100);
+        }
+
         // Figma 좌표(1080 폭, 위에서부터 y)로 놓되 가로는 비율로 — 화면 폭이 달라도 좌우 균형 유지
         private static void Place(RectTransform rt, float x, float y)
         {
@@ -180,23 +223,27 @@ namespace WordRPG.UI
             bool hasSave = manager.HasSave;
             var session = manager.Session;
             var hero = session.Hero;
-            for (int i = 0; i < cards.Count; i++)
+            heroImage.sprite = UiKit.HeroPortrait(hero.Data);
+            heroImage.enabled = heroImage.sprite != null;
+            for (int i = 0; i < relicBadges.Count; i++)
             {
-                // 0 = 주인공, 1·2 = 끼운 성유물 (없으면 숨김)
+                var relic = hero.SlotAt(i);
+                relicBadges[i].badge.gameObject.SetActive(relic != null);
+                if (relic == null) continue;
+                relicBadges[i].icon.sprite = UiKit.RelicIcon(relic.Data);
+                relicBadges[i].icon.enabled = relicBadges[i].icon.sprite != null;
+            }
+            for (int i = 0; i < avatars.Count; i++)
+            {
+                // 저장 요약: 0 = 주인공, 1·2 = 끼운 성유물 (없으면 숨김)
                 var relic = i == 0 ? null : hero.SlotAt(i - 1);
                 bool has = i == 0 || relic != null;
-                cards[i].card.gameObject.SetActive(has);
                 avatars[i].back.gameObject.SetActive(has && hasSave);
                 if (!has) continue;
                 var sprite = i == 0 ? UiKit.HeroPortrait(hero.Data) : UiKit.RelicIcon(relic.Data);
                 string name = i == 0 ? hero.DisplayName : relic.Data.DisplayName;
                 string initial = name.Length > 0 ? name.Substring(0, 1) : "?";
                 var color = i == 0 ? Palette.PanelLight : Color.Lerp(Palette.PanelLight, relic.Data.PlaceholderColor, 0.22f);
-                cards[i].card.color = color;
-                cards[i].initial.text = initial;
-                cards[i].initial.enabled = sprite == null;
-                cards[i].sprite.sprite = sprite;
-                cards[i].sprite.enabled = sprite != null;
                 avatars[i].back.color = color;
                 avatars[i].initial.text = initial;
                 avatars[i].initial.enabled = sprite == null;
@@ -234,7 +281,7 @@ namespace WordRPG.UI
                 return;
             }
             dialog.Show("처음부터 시작할까요?",
-                "지금까지의 기록(발견한 단어, 몬스터, 아이템)이\n모두 지워져요. 되돌릴 수 없어요.",
+                "지금까지의 기록(발견한 단어, 성유물, 아이템)이\n모두 지워져요. 되돌릴 수 없어요.",
                 "처음부터", true, () =>
                 {
                     manager.DeleteSave();

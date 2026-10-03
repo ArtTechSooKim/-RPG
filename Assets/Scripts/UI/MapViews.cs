@@ -23,7 +23,7 @@ namespace WordRPG.UI
         {
             bool library = theme == FieldTheme.Library;
             bool forest = theme == FieldTheme.Forest;
-            var floor = library ? new Color32(74, 63, 69, 255) : forest ? new Color32(150, 100, 64, 255) : new Color32(217, 188, 133, 255);
+            var floor = library ? new Color32(74, 63, 69, 255) : forest ? new Color32(150, 100, 64, 255) : new Color32(205, 140, 100, 255); // 초원 길 = 흙길
             switch (tile)
             {
                 case FieldTile.Wall: return library ? new Color32(154, 78, 38, 255) : forest ? new Color32(18, 52, 26, 255) : new Color32(36, 80, 42, 255);

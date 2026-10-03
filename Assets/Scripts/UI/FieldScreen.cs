@@ -695,8 +695,11 @@ namespace WordRPG.UI
                 var kind = map.Get(cell);
                 bool done = kind == FieldTile.Chest && session.World.IsChestOpened(fieldArea.ChestId(cell))
                             || kind == FieldTile.Boss && session.World.IsBossDefeated(fieldArea.BossId);
-                tilemap.SetTile(new Vector3Int(x, y, 0),
-                    kind == FieldTile.Door ? DoorTile(fieldArea, cell, lockedDoor(cell)) : TileFor(kind, done, fieldArea.Theme));
+                Tile tile;
+                if (kind == FieldTile.Door) tile = DoorTile(fieldArea, cell, lockedDoor(cell));
+                else if (FieldAutotile.IsAutotiled(kind)) tile = AutoTile(fieldArea.Theme, kind, FieldAutotile.Mask(map, cell)) ?? TileFor(kind, done, fieldArea.Theme);
+                else tile = TileFor(kind, done, fieldArea.Theme);
+                tilemap.SetTile(new Vector3Int(x, y, 0), tile);
             }
             cam.backgroundColor = PlaceholderArt.OutsideColor(fieldArea.Theme);
         }
@@ -708,6 +711,19 @@ namespace WordRPG.UI
             if (!tileCache.TryGetValue(key, out var tile))
             {
                 tile = MakeTile(FieldArt.ForTile(kind, t, done));
+                tileCache[key] = tile;
+            }
+            return tile;
+        }
+
+        // 길·물가 자동 테두리 (그림이 없는 테마면 null → 한 칸 그림)
+        private Tile AutoTile(FieldTheme theme, FieldTile kind, int mask)
+        {
+            string key = $"{theme}_{kind}_auto_{mask}";
+            if (!tileCache.TryGetValue(key, out var tile))
+            {
+                var sprite = FieldArt.AutoTile(kind, theme, mask);
+                tile = sprite != null ? MakeTile(sprite) : null;
                 tileCache[key] = tile;
             }
             return tile;

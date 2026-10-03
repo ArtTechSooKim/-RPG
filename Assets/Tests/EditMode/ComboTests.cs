@@ -138,6 +138,33 @@ namespace WordRPG.Tests
         }
 
         [Test]
+        public void ComboExpiresThreeMinutesAfterTheLastBattleEnds()
+        {
+            var session = GameSession.NewGame(TestData.Hero(new MonsterStats(60, 14, 10)), 3);
+            var t0 = new DateTime(2026, 10, 3, 12, 0, 0, DateTimeKind.Utc);
+            Assert.AreEqual(0, session.StartBattleCombo(t0), "첫 전투");
+            session.ComboStreak = 4;
+            session.EndBattleCombo(t0.AddSeconds(30));
+            Assert.AreEqual(4, session.StartBattleCombo(t0.AddSeconds(30 + 179)), "끝나고 3분 안 = 이어짐");
+            session.ComboStreak = 6;
+            session.EndBattleCombo(t0.AddMinutes(5));
+            Assert.AreEqual(0, session.StartBattleCombo(t0.AddMinutes(8).AddSeconds(1)), "끝나고 3분이 넘으면 0부터");
+        }
+
+        [Test]
+        public void LongBattleDoesNotResetCombo()
+        {
+            var session = GameSession.NewGame(TestData.Hero(new MonsterStats(60, 14, 10)), 3);
+            var t0 = new DateTime(2026, 10, 3, 12, 0, 0, DateTimeKind.Utc);
+            session.ComboStreak = 3;
+            session.EndBattleCombo(t0);
+            Assert.AreEqual(3, session.StartBattleCombo(t0.AddMinutes(1)));
+            session.ComboStreak = 9; // 전투가 10분 걸려도 그동안 계속 맞힘
+            session.EndBattleCombo(t0.AddMinutes(11));
+            Assert.AreEqual(9, session.StartBattleCombo(t0.AddMinutes(12)), "시간은 전투가 끝난 뒤부터 잼 — 긴 전투 중엔 안 끊김");
+        }
+
+        [Test]
         public void SessionRemembersStreakButSaveDoesNot()
         {
             var session = GameSession.NewGame(TestData.Hero(new MonsterStats(60, 14, 10)), 3);

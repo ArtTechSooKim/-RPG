@@ -103,6 +103,67 @@ FX = {
 }
 
 
+# 타이틀 배경 (Figma '타이틀 (#27)'): 초원 타일로 그린 14×24칸 풍경 — 위는 숲, 가운데 길이 넓어진 공터(주인공 자리),
+# 오른쪽 위 호수, 아래 강과 풀숲. 길·물은 자동 테두리. Title/title_scene.png (16px = 1칸, 게임이 화면을 덮게 키움)
+TITLE_SCENE = [
+    "##############",
+    "#####::#######",
+    "###::::::#####",
+    "##::,,,:::~~##",
+    "#::,,,,::~~~~#",
+    "#::,,,:.:~~~~#",
+    "##:::::.:~~~~#",
+    "###::::.:::~##",
+    "##,,::..:::::#",
+    "#,,,::.::,,,:#",
+    "#,,::..::,,,,#",
+    "#:::...:::,,:#",
+    "##::.....::::#",
+    "#:::.....:::##",
+    "#::...:...::::",
+    "::...:::...:::",
+    ":::.::,,::..::",
+    "~~~.~~~~~~~.~~",
+    "~~~.~~~~~~~.~~",
+    "::,.,,,::,,.::",
+    ":,,.,,,::,,.,:",
+    "##,.,##::##.##",
+    "###.#####::.##",
+    "###.######:.##",
+]
+
+
+def build_title_scene():
+    tiles = os.path.join(OUT, "Tiles")
+    floor = Image.open(os.path.join(tiles, "Meadow_Floor_auto.png")).convert("RGBA")
+    water = Image.open(os.path.join(tiles, "Meadow_Water_auto.png")).convert("RGBA")
+    plain = {k: Image.open(os.path.join(tiles, f"Meadow_{v}.png")).convert("RGBA")
+             for k, v in ((":", "Lawn"), (",", "Grass"), ("#", "Wall"))}
+    h, w = len(TITLE_SCENE), len(TITLE_SCENE[0])
+    dirs = [(0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1)]
+    img = Image.new("RGBA", (w * 16, h * 16))
+    for y in range(h):
+        for x in range(w):
+            ch = TITLE_SCENE[y][x]
+            if ch in ".~":
+                mask = 0
+                for i, (dx, dy) in enumerate(dirs):
+                    nx, ny = x + dx, y + dy
+                    inside = 0 <= nx < w and 0 <= ny < h
+                    if (inside and TITLE_SCENE[ny][nx] == ch) or not inside:
+                        mask |= 1 << i
+                mask = auto_normalize(mask)
+                atlas = floor if ch == "." else water
+                t = atlas.crop(((mask % 16) * 16, (mask // 16) * 16, (mask % 16) * 16 + 16, (mask // 16) * 16 + 16))
+            else:
+                t = plain[ch]
+            img.alpha_composite(t, (x * 16, y * 16))
+    folder = os.path.join(OUT, "Title")
+    os.makedirs(folder, exist_ok=True)
+    img.save(os.path.join(folder, "title_scene.png"))
+    print("title scene ->", folder)
+
+
 def build_fx(pack):
     folder = os.path.join(OUT, "Fx")
     os.makedirs(folder, exist_ok=True)
@@ -203,6 +264,93 @@ def shade_top(tile, rows, mul):
     return out
 
 
+# ------------------------------------------------------------------ 자동 테두리 (길·물가)
+# 팩의 바닥·물 블록(11×5칸)은 47가지 이음 모양 조각이 같은 배치로 들어 있다 (3×3 덩어리, 1칸 폭 세로·가로, 한 칸짜리, 안쪽 모서리 조각들).
+# 흙길(연두) 블록의 조각마다 8방향(위·오른위·오른·오른아래·아래·왼아래·왼·왼위)이 흙인지 픽셀로 읽어 '방향표'를 만들고,
+# 같은 배치의 다른 블록(진초록 흙길, 물가)에도 그대로 쓴다. 이웃 마스크 256가지 → 조각을 골라 16×16칸 아틀라스
+# Tiles/{테마}_{종류}_auto.png 로 저장 → 게임(FieldArt.AutoTile)이 맵 글자의 이웃 모양으로 칸을 고른다
+AUTO_REGIONS = [(6, 0, 9, 2), (13, 0, 15, 2), (13, 6, 15, 9), (13, 13, 15, 15),
+                (6, 13, 9, 15), (0, 13, 2, 15), (0, 6, 2, 9), (0, 0, 2, 2)]  # 위 오른위 오른 오른아래 아래 왼아래 왼 왼위
+AUTO_N, AUTO_NE, AUTO_E, AUTO_SE, AUTO_S, AUTO_SW, AUTO_W, AUTO_NW = (1 << i for i in range(8))
+
+
+def auto_normalize(mask):
+    """모서리는 맞닿은 두 변이 모두 이어질 때만 센다 (게임의 FieldAutotile.Normalize와 같은 규칙)"""
+    for corner, a, b in ((AUTO_NE, AUTO_N, AUTO_E), (AUTO_SE, AUTO_S, AUTO_E),
+                         (AUTO_SW, AUTO_S, AUTO_W), (AUTO_NW, AUTO_N, AUTO_W)):
+        if not (mask & a and mask & b):
+            mask &= ~corner
+    return mask
+
+
+def auto_template(pack):
+    floor = pack.image(TILESETS + "TilesetFloor.png")
+
+    def is_dirt(px):
+        r, g, b, a = px
+        return a > 0 and r > g + 25 and r > 110
+
+    template = []
+    cells = [(c, r) for r in range(4) for c in range(11)] + [(c, 4) for c in range(4, 11)]
+    for c, r in cells:
+        t = floor.crop((c * 16, (7 + r) * 16, c * 16 + 16, (8 + r) * 16))
+        if t.getbbox() is None:
+            continue
+        px = t.load()
+        sig = 0
+        for bit, (x0, y0, x1, y1) in enumerate(AUTO_REGIONS):
+            area = [(x, y) for x in range(x0, x1 + 1) for y in range(y0, y1 + 1)]
+            if sum(1 for xy in area if is_dirt(px[xy])) * 2 >= len(area):
+                sig |= 1 << bit
+        template.append(((c, r), auto_normalize(sig)))
+    return template
+
+
+def auto_atlas(pack, template, sheet, col0, row0, recolor=None):
+    img = pack.image(TILESETS + sheet)
+
+    def cost(mask, sig):
+        diff = mask ^ sig
+        edges = bin(diff & (AUTO_N | AUTO_E | AUTO_S | AUTO_W)).count("1")
+        return edges * 4 + bin(diff).count("1") - edges
+
+    out = Image.new("RGBA", (256, 256))
+    for mask in range(256):
+        m = auto_normalize(mask)
+        (c, r), _ = min(template, key=lambda e: cost(m, e[1]))
+        t = img.crop(((col0 + c) * 16, (row0 + r) * 16, (col0 + c + 1) * 16, (row0 + r + 1) * 16))
+        if recolor:
+            t = recolor(t)
+        out.alpha_composite(t, ((mask % 16) * 16, (mask // 16) * 16))
+    return out
+
+
+def forest_water(t):
+    """연두 물가를 숲의 진초록으로, 물은 초록빛 늪으로"""
+    out = t.copy()
+    px = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, a = px[x, y]
+            if b > r + 50:  # 물
+                px[x, y] = (int(r * 0.55), int(g * 0.85), int(b * 0.7), a)
+            elif g > r and g > b + 30:  # 연두 풀 → 이끼색
+                px[x, y] = (int(r * 0.62), int(g * 0.82), int(b * 0.8), a)
+    return out
+
+
+def pond_on(base, pond):
+    """작은 연못 그림에서 둘레 모래를 지우고 바닥 위에 올린다 (회복의 샘)"""
+    cut = pond.copy()
+    px = cut.load()
+    for y in range(cut.height):
+        for x in range(cut.width):
+            r, g, b, a = px[x, y]
+            if r > 200 and g > 120 and b < 150:  # 주황 모래
+                px[x, y] = (0, 0, 0, 0)
+    return over(base, cut)
+
+
 def copy_relics_and_items(pack):
     for folder in ("Relics", "Items"):
         os.makedirs(os.path.join(OUT, folder), exist_ok=True)
@@ -229,26 +377,33 @@ def build_tiles(pack):
     stall = pack.tile("TilesetElement.png", 14, 0)
 
     themes = {}
-    # 초원: 모래 길, 짧은 잔디, 진한 풀숲(긴 풀잎), 덤불 벽, 물결 물, 굴 입구, 작은 연못(회복의 샘)
+    autos = {}
+    template = auto_template(pack)
+    pond = pack.tile("TilesetWater.png", 3, 3)
+    # 초원: 흙길(연두 풀 테두리 — 자동), 짧은 잔디, 진한 풀숲(긴 풀잎), 덤불 벽, 물가(자동), 굴 입구, 작은 연못(회복의 샘).
+    # 상자·제단·상점·보스는 잔디 위 (길이 아닌 칸이라 길 테두리가 둘레를 감싼다)
     sand = pack.tile("TilesetFloor.png", 1, 1)
     lime = pack.tile("TilesetField.png", 1, 4)
+    path = pack.tile("TilesetFloor.png", 1, 8)  # 흙길 가운데 조각
     themes["Meadow"] = {
-        "Floor": sand,
+        "Floor": path,
         "Lawn": lime,  # 짧은 잔디 (조우 없음)
         "Grass": over(pack.tile("TilesetField.png", 1, 7), pack.tile("TilesetNature.png", 7, 10)),
         "Wall": over(lime, pack.tile("TilesetNature.png", 1, 10)),
-        "Water": pack.tile("TilesetWater.png", 11, 2),
+        "Water": pack.tile("TilesetWater.png", 1, 7),
         "Door": over(lime, pack.tile("TilesetNature.png", 7, 13)),
         "Door_locked": over(lime, brambles),
-        "Door_Forest": shade_top(pack.tile("TilesetFloor.png", 12, 8), 9, 0.45),  # 그늘진 숲길 입구
-        "Fountain": pack.tile("TilesetWater.png", 3, 3),
-        "Chest": over(sand, big_chest[0]),
-        "Chest_done": over(sand, big_chest[1]),
-        "Altar": over(sand, gem),
-        "Shop": over(sand, stall),
-        "Boss": over(sand, boss, scale=3),
-        "Boss_done": over(sand, book),
+        "Door_Forest": shade_top(path, 9, 0.45),  # 그늘진 숲길 입구
+        "Fountain": pond_on(lime, pond),
+        "Chest": over(lime, big_chest[0]),
+        "Chest_done": over(lime, big_chest[1]),
+        "Altar": over(lime, gem),
+        "Shop": over(lime, stall),
+        "Boss": over(lime, boss, scale=3),
+        "Boss_done": over(lime, book),
     }
+    autos["Meadow_Floor_auto"] = auto_atlas(pack, template, "TilesetFloor.png", 0, 7)
+    autos["Meadow_Water_auto"] = auto_atlas(pack, template, "TilesetWater.png", 0, 6)
     # 서고: 어두운 돌바닥(책장과 잘 구분되게), 책장 벽, 잉크 웅덩이, 나무 문,
     #       받침대 위 파란 구슬(회복 지점), 작은 트렁크. 풀숲 = 바닥에 흩어진 하얀 종이 조각
     stone = pack.tile("Interior/TilesetInteriorFloor.png", 16, 13)
@@ -278,24 +433,29 @@ def build_tiles(pack):
         "Lawn": moss,  # 이끼 낀 땅 (조우 없음)
         "Grass": over(moss, pack.tile("TilesetNature.png", 4, 11)),
         "Wall": over(deep, tint(pack.tile("TilesetNature.png", 10, 9), (0.55, 0.75, 0.55))),
-        "Water": tint(pack.tile("TilesetWater.png", 11, 2), (0.55, 0.85, 0.7)),
+        "Water": forest_water(pack.tile("TilesetWater.png", 1, 7)),
         "Door": shade_top(sand, 16, 1.25),  # 밝은 모래길 = 초원으로 나가는 길
         "Door_locked": over(moss, brambles),
-        "Fountain": pack.tile("TilesetWater.png", 3, 3),
-        "Chest": over(dirt, big_chest[0]),
-        "Chest_done": over(dirt, big_chest[1]),
-        "Altar": over(dirt, gem),
-        "Shop": over(dirt, stall),
-        "Boss": over(dirt, raccoon, scale=4),
-        "Boss_done": over(dirt, book),
+        "Fountain": pond_on(moss, pond),
+        "Chest": over(moss, big_chest[0]),
+        "Chest_done": over(moss, big_chest[1]),
+        "Altar": over(moss, gem),
+        "Shop": over(moss, stall),
+        "Boss": over(moss, raccoon, scale=4),
+        "Boss_done": over(moss, book),
     }
+    # 숲: 흙길(진초록 테두리), 늪 물가(연두를 이끼색으로)
+    autos["Forest_Floor_auto"] = auto_atlas(pack, template, "TilesetFloor.png", 11, 7)
+    autos["Forest_Water_auto"] = auto_atlas(pack, template, "TilesetWater.png", 0, 6, forest_water)
 
     folder = os.path.join(OUT, "Tiles")
     os.makedirs(folder, exist_ok=True)
     for theme, tiles in themes.items():
         for kind, img in tiles.items():
             img.save(os.path.join(folder, f"{theme}_{kind}.png"))
-    print("tiles", sum(len(t) for t in themes.values()), "->", folder)
+    for name, img in autos.items():
+        img.save(os.path.join(folder, name + ".png"))
+    print("tiles", sum(len(t) for t in themes.values()), "+ autotile", len(autos), "->", folder)
 
 
 def main():
@@ -317,6 +477,7 @@ def main():
 
     art = Pack(pack)
     build_tiles(art)
+    build_title_scene()
     build_fx(art)
     copy_audio(pack)
 
