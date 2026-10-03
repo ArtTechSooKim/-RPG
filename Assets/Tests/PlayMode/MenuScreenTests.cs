@@ -44,7 +44,7 @@ namespace WordRPG.Tests
                 .Set("displayName", "깃펜").Set("description", "펜촉이가 남긴 깃펜.").Set("bonusPerLevel", new MonsterStats(0, 2, 0));
             book = TestData.Relic("relic_book", TestData.Skill("shield", SkillKind.Guard, SkillTarget.AllAllies, 4).Set("displayName", "책 방패"),
                 new MonsterStats(10, 0, 4), cover).Set("displayName", "백과사전").Set("role", MonsterRole.Defender);
-            lantern = TestData.Relic("relic_lantern", TestData.Skill("light", SkillKind.Heal, SkillTarget.AllAllies, 8).Set("displayName", "치유의 빛"),
+            lantern = TestData.Relic("relic_lantern", TestData.Skill("light", SkillKind.Heal, SkillTarget.AllAllies, 8).Set("displayName", "쪽잠자기"),
                 new MonsterStats(15, 0, 0), cover).Set("displayName", "등불");
             var enemySkill = TestData.Skill("bite", SkillKind.Damage, SkillTarget.SingleEnemy, 5);
             var enemy = TestData.Species("slime", new MonsterStats(20, 5, 5), new MonsterStats(0, 0, 0), enemySkill);
@@ -228,6 +228,82 @@ namespace WordRPG.Tests
             FindButton(bag.transform, "InventoryCloseButton").onClick.Invoke();
             yield return null;
             StringAssert.Contains($"HP {session.Hero.CurrentHp}/", AllText(hud.Find("HeroStrip")), "HUD도 갱신");
+            Object.Destroy(field.gameObject);
+            yield return null;
+        }
+
+        // 기술 칸이 가득일 때 가방 > 아이템의 기술문서로 배우기 → 바꿀 기술 고르기, 빠진 성유물 기술은 성유물 탭에서 다시 넣기
+        [UnityTest]
+        public IEnumerator SkillDocumentFromBagReplacesASkillAndRelicSkillComesBack()
+        {
+            var cram = TestData.Skill("cram", SkillKind.Damage, SkillTarget.SingleEnemy, 30).Set("displayName", "벼락치기");
+            var doc = TestData.Item("skilldoc_cram").Set("displayName", "기술문서: 벼락치기")
+                .Set("kind", ItemKind.SkillDocument).Set("taughtSkill", cram);
+            database.ReplaceContents(new MonsterSpecies[0], new[] { ink, cover, keepsake, potion, doc }, new[] { area }, new[] { quill, book, lantern });
+            session.GrantRelic(book);
+            session.GrantRelic(lantern);
+            session.Inventory.Add(doc);
+            Assert.IsFalse(session.Hero.HasSkillRoom, "기술 칸 가득 (깃펜·백과사전·등불)");
+            var field = MakeField();
+            yield return null;
+            yield return null;
+            var hud = field.transform.Find("FieldHud/SafeArea");
+            var bag = hud.Find("InventoryView");
+
+            FindButton(hud, "BagButton").onClick.Invoke();
+            FindButton(bag, "TabItems").onClick.Invoke();
+            bool found = false;
+            for (int i = 0; i < InventoryView.SlotCount && !found; i++)
+            {
+                FindButton(bag, $"ItemSlot_{i}").onClick.Invoke();
+                found = AllText(bag.Find("DetailBox")).Contains("기술문서: 벼락치기");
+            }
+            Assert.IsTrue(found, "아이템 칸에 기술문서");
+            var learnButton = FindButton(bag, "UseItemButton");
+            StringAssert.Contains("배우기", AllText(learnButton));
+            StringAssert.Contains("기술 칸이 가득", AllText(bag.Find("DetailBox")));
+            learnButton.onClick.Invoke();
+            yield return null;
+
+            var learn = bag.Find("SkillLearnView");
+            Assert.IsTrue(learn.gameObject.activeSelf, "기술 배우기 창");
+            StringAssert.Contains("바꿀 기술을 고르세요", AllText(learn));
+            StringAssert.Contains("책 방패", AllText(learn));
+            var confirm = FindButton(learn, "LearnConfirmButton");
+            Assert.IsFalse(confirm.interactable, "바꿀 기술을 고르기 전엔 못 누름");
+            learn.Find("LearnPanel/Replace_1/Hit").GetComponent<Button>().onClick.Invoke(); // 책 방패
+            Assert.IsTrue(confirm.interactable);
+            StringAssert.Contains("책 방패 → 벼락치기", AllText(confirm));
+            confirm.onClick.Invoke();
+            yield return null;
+
+            Assert.IsFalse(learn.gameObject.activeSelf);
+            CollectionAssert.Contains(session.Hero.Skills.ToArray(), cram);
+            Assert.IsFalse(session.Hero.Skills.Any(s => s.DisplayName == "책 방패"));
+            Assert.AreEqual(1, session.Inventory.GetCount(doc), "문서는 남음");
+            StringAssert.Contains("배웠어요", AllText(bag.Find("DetailBox")));
+            Assert.IsFalse(learnButton.interactable, "이미 배운 기술");
+
+            // 성유물 탭: 백과사전은 끼웠지만 기술이 빠져 있음 → [기술 넣기]로 벼락치기와 바꿔 다시 넣기
+            FindButton(bag, "InventoryCloseButton").onClick.Invoke();
+            yield return null;
+            FindButton(hud, "RelicSlot_1").onClick.Invoke();
+            yield return null;
+            var relicPage = bag.Find("RelicPage");
+            StringAssert.Contains("기술은 기술 칸에 없음", AllText(relicPage));
+            var put = FindButton(relicPage, "RelicSkillButton");
+            Assert.IsTrue(put.gameObject.activeSelf);
+            put.onClick.Invoke();
+            yield return null;
+            Assert.IsTrue(learn.gameObject.activeSelf);
+            StringAssert.Contains("기술 칸에 넣기", AllText(learn));
+            learn.Find("LearnPanel/Replace_1/Hit").GetComponent<Button>().onClick.Invoke(); // 벼락치기
+            FindButton(learn, "LearnConfirmButton").onClick.Invoke();
+            yield return null;
+            Assert.IsTrue(session.Hero.Skills.Any(s => s.DisplayName == "책 방패"), "다시 넣음");
+            CollectionAssert.DoesNotContain(session.Hero.Skills.ToArray(), cram);
+            Assert.IsFalse(FindButton(relicPage, "RelicSkillButton").gameObject.activeSelf);
+
             Object.Destroy(field.gameObject);
             yield return null;
         }

@@ -142,3 +142,4 @@ MonoBehaviour:
     species: {fileID: 11400000, guid: 104b35434b4f9bc46aba8820d3c16227, type: 2}
     level: 12
     rewardRelic: {fileID: 11400000, guid: 1b7f999bdd3edb8409ff80aa0c65e454, type: 2}
+    rewardItem: {fileID: 11400000, guid: 06a736217507a204db83f20e3d6dcb23, type: 2}

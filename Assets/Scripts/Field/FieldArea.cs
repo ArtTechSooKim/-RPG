@@ -80,18 +80,22 @@ namespace WordRPG.Field
         [SerializeField] private int level = 7;
         [Tooltip("처음 쓰러뜨리면 주는 성유물 (없으면 비워 둠)")]
         [SerializeField] private RelicData rewardRelic;
+        [Tooltip("처음 쓰러뜨리면 주는 아이템 — 기술문서 등 (없으면 비워 둠)")]
+        [SerializeField] private ItemData rewardItem;
 
         public MonsterSpecies Species => species;
         public int Level => level;
         public RelicData RewardRelic => rewardRelic;
+        public ItemData RewardItem => rewardItem;
 
         private BossEncounter() { } // Unity 직렬화용
 
-        public BossEncounter(MonsterSpecies species, int level, RelicData rewardRelic = null)
+        public BossEncounter(MonsterSpecies species, int level, RelicData rewardRelic = null, ItemData rewardItem = null)
         {
             this.species = species;
             this.level = level;
             this.rewardRelic = rewardRelic;
+            this.rewardItem = rewardItem;
         }
     }
 

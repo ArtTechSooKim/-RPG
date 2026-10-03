@@ -44,7 +44,7 @@ namespace WordRPG.EditorTools
             var inkStorm = Skill("quill_ink_storm", "잉크 폭풍", "거센 잉크 폭풍으로 적 전체를 공격한다.", SkillKind.Damage, SkillTarget.AllEnemies, 22, QuizDirection.MeaningToEnglish);
             var bookShield = Skill("shell_book_shield", "책 방패", "두꺼운 책으로 몸을 가려 보호막을 친다.", SkillKind.Guard, SkillTarget.AllAllies, 4, QuizDirection.MeaningToEnglish);
             var encycloWall = Skill("tortoise_encyclo_wall", "백과 방벽", "백과사전을 펼쳐 단단한 방벽을 세운다.", SkillKind.Guard, SkillTarget.AllAllies, 10, QuizDirection.MeaningToEnglish);
-            var healingLight = Skill("lumi_healing_light", "치유의 빛", "따뜻한 빛으로 HP를 회복한다.", SkillKind.Heal, SkillTarget.AllAllies, 8, QuizDirection.MeaningToEnglish);
+            var healingLight = Skill("lumi_healing_light", "쪽잠자기", "잠깐 눈을 붙이고 일어나 HP를 회복한다.", SkillKind.Heal, SkillTarget.AllAllies, 8, QuizDirection.MeaningToEnglish);
             var wisdomLight = Skill("lantern_wisdom_light", "지혜의 빛", "지혜의 빛으로 HP를 크게 회복한다.", SkillKind.Heal, SkillTarget.AllAllies, 14, QuizDirection.MeaningToEnglish);
             var spellBolt = Skill("wand_spell_bolt", "철자 번개", "철자를 정확히 외우면 적 하나에게 번개가 떨어진다.", SkillKind.Damage, SkillTarget.SingleEnemy, 26, QuizDirection.MeaningToEnglish);
             var spellStorm = Skill("wand_thunder_spell", "낙뢰 주문", "긴 주문으로 적 하나에게 거대한 벼락을 떨어뜨린다.", SkillKind.Damage, SkillTarget.SingleEnemy, 34, QuizDirection.MeaningToEnglish);
@@ -69,12 +69,23 @@ namespace WordRPG.EditorTools
             var tailSlam = Skill("raccoon_tail_slam", "꼬리 후려치기", "커다란 꼬리로 힘껏 후려친다.", SkillKind.Damage, SkillTarget.SingleEnemy, 28, QuizDirection.EnglishToMeaning);
             var acornSnack = Skill("raccoon_acorn_snack", "도토리 간식", "숨겨 둔 도토리를 먹고 HP를 회복한다.", SkillKind.Heal, SkillTarget.Self, 14, QuizDirection.EnglishToMeaning);
 
+            // --- 기술문서로 배우는 기술 (공부 테마). 보스·보물상자에서 문서를 얻는다. 새 기술은 앞으로 더 추가 ---
+            var cramBolt = Skill("doc_cram_bolt", "벼락치기", "시험 전날 밤처럼 몰아쳐서 적 하나를 세게 공격한다.", SkillKind.Damage, SkillTarget.SingleEnemy, 30, QuizDirection.MeaningToEnglish);
+            var highlightSweep = Skill("doc_highlight_sweep", "형광펜 긋기", "형광펜으로 쭉 그어 적 전체를 공격한다.", SkillKind.Damage, SkillTarget.AllEnemies, 20, QuizDirection.MeaningToEnglish);
+            var pencilcaseGuard = Skill("doc_pencilcase_guard", "필통 방패", "단단한 필통으로 몸을 가려 보호막을 친다.", SkillKind.Guard, SkillTarget.AllAllies, 10, QuizDirection.EnglishToMeaning);
+            var cramDoc = Item("skilldoc_cram", "기술문서: 벼락치기", "읽으면 기술 '벼락치기'를 배운다. 배워도 사라지지 않아 언제든 다시 배울 수 있다.",
+                new Color(0.95f, 0.85f, 0.3f), ItemKind.SkillDocument, taughtSkill: cramBolt);
+            var highlightDoc = Item("skilldoc_highlight", "기술문서: 형광펜 긋기", "읽으면 기술 '형광펜 긋기'를 배운다. 배워도 사라지지 않아 언제든 다시 배울 수 있다.",
+                new Color(0.5f, 0.85f, 0.35f), ItemKind.SkillDocument, taughtSkill: highlightSweep);
+            var pencilcaseDoc = Item("skilldoc_pencilcase", "기술문서: 필통 방패", "읽으면 기술 '필통 방패'를 배운다. 배워도 사라지지 않아 언제든 다시 배울 수 있다.",
+                new Color(0.75f, 0.55f, 0.4f), ItemKind.SkillDocument, taughtSkill: pencilcaseGuard);
+
             // --- 성유물 (예전 아군 몬스터 3마리 → 깃펜·백과사전·등불, 그리고 새로 찾는 마법 지팡이·기억의 성배) ---
             var quill = Relic("relic_quill", "깃펜", "펜촉이가 남긴 깃펜. 잉크를 뿌려 적을 한꺼번에 공격한다.", MonsterRole.Attacker,
                 new Color(0.25f, 0.45f, 0.95f), inkSplash, inkStorm, new MonsterStats(0, 4, 0), new MonsterStats(0, 2, 0), shinyInk);
             var book = Relic("relic_book", "백과사전", "책껍질이 지고 다니던 두꺼운 사전. 펼치면 단단한 방패가 된다.", MonsterRole.Defender,
                 new Color(0.6f, 0.4f, 0.2f), bookShield, encycloWall, new MonsterStats(10, 0, 4), new MonsterStats(4, 0, 1), hardCover);
-            var lantern = Relic("relic_lantern", "등불", "등불이가 남긴 작은 등불. 따뜻한 빛으로 상처를 감싼다.", MonsterRole.Supporter,
+            var lantern = Relic("relic_lantern", "등불", "등불이가 남긴 작은 등불. 은은한 불빛 아래 잠깐 눈을 붙이면 기운이 돌아온다.", MonsterRole.Supporter,
                 new Color(1f, 0.85f, 0.3f), healingLight, wisdomLight, new MonsterStats(15, 0, 0), new MonsterStats(5, 0, 0), sparkleDust);
             var wand = Relic("relic_wand", "마법 지팡이", "철자를 정확히 외우면 번개가 떨어지는 지팡이. 서고 깊은 곳에 잠들어 있었다.", MonsterRole.Attacker,
                 new Color(0.55f, 0.45f, 0.95f), spellBolt, spellStorm, new MonsterStats(0, 6, 0), new MonsterStats(0, 2, 0), sparkleDust);
@@ -147,7 +158,7 @@ namespace WordRPG.EditorTools
                 new ChestContent(sparkleDust, 2),        // 북서: 오래된 숲 풀숲 오솔길 끝
                 new ChestContent(hardCover, 2),          // 북동: 작은 못 옆 풀숲
                 new ChestContent(null, 0, 50, book),     // 호수 곶 끝 — 두 번째 성유물
-                new ChestContent(null, 0, 80),           // 서쪽 덤불 속 숨은 상자
+                new ChestContent(pencilcaseDoc, 1, 30),  // 서쪽 덤불 속 숨은 상자 — 기술문서: 필통 방패
                 new ChestContent(shinyInk, 2),           // 남동: 나무 고리 안 숨은 공터
                 new ChestContent(potion, 2));            // 마을 동쪽 길 아래 풀숲
 
@@ -172,6 +183,7 @@ namespace WordRPG.EditorTools
                 boss.FindPropertyRelative("species").objectReferenceValue = forgetKing;
                 boss.FindPropertyRelative("level").intValue = 7;
                 boss.FindPropertyRelative("rewardRelic").objectReferenceValue = grail;
+                boss.FindPropertyRelative("rewardItem").objectReferenceValue = cramDoc;
             });
             // --- 두 번째 지역: 숲 (2단계 단어). 초원 마을 동쪽 출입구 — 서고 보스를 물리치면 열린다 ---
             Area("forest", "숲", ForestMap, forestEncounters,
@@ -193,6 +205,7 @@ namespace WordRPG.EditorTools
                 boss.FindPropertyRelative("species").objectReferenceValue = muddleRaccoon;
                 boss.FindPropertyRelative("level").intValue = 12;
                 boss.FindPropertyRelative("rewardRelic").objectReferenceValue = leaf;
+                boss.FindPropertyRelative("rewardItem").objectReferenceValue = highlightDoc;
             });
 
             // --- 출입구 연결 (맵의 D를 위→아래, 왼→오른 순): 초원 0 = 서고, 초원 1 = 숲(서고 보스를 물리치면 열림) ---
@@ -457,7 +470,7 @@ namespace WordRPG.EditorTools
         }
 
         private static ItemData Item(string id, string name, string description, Color color,
-            ItemKind kind = ItemKind.Material, int healAmount = 0)
+            ItemKind kind = ItemKind.Material, int healAmount = 0, SkillData taughtSkill = null)
         {
             return CreateIfMissing<ItemData>($"{Root}/Items/{id}.asset", so =>
             {
@@ -467,6 +480,7 @@ namespace WordRPG.EditorTools
                 Prop(so, "kind").enumValueIndex = (int)kind;
                 Prop(so, "placeholderColor").colorValue = color;
                 Prop(so, "healAmount").intValue = healAmount;
+                Prop(so, "taughtSkill").objectReferenceValue = taughtSkill;
             });
         }
 

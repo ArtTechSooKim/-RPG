@@ -729,7 +729,7 @@ namespace WordRPG.UI
         {
             if (actor.Hero == null) return "";
             var source = actor.Hero.SourceOf(skill);
-            return source != null ? $"{source.Data.DisplayName} · " : "기본 · ";
+            return source != null ? $"{source.SourceName} · " : "기본 · ";
         }
 
         // 가방에 있는 회복 아이템 (상처약 등). 소지품은 id만 있어서 GameDatabase로 찾는다

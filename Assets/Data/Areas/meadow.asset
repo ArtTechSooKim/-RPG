@@ -126,9 +126,9 @@ MonoBehaviour:
     count: 0
     gold: 50
     relic: {fileID: 11400000, guid: 0a6bb6350c64997468755f814f9f9371, type: 2}
-  - item: {fileID: 0}
-    count: 0
-    gold: 80
+  - item: {fileID: 11400000, guid: a6816b62f01230a4e8a4d4cdbcab5d89, type: 2}
+    count: 1
+    gold: 30
     relic: {fileID: 0}
   - item: {fileID: 11400000, guid: d068093b31fa6bd479a9978022d8bc1f, type: 2}
     count: 2
@@ -149,3 +149,4 @@ MonoBehaviour:
     species: {fileID: 0}
     level: 7
     rewardRelic: {fileID: 0}
+    rewardItem: {fileID: 0}

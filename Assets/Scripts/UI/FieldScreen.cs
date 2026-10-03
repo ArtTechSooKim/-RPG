@@ -9,6 +9,7 @@ using WordRPG.Battle;
 using WordRPG.Field;
 using WordRPG.Game;
 using WordRPG.Heroes;
+using WordRPG.Items;
 using WordRPG.Monsters;
 
 namespace WordRPG.UI
@@ -84,6 +85,7 @@ namespace WordRPG.UI
         private SettingsView settingsView;
         private MinimapView minimap;
         private MapView mapView;
+        private SkillLearnView learnView;
         private Text heroName, heroHp;
         private Image heroHpFill;
         private readonly List<(Image back, Image icon, Text level, Text empty)> relicSlots = new List<(Image, Image, Text, Text)>();
@@ -96,7 +98,8 @@ namespace WordRPG.UI
         public GameSession Session => session;
         public FieldArea CurrentArea => area;
         public bool IsPanelOpen => dexView.IsOpen || altarView.IsOpen || shopView.IsOpen
-                                   || inventoryView.IsOpen || settingsView.IsOpen || mapView.IsOpen;
+                                   || inventoryView.IsOpen || settingsView.IsOpen || mapView.IsOpen || learnView.IsOpen;
+        public SkillLearnView LearnView => learnView;
         public MinimapView Minimap => minimap;
         public string ToastMessage => toastPanel != null && toastPanel.activeSelf ? toastText.text : "";
         public IEnumerable<string> VisibleNameTags => nameTags.VisibleNames;
@@ -412,12 +415,28 @@ namespace WordRPG.UI
             }
             else
             {
-                string loot = result.Item != null ? $"{result.Item.DisplayName} x{result.Count}" : "";
+                bool document = result.Item != null && result.Item.IsSkillDocument;
+                string loot = result.Item != null ? (document ? result.Item.DisplayName : $"{result.Item.DisplayName} x{result.Count}") : "";
                 if (result.Gold > 0) loot += (loot.Length > 0 ? " + " : "") + $"{result.Gold} 골드";
                 ShowToast($"보물상자를 열었다!\n{loot} 획득", 2.5f);
             }
             saveProgress?.Invoke();
             RefreshHud();
+            if (result.Item != null && result.Item.IsSkillDocument) OfferDocument(result.Item);
+        }
+
+        // 기술문서를 얻으면 바로 배울지 묻는다 (안 배워도 가방 > 아이템에서 언제든)
+        private void OfferDocument(ItemData document)
+        {
+            if (document == null || !document.IsSkillDocument || session.Hero.Knows(document)) return;
+            learnView.ShowDocument(session, document, learned =>
+            {
+                OnTownChanged();
+                string name = document.TaughtSkill.DisplayName;
+                string josa = UiKit.WithJosa(name, "을", "를").Substring(name.Length);
+                ShowToast(learned ? $"새 기술 '{name}'{josa} 배웠다!\n전투에서 바로 쓸 수 있어요"
+                    : "기술문서는 가방 > 아이템에서\n언제든 배울 수 있어요", 3f);
+            });
         }
 
         private void UseFountain()
@@ -486,14 +505,22 @@ namespace WordRPG.UI
                 RefreshNameTags();
                 string name = area.Boss.Species.DisplayName;
                 var relic = session.GrantRelic(area.Boss.RewardRelic);
+                var rewardItem = area.Boss.RewardItem; // 기술문서 등
+                if (rewardItem != null) session.Inventory.Add(rewardItem);
                 saveProgress?.Invoke();
                 string message = relic != null
                     ? $"★ {UiKit.WithJosa(name, "을", "를")} 물리쳤다!\n성유물 '{relic.Data.DisplayName}' 획득 — {RelicHint(relic)}"
                     : $"★ {UiKit.WithJosa(name, "을", "를")} 물리쳤다!\n{area.DisplayName}에 잊혀진 기억이 돌아왔다";
-                // 이 보스가 여는 출입구가 있으면 카메라가 가서 보여 준다
+                if (rewardItem != null) message += $"\n{rewardItem.DisplayName} 획득!";
+                Action offer = rewardItem != null && rewardItem.IsSkillDocument ? () => OfferDocument(rewardItem) : (Action)null;
+                // 이 보스가 여는 출입구가 있으면 카메라가 가서 보여 준다 (그다음 기술 배우기)
                 var gates = database != null ? FieldArea.GatesOpenedBy(area, database.Areas) : new List<AreaGate>();
-                if (gates.Count > 0) StartCoroutine(RevealGates(gates, message));
-                else ShowToast(message, 4.5f);
+                if (gates.Count > 0) StartCoroutine(RevealGates(gates, message, offer));
+                else
+                {
+                    ShowToast(message, 4.5f);
+                    offer?.Invoke();
+                }
             }
             else if (!won)
             {
@@ -512,7 +539,7 @@ namespace WordRPG.UI
 
         // 승리 알림을 잠깐 보여 준 뒤, 열린 출입구마다: 어두워짐 → 그 지역의 출입구 앞으로 카메라 이동 →
         // 막힌 덤불이 흔들리며 사라지고 '열렸다!' → 어두워짐 → 원래 자리로
-        private IEnumerator RevealGates(List<AreaGate> gates, string victoryMessage)
+        private IEnumerator RevealGates(List<AreaGate> gates, string victoryMessage, Action after = null)
         {
             transitioning = true;
             revealingGate = true;
@@ -527,6 +554,7 @@ namespace WordRPG.UI
             var last = gates[gates.Count - 1];
             string target = last.Exit.Target != null ? last.Exit.Target.DisplayName : "새 지역";
             ShowToast($"{last.Area.DisplayName}에서 {UiKit.WithJosa(target, "으로", "로")} 가는 길이 열렸다!", 4f);
+            after?.Invoke();
         }
 
         private IEnumerator RevealGate(AreaGate gate)
@@ -862,6 +890,7 @@ namespace WordRPG.UI
             inventoryView = InventoryView.Create(hudRoot);
             settingsView = SettingsView.Create(hudRoot);
             mapView = MapView.Create(hudRoot);
+            learnView = SkillLearnView.Create(hudRoot);
         }
 
         private static HoldButton PadButton(RectTransform parent, string name, string arrow,

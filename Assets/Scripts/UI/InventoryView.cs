@@ -55,6 +55,7 @@ namespace WordRPG.UI
         private GameObject materialsPage, keepsakesPage, detailBox;
         private HeroInfoPage heroPage;
         private RelicPage relicPage;
+        private SkillLearnView learnView; // 기술문서 [배우기] · 성유물 [기술 넣기]
         private Button useButton;
         private Action onChanged;
         private int selectedMaterial;
@@ -103,6 +104,13 @@ namespace WordRPG.UI
 
             var close = UiKit.MakeButton("InventoryCloseButton", root, "닫기", Palette.Neutral, 44, 0.05f, 0.015f, 0.95f, 0.095f);
             close.onClick.AddListener(view.Hide);
+
+            view.learnView = SkillLearnView.Create(root); // 가방 위에 덮는다
+            view.relicPage.PlaceSkill = relic => view.learnView.ShowRelicSkill(view.session, relic, learned =>
+            {
+                if (learned) view.onChanged?.Invoke();
+                view.relicPage.Refresh();
+            });
 
             view.Root.SetActive(false);
             return view;
@@ -223,6 +231,8 @@ namespace WordRPG.UI
 
         public void Hide() => Root.SetActive(false);
 
+        public SkillLearnView LearnView => learnView;
+
         private void SelectTab(BagTab tab) => SelectTab(tab, null);
 
         private void SelectTab(BagTab tab, OwnedRelic relic)
@@ -278,7 +288,26 @@ namespace WordRPG.UI
             var item = materials[Mathf.Clamp(selected, 0, materials.Count - 1)];
             SetDetail(UiKit.ItemIcon(item), item.DisplayName, $"보유 {session.Inventory.GetCount(item)}개", item.Description);
             if (item.IsHealingItem) ShowPotion(item);
+            else if (item.IsSkillDocument) ShowDocument(item);
             else ShowUsage(item);
+        }
+
+        // 기술문서: 배우는 기술 + [배우기] (이미 배웠으면 잠금). 배워도 문서는 남는다
+        private void ShowDocument(ItemData item)
+        {
+            var hero = session.Hero;
+            var skill = item.TaughtSkill;
+            bool known = hero.Knows(item);
+            string line2 = known ? "이미 배운 기술이에요 — 전투 기술 칸에 있어요"
+                : hero.HasSkillRoom ? $"기술 칸 {hero.SkillSlots.Count} / {Hero.SkillSlotCount} — 바로 배울 수 있어요"
+                : "기술 칸이 가득 — 배우면 지금 기술 하나와 바꿔요";
+            SetUsage(UiKit.Icon(BattleScreen.SkillIconName(skill)), $"배우는 기술  {skill.DisplayName} · {BattleScreen.SkillEffect(skill)}",
+                line2, known ? Palette.Good : Palette.TextDim);
+            UiKit.LabelOf(useButton).text = known ? "배움" : "배우기";
+            UiKit.SetColor(useButton, Palette.Info);
+            useButton.gameObject.SetActive(true);
+            useButton.interactable = !known;
+            ((RectTransform)usageBox.transform).anchorMax = new Vector2(0.68f, 0.34f);
         }
 
         // 상처약: 쓰는 곳 + [사용하기] (HP가 가득이면 잠금)
@@ -288,6 +317,8 @@ namespace WordRPG.UI
             bool full = hero.CurrentHp >= hero.Stats.MaxHp;
             SetUsage(UiKit.Icon("skill_heal"), $"쓰는 곳  필드·전투 — HP {item.HealAmount} 회복",
                 full ? "HP가 가득해서 지금은 쓸 필요가 없어요" : $"지금 HP {hero.CurrentHp} / {hero.Stats.MaxHp}", Palette.TextDim);
+            UiKit.LabelOf(useButton).text = "사용하기";
+            UiKit.SetColor(useButton, Palette.Heal);
             useButton.gameObject.SetActive(true);
             useButton.interactable = !full && session.Inventory.GetCount(item) > 0;
             ((RectTransform)usageBox.transform).anchorMax = new Vector2(0.68f, 0.34f);
@@ -297,6 +328,21 @@ namespace WordRPG.UI
         {
             if (materials.Count == 0) return;
             var item = materials[Mathf.Clamp(selectedMaterial, 0, materials.Count - 1)];
+            if (item.IsSkillDocument)
+            {
+                int index = selectedMaterial;
+                learnView.ShowDocument(session, item, learned =>
+                {
+                    if (learned) onChanged?.Invoke();
+                    ShowMaterial(index);
+                    if (learned)
+                    {
+                        detailMeta.text = $"새 기술 '{item.TaughtSkill.DisplayName}'을(를) 배웠어요!";
+                        detailMeta.color = Palette.Good;
+                    }
+                });
+                return;
+            }
             int healed = session.UseHealingItem(item);
             if (healed <= 0) return;
             Sound.Play(Sfx.Heal);

@@ -92,6 +92,9 @@ namespace WordRPG.Save
         [SerializeField] private VocabularyProgress vocabulary = new VocabularyProgress();
         [SerializeField] private PlayerRecord record = new PlayerRecord();
         [SerializeField] private WorldState world = new WorldState();
+        // 주인공 기술 칸 ("relic:{relicId}" / "doc:{itemId}"). 기술문서가 생기기 전 세이브에는 없음 → 끼운 성유물 기술로 채움
+        [SerializeField] private List<string> skillSlots = new List<string>();
+        [SerializeField] private bool hasSkillSlots;
 
         public int Version => version;
         public DateTime SavedAtUtc => new DateTime(savedAtTicks, DateTimeKind.Utc);
@@ -102,8 +105,17 @@ namespace WordRPG.Save
         public VocabularyProgress Vocabulary => vocabulary;
         public PlayerRecord Record => record;
         public WorldState World => world;
+        public IReadOnlyList<string> SkillSlots => skillSlots;
+        public bool HasSkillSlots => hasSkillSlots;
 
         public SaveData() { }
+
+        public SaveData WithSkillSlots(IEnumerable<string> keys)
+        {
+            skillSlots = new List<string>(keys);
+            hasSkillSlots = true;
+            return this;
+        }
 
         public SaveData(DateTime savedAtUtc, HeroSaveData hero, List<RelicSaveData> relics, Inventory inventory,
             VocabularyProgress vocabulary, PlayerRecord record, WorldState world = null)
@@ -146,6 +158,7 @@ namespace WordRPG.Save
             data.vocabulary = data.vocabulary ?? new VocabularyProgress();
             data.record = data.record ?? new PlayerRecord();
             data.world = data.world ?? new WorldState();
+            data.skillSlots = data.skillSlots ?? new List<string>();
             return data;
         }
     }

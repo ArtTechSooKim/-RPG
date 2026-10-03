@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 71c0dd365e2553c48922bec3a339f174, type: 3}
-  m_Name: lumi_healing_light
+  m_Name: doc_cram_bolt
   m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.SkillData
-  skillId: lumi_healing_light
-  displayName: "\uCABD\uC7A0\uC790\uAE30"
-  description: "\uC7A0\uAE50 \uB208\uC744 \uBD99\uC774\uACE0 \uC77C\uC5B4\uB098 HP\uB97C
-    \uD68C\uBCF5\uD55C\uB2E4."
-  kind: 1
-  target: 3
-  power: 8
+  skillId: doc_cram_bolt
+  displayName: "\uBCBC\uB77D\uCE58\uAE30"
+  description: "\uC2DC\uD5D8 \uC804\uB0A0 \uBC24\uCC98\uB7FC \uBAB0\uC544\uCCD0\uC11C
+    \uC801 \uD558\uB098\uB97C \uC138\uAC8C \uACF5\uACA9\uD55C\uB2E4."
+  kind: 0
+  target: 0
+  power: 30
   quizDirection: 1

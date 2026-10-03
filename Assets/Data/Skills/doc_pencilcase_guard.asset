@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 71c0dd365e2553c48922bec3a339f174, type: 3}
-  m_Name: lumi_healing_light
+  m_Name: doc_pencilcase_guard
   m_EditorClassIdentifier: WordRPG::WordRPG.Monsters.SkillData
-  skillId: lumi_healing_light
-  displayName: "\uCABD\uC7A0\uC790\uAE30"
-  description: "\uC7A0\uAE50 \uB208\uC744 \uBD99\uC774\uACE0 \uC77C\uC5B4\uB098 HP\uB97C
-    \uD68C\uBCF5\uD55C\uB2E4."
-  kind: 1
+  skillId: doc_pencilcase_guard
+  displayName: "\uD544\uD1B5 \uBC29\uD328"
+  description: "\uB2E8\uB2E8\uD55C \uD544\uD1B5\uC73C\uB85C \uBAB8\uC744 \uAC00\uB824
+    \uBCF4\uD638\uB9C9\uC744 \uCE5C\uB2E4."
+  kind: 2
   target: 3
-  power: 8
-  quizDirection: 1
+  power: 10
+  quizDirection: 0

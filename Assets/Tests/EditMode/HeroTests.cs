@@ -50,7 +50,7 @@ namespace WordRPG.Tests
             hero.AddRelic(book);
             CollectionAssert.AreEqual(new[] { data.BasicSkill, splash, shieldSkill }, hero.Skills);
             Assert.IsNull(hero.SourceOf(data.BasicSkill));
-            Assert.AreSame(quill, hero.SourceOf(splash).Data);
+            Assert.AreSame(quill, hero.SourceOf(splash).Relic.Data);
         }
 
         [Test]

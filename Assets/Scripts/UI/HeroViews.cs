@@ -277,7 +277,8 @@ namespace WordRPG.UI
                 rt.anchorMin = new Vector2(0, top - h);
                 rt.anchorMax = new Vector2(1, top);
                 var source = hero.SourceOf(skills[i]);
-                row.Show(skills[i], source != null ? $"{source.Data.DisplayName} +{source.Level} · " : "기본 기술 · ", null, compact);
+                string from = source == null ? "기본 기술 · " : source.Relic != null ? $"{source.SourceName} +{source.Relic.Level} · " : "기술문서 · ";
+                row.Show(skills[i], from, null, compact);
             }
         }
 
@@ -329,7 +330,11 @@ namespace WordRPG.UI
         private SkillRowView skillRow;
         private Button actionButton;
         private Text actionLabel;
+        private Button skillButton; // 끼웠는데 기술 칸이 가득해서 기술이 빠져 있을 때 [기술 넣기]
         private GameObject detailGroup;
+
+        // [기술 넣기]를 눌렀을 때 (가방이 기술 배우기 창을 연다)
+        public Action<OwnedRelic> PlaceSkill { get; set; }
 
         private GameSession session;
         private GameDatabase database;
@@ -405,6 +410,12 @@ namespace WordRPG.UI
             actionButton.colors = colors;
             actionLabel = UiKit.LabelOf(actionButton);
             actionButton.onClick.AddListener(OnAction);
+            skillButton = UiKit.MakeButton("RelicSkillButton", content, "기술 넣기", Palette.Info, 44, 0.51f, 0.03f, 0.973f, 0.18f, bestFit: true);
+            skillButton.onClick.AddListener(() =>
+            {
+                if (Selected != null) PlaceSkill?.Invoke(Selected);
+            });
+            skillButton.gameObject.SetActive(false);
 
             unknownText = UiKit.Label("Unknown", box, "", 34, Palette.TextDim, 0.05f, 0.3f, 0.95f, 0.7f,
                 TextAnchor.MiddleCenter, FontStyle.Normal, true, 20);
@@ -422,6 +433,12 @@ namespace WordRPG.UI
         }
 
         public void Hide() => Root.SetActive(false);
+
+        // 기술 칸이 바뀐 뒤 다시 그리기
+        public void Refresh()
+        {
+            if (Root.activeSelf && Selected != null) Select(Selected, -1);
+        }
 
         private void BuildCatalog()
         {
@@ -511,7 +528,9 @@ namespace WordRPG.UI
             artIcon.enabled = artIcon.sprite != null;
             nameText.text = $"{data.DisplayName}  +{relic.Level}";
             bool equipped = hero.IsEquipped(relic);
-            roleText.text = $"{data.Role.DisplayName()} · " + (equipped ? $"{hero.SlotOf(relic) + 1}번 칸에 장착 중" : "장착하지 않음");
+            bool skillOut = equipped && !hero.HasSkillOf(relic); // 끼웠지만 기술 칸이 가득해서 기술은 빠져 있음
+            roleText.text = $"{data.Role.DisplayName()} · " + (equipped ? $"{hero.SlotOf(relic) + 1}번 칸에 장착 중" : "장착하지 않음")
+                            + (skillOut ? " · 기술은 기술 칸에 없음" : "");
             var perLevel = HeroInfoPage.BonusText(data.BonusPerLevel);
             bonusText.text = $"{HeroInfoPage.BonusText(relic.Bonus)}   (강화할 때마다 {perLevel})";
             description.text = data.Description;
@@ -530,6 +549,8 @@ namespace WordRPG.UI
                   + (data.UpgradeItem != null ? $"{data.UpgradeItem.DisplayName} {cost.ItemCount}개 (보유 {session.Inventory.GetCount(data.UpgradeItem)}) · " : "")
                   + $"{cost.Gold}G";
 
+            skillButton.gameObject.SetActive(skillOut);
+            ((RectTransform)actionButton.transform).anchorMax = new Vector2(skillOut ? 0.49f : 0.973f, 0.18f);
             if (equipped)
             {
                 SetAction("빼기", Palette.Neutral, true);

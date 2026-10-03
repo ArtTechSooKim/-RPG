@@ -40,6 +40,8 @@
    - 아이템·성유물·몬스터·지역을 새로 만들면 `WordRPG > Data > Refresh Game Database` 실행 (안 하면 세이브에서 불러올 수 없음, DataIntegrityTests가 잡음)
    - 성유물은 시작·보물상자(ChestContent.relic)·보스(BossEncounter.rewardRelic) 중 하나에서 얻을 수 있어야 하고, 강화 재료는 적 드롭·상자에서 얻을 수 있어야 함.
      상점은 회복 아이템(상처약)만 판다 — 사용자 결정 (TownDataTests가 검사)
+   - 기술문서(ItemKind.SkillDocument)는 taughtSkill이 있어야 하고 상자·보스(BossEncounter.rewardItem)에서 얻을 수 있어야 함 (SkillDocumentDataTests).
+     전투 기술 = 기본 기술(고정) + 기술 칸 3개(성유물 기술·기술문서 기술), 세이브에는 칸 순서를 키 문자열로 저장
    - 이미 출시된 id는 바꾸지 말 것. SaveData에 필드 추가는 자유(예전 세이브는 기본값), 기존 필드 의미를 바꿀 때만 version 올리고 변환
    - 게임 진행 상태는 `GameManager.Instance.Session`에서 얻고, 바뀌면 `GameManager.Save()` 호출
    - 세션을 쓰기 시작하는 화면(필드·전투)은 `MarkPlaying()`을 불러야 저장된다 (타이틀에서 시작 전엔 저장 안 함)
@@ -83,8 +85,8 @@ Assets/
     Core/               CSV 파서 등 공용
     Words/              단어, 숙련도(VocabularyProgress), 출제(WordSelector), 4지선다(QuizGenerator)
     Monsters/           적 몬스터 MonsterSpecies·SkillData SO, MonsterInstance, ICombatant(싸우는 것 공통), LevelCurve
-    Heroes/             HeroData SO(주인공), Hero(레벨·HP·성유물 3칸), RelicData SO(성유물: 기술·각성·보너스·강화 비용), RelicUpgrade(강화 규칙)
-    Items/              ItemData SO(재료·상처약·징표), Inventory, ShopData SO + Shop(구매 규칙)
+    Heroes/             HeroData SO(주인공), Hero(레벨·HP·성유물 3칸·기술 칸 3개 SkillSlot), RelicData SO(성유물: 기술·각성·보너스·강화 비용), RelicUpgrade(강화 규칙)
+    Items/              ItemData SO(재료·상처약·징표·기술문서), Inventory, ShopData SO + Shop(구매 규칙)
     Battle/             BattleEngine(기술·강도(단어 n개 연속)·상처약·연속 정답 수), Combo(콤보 단계·글자·추가 피해), BattleFormulas, BattleReward
     Field/              FieldMap(맵 글자→격자), FieldWalker(이동), EncounterCounter(조우), FieldInteraction([확인] 대상·이름표 규칙),
                         FieldArea(지역 SO: 테마·출입구 연결·보스·상자·상점), EncounterTable
@@ -92,7 +94,7 @@ Assets/
                         Dex(도감 규칙), Keepsakes(징표 진열장), GameSettings(음량·진동)
     Save/               SaveData(JSON 형식), SaveSystem(임시파일+백업으로 안전 저장)
     UI/                 FieldScreen(필드·지역 이동·HUD·가상 패드), BattleScreen(필드 위에 덮이는 전투, 단독 연습 모드도 있음),
-                        DexView(도감), RelicAltarView(성유물 제단·강화) + AwakeningCutscene(각성 연출), ShopView(상점),
+                        DexView(도감), RelicAltarView(성유물 제단·강화) + AwakeningCutscene(각성 연출), ShopView(상점), SkillLearnView(기술 배우기·바꾸기),
                         InventoryView(소지품: 주인공·성유물·아이템·징표) + HeroViews(HeroInfoPage·RelicPage·RelicSlotsRow·SkillRowView),
                         SettingsView(설정) + ConfirmDialog(확인 창), SwitchView, GateCutscene(보스가 연 길을 보여 주는 연출),
                         FieldNameTags(오브젝트 이름표),

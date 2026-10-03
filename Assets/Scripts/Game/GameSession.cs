@@ -75,6 +75,10 @@ namespace WordRPG.Game
         // 성유물을 얻는다 (보물상자·보스). 이미 가진 것이면 null
         public OwnedRelic GrantRelic(RelicData relic) => relic != null ? Hero.AddRelic(relic) : null;
 
+        // 가방에 있는 기술문서로 기술을 배운다 (문서는 남는다). 칸이 가득이면 replace 칸과 바꾼다
+        public bool LearnSkill(ItemData document, int replace = -1) =>
+            document != null && document.IsSkillDocument && Inventory.GetCount(document) > 0 && Hero.LearnSkill(document, replace);
+
         // 도감을 모두 채운 지역의 보상(징표 + 골드)을 지급한다. 지역당 한 번만 — 이미 받은 지역은 건너뜀.
         // 나중에 단어가 추가돼 완성률이 내려가도 받은 보상은 그대로 유지
         public List<DexCompletion> ClaimDexRewards(IEnumerable<WordDatabase> regions)
@@ -145,8 +149,10 @@ namespace WordRPG.Game
             var relics = new List<RelicSaveData>();
             foreach (var relic in Hero.Relics)
                 relics.Add(new RelicSaveData(relic.Data.RelicId, relic.Level, Hero.SlotOf(relic)));
+            var skills = new List<string>();
+            foreach (var slot in Hero.SkillSlots) skills.Add(slot.Key);
             return new SaveData(nowUtc, new HeroSaveData(Hero.Level, Hero.Exp, Hero.CurrentHp), relics,
-                Inventory, Vocabulary, Record, World);
+                Inventory, Vocabulary, Record, World).WithSkillSlots(skills);
         }
 
         // 세이브에 있는 성유물을 찾을 수 없으면(삭제·id 변경) 빼고 경고를 남긴다. 성유물이 하나도 없으면 시작 성유물로 채운다.
@@ -186,12 +192,46 @@ namespace WordRPG.Game
             if (hero.EquippedCount == 0)
                 foreach (var relic in hero.Relics) hero.Equip(relic);
 
+            if (data.HasSkillSlots) RestoreSkillSlots(hero, data, database, warnings);
+            else
+            {
+                // 기술 칸 정보가 없는 예전 세이브: 끼운 칸 순서대로 성유물 기술 (예전과 같은 기술 구성)
+                for (int i = 0; i < hero.SlotCount; i++)
+                {
+                    var relic = hero.SlotAt(i);
+                    if (relic != null && hero.HasSkillRoom) hero.PlaceRelicSkill(relic);
+                }
+            }
+
             if (data.Version >= 2 && data.Hero.CurrentHp > 0) hero.SetHp(data.Hero.CurrentHp);
             else hero.RestoreFully(); // v1이거나 쓰러진 채로 저장됐다면(패배 직후 앱 종료 등) 회복한 것으로
 
             var session = new GameSession(hero, data.Inventory, data.Vocabulary, data.Record, data.World);
             session.loadWarnings.AddRange(warnings);
             return session;
+        }
+
+        // 저장된 기술 칸 순서대로 되살린다. 끼우지 않은 성유물·찾을 수 없는 기술문서는 건너뜀
+        // (저장된 칸 정보가 없는 예전 세이브는 FromSaveData가 끼운 성유물 기술로 채운다)
+        private static void RestoreSkillSlots(Hero hero, SaveData data, GameDatabase database, List<string> warnings)
+        {
+            hero.ClearSkillSlots();
+            foreach (var key in data.SkillSlots)
+            {
+                if (key == null) continue;
+                if (key.StartsWith("relic:"))
+                {
+                    var relic = database != null ? database.FindRelic(key.Substring(6)) : null;
+                    var owned = relic != null ? hero.Find(relic) : null;
+                    if (owned != null) hero.PlaceRelicSkill(owned);
+                }
+                else if (key.StartsWith("doc:"))
+                {
+                    var document = database != null ? database.FindItem(key.Substring(4)) : null;
+                    if (document == null || !document.IsSkillDocument || !hero.LearnSkill(document))
+                        warnings.Add($"세이브의 기술 '{key}'를 찾을 수 없어 기술 칸에서 뺐습니다");
+                }
+            }
         }
 
         private static Hero CreateHero(HeroData heroData, int level)

@@ -15,7 +15,8 @@ MonoBehaviour:
   relicId: relic_lantern
   displayName: "\uB4F1\uBD88"
   description: "\uB4F1\uBD88\uC774\uAC00 \uB0A8\uAE34 \uC791\uC740 \uB4F1\uBD88.
-    \uB530\uB73B\uD55C \uBE5B\uC73C\uB85C \uC0C1\uCC98\uB97C \uAC10\uC2FC\uB2E4."
+    \uC740\uC740\uD55C \uBD88\uBE5B \uC544\uB798 \uC7A0\uAE50 \uB208\uC744 \uBD99\uC774\uBA74
+    \uAE30\uC6B4\uC774 \uB3CC\uC544\uC628\uB2E4."
   role: 2
   icon: {fileID: 0}
   placeholderColor: {r: 1, g: 0.85, b: 0.3, a: 1}

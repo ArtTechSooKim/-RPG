@@ -51,6 +51,10 @@ ITEMS = {
     "potion": "Items/Potion/Medipack.png",       # 상처약
     "potion_large": "Items/Potion/LifePot.png",  # 큰 상처약
     "keepsake_forest": "Items/Food/Nut.png",     # 도토리 책갈피 (숲 도감 완성 징표)
+    # 기술문서 (두루마리)
+    "skilldoc_cram": "Items/Scroll/ScrollThunder.png",     # 벼락치기 (서고 보스)
+    "skilldoc_highlight": "Items/Scroll/ScrollPlant.png",  # 형광펜 긋기 (숲 보스)
+    "skilldoc_pencilcase": "Items/Scroll/ScrollRock.png",  # 필통 방패 (초원 숨은 상자)
 }
 
 # 소리: 파일 이름 = 게임 코드의 이름(Music·Sfx 열거형을 소문자로)
