@@ -47,8 +47,9 @@
 - 단어 출처: 직접 작성(현재 초안 100개) vs 공개 단어 리스트(NGSL 계열 CC BY-SA, 출처 표기 필요). 한국어 뜻은 어느 쪽이든 직접 검수
 - 난이도 명칭 (TOEIC 명칭·문제는 쓰지 않음)
 - 렌더 파이프라인 (현재 Built-in. URP 2D 전환은 에셋이 적은 지금이 가장 쉬움)
-- 안 쓰는 패키지 정리 (Visual Scripting, Multiplayer Center, Collab 등). 특히 `com.unity.ai.inference`(Sentis)는 Resources의 셰이더가
-  앱에 그대로 들어가 **약 29MB** 차지 (2026-10-03 안드로이드 시험 빌드에서 확인, 게임 코드는 안 씀) → 빼는 것 사용자 결정 대기
+- 안 쓰는 패키지 정리 (Visual Scripting, Multiplayer Center, Collab 등). `com.unity.ai.inference`(Sentis)는 Resources의 셰이더가
+  앱에 **약 29MB** 들어가서 2026-10-03 사용자 결정으로 뺐음 (앱 데이터 48.5 → 19.8MB). AI Assistant의 Asset Knowledge 검색을 켜면
+  다시 설치하라고 묻는데, 설치하면 앱이 다시 커짐
 - 수익화 (광고/인앱) — PRD STEP 6
 
 ---
@@ -370,8 +371,11 @@
   **아이폰에서는 끝내기 확인을 띄우지 않음** (애플 지침: 앱이 스스로 종료하면 안 됨 — `GameManager.CanQuit`)
 - 앱 아이콘: Figma 'App Icon (#28)' → `Assets/Branding/AppIcon.png` 1024px, **투명 채널 없음**(앱스토어 조건, MobileBuildTests가 검사)
 - 회사 이름(companyName)은 `DefaultCompany` 그대로 — 바꾸면 PC 세이브(persistentDataPath)·설정(PlayerPrefs) 위치가 바뀜
-- 아이폰 빌드 흐름: Windows에서 iOS Build Support로 Xcode 프로젝트(`Builds/iOS`) → Mac의 Xcode에서 서명·실행·Archive → 앱스토어 커넥트 업로드
-  → TestFlight 시험 → 심사. 필요: 애플 개발자 프로그램(연 99달러), Mac(없으면 클라우드 빌드), 개인정보 처리방침 주소, 스크린샷
+- 아이폰 빌드 흐름 (사용자는 Mac 있음): Windows에서 iOS Build Support로 Xcode 프로젝트(`Builds/iOS`) →
+  `python Tools/zip_ios_for_mac.py` (실행 파일에 Unix 권한 755를 넣어 묶음 — 안 그러면 Xcode의 process_symbols.sh·il2cpp 도구가
+  Permission denied) → `Builds/WordRPG-iOS-{버전}-build{번호}.zip` → Mac의 Xcode에서 서명·실행·Archive → 앱스토어 커넥트 업로드
+  (앱 번호 6787575524) → TestFlight 시험 → 심사. Mac 단계 설명서 = `Docs/아이폰출시방법.txt` (zip에도 들어감).
+  필요: 애플 개발자 프로그램(연 99달러), 개인정보 처리방침 주소(심사 제출 때), 스크린샷
 
 ## 10. MVP 진행 현황
 

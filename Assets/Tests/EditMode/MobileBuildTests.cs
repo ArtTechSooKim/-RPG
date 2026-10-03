@@ -19,9 +19,14 @@ namespace WordRPG.Tests
         public void PlistGetsNoEncryptionFlagOnceAtRootLevel()
         {
             string once = MobileBuild.WithNoEncryption(Plist);
-            StringAssert.Contains("\t<key>ITSAppUsesNonExemptEncryption</key>\n\t<false/>\n</dict>\n</plist>", once,
+            StringAssert.Contains("\t</dict>\n  <key>ITSAppUsesNonExemptEncryption</key>\n  <false/>\n</dict>\n</plist>", once,
                 "맨 바깥 dict 끝에 들어감 (안쪽 dict가 아니라)");
             Assert.AreEqual(once, MobileBuild.WithNoEncryption(once), "두 번 빌드해도 한 번만");
+
+            // Unity가 만드는 Info.plist는 맨 바깥 </dict>도 두 칸 들여 씀 → 다른 키처럼 네 칸
+            Assert.AreEqual(
+                "<dict>\n    <key>A</key>\n    <true />\n    <key>ITSAppUsesNonExemptEncryption</key>\n    <false/>\n  </dict>\n</plist>\n",
+                MobileBuild.WithNoEncryption("<dict>\n    <key>A</key>\n    <true />\n  </dict>\n</plist>\n"));
         }
 
         // 앱스토어는 1024px 아이콘에 투명 채널이 있으면 받지 않는다

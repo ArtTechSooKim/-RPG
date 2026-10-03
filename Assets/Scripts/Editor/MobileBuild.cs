@@ -139,7 +139,16 @@ namespace WordRPG.EditorTools
             if (plistXml.Contains(key)) return plistXml;
             int end = plistXml.LastIndexOf("</dict>", StringComparison.Ordinal);
             if (end < 0) return plistXml;
-            return plistXml.Insert(end, $"\t{key}\n\t<false/>\n");
+            // 맨 바깥 </dict> 줄 바로 위에, 그 줄보다 두 칸 더 들여 써서 넣는다
+            int lineStart = plistXml.LastIndexOf('\n', end) + 1;
+            string indent = plistXml.Substring(lineStart, end - lineStart);
+            if (indent.Trim().Length > 0)
+            {
+                lineStart = end;
+                indent = "";
+            }
+            string child = indent + "  ";
+            return plistXml.Insert(lineStart, $"{child}{key}\n{child}<false/>\n");
         }
 
         // 메뉴에서는 알림 창, 배치모드에서는 예외 (종료 코드 1)

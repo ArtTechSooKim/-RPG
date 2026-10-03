@@ -117,7 +117,7 @@ Assets/
   Data/                 Words, Hero(hero.asset), Relics, Monsters(적), Skills, Items, Encounters, Areas, Shops (SO 에셋), GameDatabase.asset
   Scenes/               Title.unity (빌드 첫 씬) → Field.unity (본 게임), Battle.unity (전투만 반복하는 연습 씬)
 Docs/                   PRD.txt, GDD.md, 아트에셋목록.md
-Tools/                  import_ninja_art.py (에셋 팩 → 프로젝트, Pillow 필요)
+Tools/                  import_ninja_art.py (에셋 팩 → 프로젝트, Pillow 필요), zip_ios_for_mac.py (Xcode 프로젝트 → Mac용 zip, 실행 권한 유지)
 ```
 
 ## 명령어
@@ -134,8 +134,10 @@ Tools/                  import_ninja_art.py (에셋 팩 → 프로젝트, Pillow
 UNITY="C:/Program Files/Unity/Hub/Editor/6000.3.11f1/Editor/Unity.exe"
 # 테스트 (-testPlatform EditMode 또는 PlayMode)
 "$UNITY" -batchmode -nographics -projectPath . -runTests -testPlatform EditMode -testResults results.xml -logFile tests.log
-# 아이폰 Xcode 프로젝트 (iOS 모듈 필요) / 안드로이드 APK
+# 아이폰 Xcode 프로젝트 (iOS 모듈 필요) → Mac으로 옮길 zip (Mac 단계는 Docs/아이폰출시방법.txt) / 안드로이드 APK
+#   사용자 프로젝트의 플랫폼을 바꾸지 않으려면 Library 없는 복사본에서 빌드 (Docs/작업메모.md)
 "$UNITY" -batchmode -quit -projectPath . -buildTarget iOS -executeMethod WordRPG.EditorTools.MobileBuild.BuildIos -logFile build-ios.log
+python Tools/zip_ios_for_mac.py [Xcode 프로젝트 폴더, 기본 Builds/iOS]
 "$UNITY" -batchmode -quit -projectPath . -buildTarget Android -executeMethod WordRPG.EditorTools.MobileBuild.BuildAndroidApk -logFile build-android.log
 # 샘플 데이터 + 씬 생성
 "$UNITY" -batchmode -quit -nographics -projectPath . -executeMethod WordRPG.EditorTools.SceneBuilder.CreateAllScenes -logFile build.log
