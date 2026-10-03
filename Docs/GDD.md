@@ -379,7 +379,7 @@
 - (참고) Mac에서 직접: Windows에서 iOS Build Support로 Xcode 프로젝트(`Builds/iOS`) →
   `python Tools/zip_ios_for_mac.py` (실행 파일에 Unix 권한 755를 넣어 묶음 — 안 그러면 Xcode의 process_symbols.sh·il2cpp 도구가
   Permission denied) → `Builds/WordRPG-iOS-{버전}-build{번호}.zip` → Mac의 Xcode에서 서명·실행·Archive → 앱스토어 커넥트 업로드
-  (앱 번호 6787575524) → TestFlight 시험 → 심사. Mac 단계 설명서 = `Docs/아이폰출시방법.txt` (zip에도 들어감).
+  (앱스토어 커넥트에 영단어RPG 앱 등록 필요) → TestFlight 시험 → 심사. Mac 단계 설명서 = `Docs/아이폰출시방법.txt` (zip에도 들어감).
   필요: 애플 개발자 프로그램(연 99달러), 개인정보 처리방침 주소(심사 제출 때), 스크린샷
 
 ## 10. MVP 진행 현황
