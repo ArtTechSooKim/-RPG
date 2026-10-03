@@ -70,11 +70,19 @@ namespace WordRPG.UI
         private Button cancelButton;
         private Button itemButton;
         private bool itemMode; // 아이템(상처약) 고르는 중
+        // 공격 기술 강도 (Figma 'Intensity Button'): ×1 단어 1개 / ×1.2 연속 2개 / ×1.5 연속 3개 / ×2 연속 4개
+        private readonly List<Button> intensityButtons = new List<Button>();
+        private readonly List<(Text multiplier, Text title, Text detail)> intensityTexts = new List<(Text, Text, Text)>();
+        private bool intensityMode;
+        private static readonly Color[] IntensityColors = { Palette.Button, Palette.Guard, Palette.Evolve, Palette.Confirm };
 
         private Text quizPrompt, quizHint;
         private RectTransform timerFill;
         private Image timerFillImage;
         private readonly List<Button> choiceButtons = new List<Button>();
+        private GameObject chainBadge;   // 연속 문제 진행 (Figma 'Chain Badge'): ×1.5 ●●○ 2/3
+        private Text chainLabel, chainCount;
+        private readonly List<Image> chainPips = new List<Image>();
 
         private Text cardTitle, cardWord, cardMeaning, cardExtra, cardConfirmLabel;
         private Image cardBorder;
@@ -90,6 +98,7 @@ namespace WordRPG.UI
         private SkillData pickedSkill;
         private ItemData pickedItem;
         private BattleUnit pickedTarget;
+        private int pickedIntensity = 1;
         private SkillData targetingSkill;
         private int pickedChoice = int.MinValue;
         private bool cardConfirmed;
@@ -267,33 +276,46 @@ namespace WordRPG.UI
                     yield return PlayEvents(itemEvents);
                     continue;
                 }
-                var question = engine.SelectSkill(pickedSkill, pickedTarget);
-
-                // 2. 처음 보는 단어면 뜻부터 보여준다
-                if (question.IsNewWord)
-                    yield return ShowWordCard($"새 단어 · 도감 등록 {LearnedCount() + 1}/{words.Words.Count}",
-                        question.Word, "확인", Palette.Gold);
-
-                // 3. 문제
-                float secondsTaken = 0f;
-                yield return AskQuestion(question, seconds => secondsTaken = seconds);
-                int choice = pickedChoice;
-
-                Snapshot();
-                var events = engine.SubmitAnswer(choice, secondsTaken);
-                session.ComboStreak = engine.Streak;
-                saveProgress?.Invoke(); // 단어 학습 기록은 답할 때마다 저장
-                bool correct = choice >= 0 && question.IsCorrect(choice) && secondsTaken <= battleConfig.AnswerTimeLimitSeconds;
-
-                // 4. 정답/오답 표시. 틀리면 정답을 꼭 보여줘서 학습 순간으로 만든다
-                MarkChoices(question, choice);
-                Sound.Play(correct ? Sfx.Correct : Sfx.Wrong);
-                if (!correct && settings != null && settings.Vibration) Haptics.Vibrate();
-                yield return Wait(0.8f);
-                if (!correct)
+                var question = engine.SelectSkill(pickedSkill, pickedTarget, pickedIntensity);
+                IReadOnlyList<BattleEvent> events;
+                while (true)
                 {
-                    string title = choice < 0 ? "시간 초과! 오답 노트에 추가" : "오답! 오답 노트에 추가";
-                    yield return ShowWordCard(title, question.Word, "다음", Palette.Bad);
+                    // 2. 처음 보는 단어면 뜻부터 보여준다
+                    if (question.IsNewWord)
+                        yield return ShowWordCard($"새 단어 · 도감 등록 {LearnedCount() + 1}/{words.Words.Count}",
+                            question.Word, "확인", Palette.Gold);
+
+                    // 3. 문제 (강도를 올렸으면 단어 여러 개를 연속으로)
+                    float secondsTaken = 0f;
+                    yield return AskQuestion(question, seconds => secondsTaken = seconds);
+                    int choice = pickedChoice;
+                    int chainLength = engine.Intensity;
+
+                    Snapshot();
+                    events = engine.SubmitAnswer(choice, secondsTaken);
+                    session.ComboStreak = engine.Streak;
+                    saveProgress?.Invoke(); // 단어 학습 기록은 답할 때마다 저장
+                    bool correct = choice >= 0 && question.IsCorrect(choice) && secondsTaken <= battleConfig.AnswerTimeLimitSeconds;
+                    bool more = correct && engine.Phase == BattlePhase.AnsweringQuiz; // 아직 맞혀야 할 단어가 남음
+
+                    // 4. 정답/오답 표시. 틀리면 정답을 꼭 보여줘서 학습 순간으로 만든다
+                    MarkChoices(question, choice);
+                    Sound.Play(correct ? Sfx.Correct : Sfx.Wrong);
+                    if (!correct && settings != null && settings.Vibration) Haptics.Vibrate();
+                    if (more)
+                    {
+                        RefreshChainBadge();
+                        Log($"정답! 다음 단어 ({engine.ChainCorrect}/{engine.Intensity})");
+                    }
+                    yield return Wait(more ? 0.6f : 0.8f);
+                    if (!correct)
+                    {
+                        string title = choice < 0 ? "시간 초과! 오답 노트에 추가" : "오답! 오답 노트에 추가";
+                        if (chainLength > 1) title = (choice < 0 ? "시간 초과" : "오답") + $" — ×{Multiplier(chainLength)} 공격 실패! 오답 노트에 추가";
+                        yield return ShowWordCard(title, question.Word, "다음", Palette.Bad);
+                    }
+                    if (!more) break;
+                    question = engine.CurrentQuestion;
                 }
 
                 // 5. 결과 연출
@@ -308,6 +330,7 @@ namespace WordRPG.UI
             pickedSkill = null;
             pickedItem = null;
             pickedTarget = null;
+            pickedIntensity = 1;
             targetingSkill = null;
             itemMode = false;
             UpdateFrames();
@@ -334,6 +357,7 @@ namespace WordRPG.UI
                 choiceButtons[i].interactable = true;
             }
 
+            RefreshChainBadge();
             pickedChoice = int.MinValue;
             float startTime = Time.unscaledTime;
             float limit = battleConfig.AnswerTimeLimitSeconds;
@@ -349,7 +373,7 @@ namespace WordRPG.UI
                     break;
                 }
 
-                bool critical = elapsed <= battleConfig.CriticalTimeSeconds;
+                bool critical = elapsed <= battleConfig.CriticalTimeSeconds && engine.CanStillCrit;
                 quizHint.text = critical ? $"{hint}   ★ 크리티컬 찬스!" : hint;
                 timerFill.anchorMax = new Vector2(Mathf.Clamp01(1f - elapsed / limit), 1);
                 timerFillImage.color = critical ? Palette.Gold : (limit - elapsed < 3f ? Palette.Bad : Palette.Info);
@@ -358,6 +382,21 @@ namespace WordRPG.UI
 
             foreach (var button in choiceButtons) button.interactable = false;
             onDone(elapsed);
+        }
+
+        // 강도 2 이상일 때만: 배율 · 맞힌 칸(초록) · 맞힌 수/필요한 수
+        private void RefreshChainBadge()
+        {
+            int length = engine.Intensity;
+            chainBadge.SetActive(length > 1 && engine.Phase == BattlePhase.AnsweringQuiz);
+            if (length <= 1) return;
+            chainLabel.text = $"×{Multiplier(length)}";
+            for (int i = 0; i < chainPips.Count; i++)
+            {
+                chainPips[i].gameObject.SetActive(i < length);
+                chainPips[i].color = i < engine.ChainCorrect ? Palette.Good : Palette.Track;
+            }
+            chainCount.text = $"{engine.ChainCorrect}/{length}";
         }
 
         private void MarkChoices(QuizQuestion question, int chosen)
@@ -448,8 +487,14 @@ namespace WordRPG.UI
                         break;
 
                     case BattleEventType.SkillUsed:
-                        Log($"{e.Actor.DisplayName}의 {e.Skill.DisplayName}!");
-                        yield return Wait(0.5f);
+                        bool charged = e.Multiplier > 1.001f;
+                        Log($"{e.Actor.DisplayName}의 {e.Skill.DisplayName}" + (charged ? $" ×{FormatMultiplier(e.Multiplier)}!" : "!"));
+                        if (charged)
+                        {
+                            Float(e.Actor, $"×{FormatMultiplier(e.Multiplier)}!", Palette.Gold, 56);
+                            Sound.Play(Sfx.Critical);
+                        }
+                        yield return Wait(charged ? 0.7f : 0.5f);
                         break;
 
                     case BattleEventType.SkillFailed:
@@ -645,6 +690,8 @@ namespace WordRPG.UI
         private void ShowSkillMenu(BattleUnit actor)
         {
             itemMode = false;
+            intensityMode = false;
+            foreach (var button in intensityButtons) button.gameObject.SetActive(false);
             ShowPanel(skillPanel);
             skillTitle.text = $"{actor.DisplayName}의 차례 — 기술을 고르세요";
             cancelButton.gameObject.SetActive(false);
@@ -724,7 +771,7 @@ namespace WordRPG.UI
         {
             if (!skill.NeedsTargetChoice)
             {
-                pickedSkill = skill;
+                Commit(skill, null);
                 return;
             }
 
@@ -738,8 +785,7 @@ namespace WordRPG.UI
             // 적이 한 마리뿐이면 대상 선택을 건너뛴다
             if (skill.Target == SkillTarget.SingleEnemy && alive.Count == 1)
             {
-                pickedTarget = alive[0];
-                pickedSkill = skill;
+                Commit(skill, alive[0]);
                 return;
             }
 
@@ -753,18 +799,72 @@ namespace WordRPG.UI
             {
                 var target = unit;
                 var view = viewOf[unit];
-                view.SetSelectable(true, () =>
-                {
-                    pickedTarget = target;
-                    pickedSkill = skill;
-                });
+                view.SetSelectable(true, () => Commit(skill, target));
                 view.SetFrame(Palette.Info);
             }
         }
 
+        // 기술(과 대상)이 정해짐: 주인공의 공격 기술이면 강도를 고르고, 아니면 바로 문제로
+        private void Commit(SkillData skill, BattleUnit target)
+        {
+            if (engine.CurrentActor.IsPlayerSide && BattleEngine.CanChooseIntensity(skill) && battleConfig.MaxIntensity > 1)
+            {
+                ShowIntensityMenu(skill, target);
+                return;
+            }
+            pickedTarget = target;
+            pickedSkill = skill;
+        }
+
+        // 강도 고르기 (Figma 'Battle — 강도 고르기'): 단어를 더 많이 연속으로 맞힐수록 피해가 크지만, 하나라도 틀리면 공격 실패
+        private void ShowIntensityMenu(SkillData skill, BattleUnit target)
+        {
+            intensityMode = true;
+            targetingSkill = null;
+            ClearSelectable();
+            skillTitle.text = $"{skill.DisplayName} — 강도를 고르세요\n<size=26><color=#A6B3D1>하나라도 틀리면 이번 턴 공격 실패 · 맞힌 단어는 모두 콤보</color></size>";
+            foreach (var button in skillButtons) button.gameObject.SetActive(false);
+            itemButton.gameObject.SetActive(false);
+            cancelButton.gameObject.SetActive(true);
+
+            // 예상 피해는 고른 대상(없으면 살아 있는 첫 적) 기준
+            var estimateTarget = target;
+            if (estimateTarget == null)
+            {
+                foreach (var enemy in engine.Enemies)
+                {
+                    if (!enemy.IsDefeated) { estimateTarget = enemy; break; }
+                }
+            }
+            for (int i = 0; i < intensityButtons.Count; i++)
+            {
+                int words = i + 1;
+                bool used = words <= battleConfig.MaxIntensity;
+                intensityButtons[i].gameObject.SetActive(used);
+                if (!used) continue;
+                var (multiplier, title, detail) = intensityTexts[i];
+                multiplier.text = $"×{Multiplier(words)}";
+                title.text = words == 1 ? "단어 1개" : $"단어 {words}개 연속";
+                int damage = engine.EstimateDamage(skill, estimateTarget, words);
+                string each = skill.Target == SkillTarget.AllEnemies ? "적마다 " : "";
+                detail.text = (words == 1 ? "맞히면 발동" : $"{words}개 모두 맞혀야 발동") + $" · 예상 피해 {each}약 {damage}";
+                intensityButtons[i].onClick.RemoveAllListeners();
+                intensityButtons[i].onClick.AddListener(() =>
+                {
+                    pickedIntensity = words;
+                    pickedTarget = target;
+                    pickedSkill = skill;
+                });
+            }
+        }
+
+        private string Multiplier(int words) => FormatMultiplier(battleConfig.IntensityMultiplier(words));
+
+        private static string FormatMultiplier(float value) => value.ToString("0.##");
+
         private void OnCancelTargeting()
         {
-            if (itemMode)
+            if (itemMode || intensityMode)
             {
                 ShowSkillMenu(engine.CurrentActor);
                 return;
@@ -1160,6 +1260,25 @@ namespace WordRPG.UI
             cancelButton = UiKit.MakeButton("CancelButton", skillPanel.transform, "취소", Palette.Neutral,
                 44, 0.25f, 0, 0.75f, 0.155f);
             cancelButton.onClick.AddListener(OnCancelTargeting);
+
+            // 강도 버튼: 왼쪽 큰 배율 + 오른쪽 '단어 n개 연속' · 예상 피해 (평소엔 숨김)
+            for (int i = 0; i < 4; i++)
+            {
+                float top = 0.835f - i * 0.165f;
+                var button = UiKit.MakeButton($"Intensity_{i}", skillPanel.transform, "", IntensityColors[i], 40,
+                    0, top - 0.155f, 1, top);
+                var label = UiKit.LabelOf(button);
+                label.text = "";
+                var multiplier = UiKit.Display(UiKit.OneLine(UiKit.Label("Multiplier", button.transform, "", 64,
+                    i < 2 ? Palette.Gold : Palette.Text, 0, 0, 0.2f, 1)));
+                var title = UiKit.Display(UiKit.OneLine(UiKit.Label("Title", button.transform, "", 42, Palette.Text,
+                    0.22f, 0.45f, 0.98f, 0.95f, TextAnchor.MiddleLeft)));
+                var detail = UiKit.Label("Detail", button.transform, "", 26, new Color(1, 1, 1, 0.85f), 0.22f, 0.06f, 0.98f, 0.46f,
+                    TextAnchor.MiddleLeft, FontStyle.Normal, true, 16);
+                button.gameObject.SetActive(false);
+                intensityButtons.Add(button);
+                intensityTexts.Add((multiplier, title, detail));
+            }
         }
 
         private void BuildQuizPanel(Transform parent)
@@ -1167,12 +1286,38 @@ namespace WordRPG.UI
             quizPanel = UiKit.Stretch("QuizPanel", parent).gameObject;
             quizPrompt = UiKit.Display(UiKit.Label("Prompt", quizPanel.transform, "", 84, Palette.Text, 0, 0.8f, 1, 1,
                 TextAnchor.MiddleCenter, FontStyle.Normal, true, 30));
-            quizHint = UiKit.Label("Hint", quizPanel.transform, "", 30, Palette.TextDim, 0, 0.735f, 1, 0.8f);
+            quizHint = UiKit.OneLine(UiKit.Label("Hint", quizPanel.transform, "", 30, Palette.TextDim, 0, 0.735f, 1, 0.8f)); // 줄 높이 때문에 잘리지 않게
 
             var timerBack = UiKit.Pill(UiKit.Panel("TimerBack", quizPanel.transform, Palette.Track,
                 0.02f, 0.695f, 0.98f, 0.72f));
             timerFillImage = UiKit.Pill(UiKit.Panel("TimerFill", timerBack.transform, Palette.Info));
             timerFill = timerFillImage.rectTransform;
+
+            var badge = UiKit.Pill(UiKit.Panel("ChainBadge", quizPanel.transform, Palette.Evolve, 1, 1, 1, 1));
+            badge.raycastTarget = false;
+            badge.rectTransform.pivot = new Vector2(1, 0);
+            badge.rectTransform.anchoredPosition = new Vector2(-8, 10);
+            var row = badge.gameObject.AddComponent<HorizontalLayoutGroup>();
+            row.padding = new RectOffset(24, 24, 6, 6);
+            row.spacing = 12;
+            row.childAlignment = TextAnchor.MiddleCenter;
+            row.childControlWidth = row.childControlHeight = true;
+            row.childForceExpandWidth = row.childForceExpandHeight = false;
+            var fit = badge.gameObject.AddComponent<ContentSizeFitter>();
+            fit.horizontalFit = fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            chainLabel = UiKit.Display(UiKit.OneLine(UiKit.Label("Multiplier", badge.transform, "", 36, Palette.Text, 0, 0, 1, 1)));
+            for (int i = 0; i < 4; i++)
+            {
+                var pip = UiKit.Pill(UiKit.Panel($"Pip_{i}", badge.transform, Palette.Track));
+                pip.raycastTarget = false;
+                var size = pip.gameObject.AddComponent<LayoutElement>();
+                size.preferredWidth = size.preferredHeight = 22;
+                chainPips.Add(pip);
+            }
+            chainCount = UiKit.OneLine(UiKit.Label("Count", badge.transform, "", 30, Palette.Text, 0, 0, 1, 1,
+                TextAnchor.MiddleCenter, FontStyle.Bold));
+            chainBadge = badge.gameObject;
+            chainBadge.SetActive(false);
 
             for (int i = 0; i < 4; i++)
             {

@@ -7,7 +7,7 @@ namespace WordRPG.Battle
     public enum BattleEventType
     {
         QuizAnswered, // Correct, Mastery
-        SkillUsed,    // Actor, Skill
+        SkillUsed,    // Actor, Skill, Multiplier(공격 강도 배율, 기본 1)
         SkillFailed,  // Actor, Skill (오답이라 기술이 빗나감)
         Damage,       // Actor, Target, Amount(HP 피해), Absorbed(보호막 흡수), IsCritical
         Heal,         // Actor, Target, Amount, IsCritical
@@ -34,14 +34,15 @@ namespace WordRPG.Battle
         public bool Correct { get; private set; }
         public MasteryChange Mastery { get; private set; }
         public int Round { get; private set; }
+        public float Multiplier { get; private set; } = 1f;
 
         private BattleEvent(BattleEventType type) { Type = type; }
 
         public static BattleEvent QuizAnswered(BattleUnit actor, bool correct, MasteryChange mastery) =>
             new BattleEvent(BattleEventType.QuizAnswered) { Actor = actor, Correct = correct, Mastery = mastery };
 
-        public static BattleEvent SkillUsed(BattleUnit actor, SkillData skill) =>
-            new BattleEvent(BattleEventType.SkillUsed) { Actor = actor, Skill = skill };
+        public static BattleEvent SkillUsed(BattleUnit actor, SkillData skill, float multiplier = 1f) =>
+            new BattleEvent(BattleEventType.SkillUsed) { Actor = actor, Skill = skill, Multiplier = multiplier };
 
         public static BattleEvent SkillFailed(BattleUnit actor, SkillData skill) =>
             new BattleEvent(BattleEventType.SkillFailed) { Actor = actor, Skill = skill };

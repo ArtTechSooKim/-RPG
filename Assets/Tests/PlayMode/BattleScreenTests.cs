@@ -218,8 +218,11 @@ namespace WordRPG.Tests
             FindButton(screen.transform, "DexCloseButton").onClick.Invoke();
             Assert.IsFalse(screen.transform.Find("BattleCanvas/SafeArea/DexView").gameObject.activeSelf);
 
-            // 문제를 푸는 중에는 도감 버튼이 잠긴다
+            // 문제를 푸는 중에는 도감 버튼이 잠긴다 (공격 기술 → 강도 ×1 → 문제)
             ActiveButton(screen.transform, "SkillButton_0").onClick.Invoke();
+            yield return null;
+            ActiveButton(screen.transform, "Intensity_0").onClick.Invoke();
+            yield return null;
             yield return null;
             Assert.IsFalse(FindButton(screen.transform, "DexButton").interactable);
 
@@ -331,9 +334,10 @@ namespace WordRPG.Tests
 
             // 이번엔 틀림 → 콤보 끊김
             ActiveButton(screen.transform, "SkillButton_0").onClick.Invoke();
-            // 새 단어 카드가 먼저 뜨면 닫고, 보기 버튼이 나타날 때까지
+            // 강도 ×1 → 새 단어 카드가 먼저 뜨면 닫고, 보기 버튼이 나타날 때까지
             for (int frame = 0; frame < 600 && ActiveButton(screen.transform, "Choice_0") == null; frame++)
             {
+                ActiveButton(screen.transform, "Intensity_0")?.onClick.Invoke();
                 ActiveButton(screen.transform, "CardConfirmButton")?.onClick.Invoke();
                 yield return null;
             }
@@ -345,11 +349,67 @@ namespace WordRPG.Tests
             Object.Destroy(screen.gameObject);
         }
 
-        // 기술을 고른 뒤: 새 단어 카드 확인 → 정답 → 연출이 끝나 다시 기술 고르기가 될 때까지
+        [UnityTest]
+        public IEnumerator ChargedAttackAsksTwoWordsAndShowsProgress()
+        {
+            var strike = TestData.Skill("strike", SkillKind.Damage, SkillTarget.SingleEnemy, 40).Set("displayName", "찌르기");
+            var hero = Hero(new MonsterStats(500, 30, 10), strike);
+            var tank = TestData.Species("tank", new MonsterStats(9999, 1, 50), new MonsterStats(0, 0, 0), strike);
+            var session = GameSession.NewGame(hero, 1);
+            var screen = CreateScreen(hero, tank, session: session);
+            yield return null;
+            yield return null;
+
+            // 공격 기술을 누르면 강도 고르기 (×1 ~ ×2, 예상 피해)
+            ActiveButton(screen.transform, "SkillButton_0").onClick.Invoke();
+            yield return null;
+            var panelText = AllText(screen.transform.Find("BattleCanvas/SafeArea/Bottom/SkillPanel"));
+            StringAssert.Contains("강도를 고르세요", panelText);
+            StringAssert.Contains("단어 2개 연속", panelText);
+            StringAssert.Contains("×2", panelText);
+            StringAssert.Contains("예상 피해", panelText);
+            Assert.IsNull(ActiveButton(screen.transform, "SkillButton_0"), "강도 고르는 동안 기술 버튼은 숨김");
+
+            // 취소하면 기술 목록으로
+            ActiveButton(screen.transform, "CancelButton").onClick.Invoke();
+            yield return null;
+            Assert.IsNotNull(ActiveButton(screen.transform, "SkillButton_0"));
+
+            // ×1.2 = 단어 2개 연속
+            ActiveButton(screen.transform, "SkillButton_0").onClick.Invoke();
+            yield return null;
+            ActiveButton(screen.transform, "Intensity_1").onClick.Invoke();
+            int enemyHp = screen.Engine.Enemies[0].Hp;
+            for (int word = 0; word < 2; word++)
+            {
+                for (int frame = 0; frame < 600 && ActiveButton(screen.transform, "Choice_0") == null; frame++)
+                {
+                    ActiveButton(screen.transform, "CardConfirmButton")?.onClick.Invoke();
+                    yield return null;
+                }
+                var quizText = AllText(screen.transform.Find("BattleCanvas/SafeArea/Bottom/QuizPanel"));
+                StringAssert.Contains("×1.2", quizText, "진행 배지");
+                StringAssert.Contains($"{word}/2", quizText);
+                Assert.AreEqual(enemyHp, screen.Engine.Enemies[0].Hp, "다 맞히기 전엔 공격 안 함");
+                ActiveButton(screen.transform, $"Choice_{screen.Engine.CurrentQuestion.CorrectIndex}").onClick.Invoke();
+                yield return WaitFor(() => ActiveButton(screen.transform, "Choice_0") == null, 5f);
+            }
+            yield return WaitFor(() => ActiveButton(screen.transform, "SkillButton_0") != null, 10f);
+
+            Assert.AreEqual(2, screen.Engine.CorrectAnswers, "단어 2개");
+            Assert.AreEqual(2, session.ComboStreak, "맞힌 단어마다 콤보");
+            Assert.Less(screen.Engine.Enemies[0].Hp, enemyHp, "다 맞히면 공격");
+            StringAssert.Contains("×1.2", AllText(screen), "기록에 강도");
+
+            Object.Destroy(screen.gameObject);
+        }
+
+        // 기술을 고른 뒤: (강도 ×1 →) 새 단어 카드 확인 → 정답 → 연출이 끝나 다시 기술 고르기가 될 때까지
         private static IEnumerator PlayOneTurn(BattleScreen screen)
         {
             for (int frame = 0; frame < 600; frame++)
             {
+                ActiveButton(screen.transform, "Intensity_0")?.onClick.Invoke();
                 var confirm = ActiveButton(screen.transform, "CardConfirmButton");
                 if (confirm != null) confirm.onClick.Invoke();
                 var engine = screen.Engine;

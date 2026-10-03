@@ -19,6 +19,8 @@ namespace WordRPG.Battle
     //  오답/시간 초과: 기술 실패, 단어는 오답 노트로
     //  기술 대신 상처약을 쓰면 문제 없이 회복하고 차례를 넘긴다
     //  연속으로 맞히면 콤보 (Combo): 단계마다 아군 기술 피해가 조금씩 늘고, 틀리면 0으로
+    //  공격 기술은 강도를 고를 수 있다 (사용자 아이디어): 단어 n개를 연속으로 맞혀야 발동하고 피해 ×1.2·×1.5·×2.
+    //    하나라도 틀리면 이번 턴 공격 실패. 맞힌 단어는 하나하나 콤보에 더해지고, 크리티컬은 모두 빨리 맞혔을 때만
     // MonoBehaviour·UI 의존 없음. UI는 SelectSkill/SubmitAnswer를 호출하고 돌려받은 BattleEvent 목록을 연출한다
     public class BattleEngine
     {
@@ -31,6 +33,7 @@ namespace WordRPG.Battle
 
         private SkillData pendingSkill;
         private BattleUnit pendingTarget;
+        private bool chainAllFast;
 
         public IReadOnlyList<BattleUnit> Party => party;
         public IReadOnlyList<BattleUnit> Enemies => enemies;
@@ -43,6 +46,9 @@ namespace WordRPG.Battle
         public int CorrectAnswers { get; private set; }
         public int WrongAnswers { get; private set; }
         public int Streak { get; private set; } // 지금까지 연속으로 맞힌 수 (이전 전투에서 이어받을 수 있음)
+        public int Intensity { get; private set; } = 1; // 이번 기술에서 연속으로 맞혀야 할 단어 수
+        public int ChainCorrect { get; private set; }    // 그중 지금까지 맞힌 수
+        public bool CanStillCrit => chainAllFast;        // 지금까지 모두 빨리 맞혀서 크리티컬이 아직 가능한지
         public IReadOnlyList<MasteryChange> MasteryChanges => masteryChanges;
         public bool IsOver => Phase == BattlePhase.Victory || Phase == BattlePhase.Defeat;
 
@@ -65,19 +71,39 @@ namespace WordRPG.Battle
             Phase = BattlePhase.ChoosingSkill;
         }
 
-        // 단일 대상 스킬이면 target 필수. 반환된 문제를 UI에 보여준다
-        public QuizQuestion SelectSkill(SkillData skill, BattleUnit target = null)
+        // 강도를 고를 수 있는 기술인지: 아군의 공격 기술만
+        public static bool CanChooseIntensity(SkillData skill) => skill != null && skill.Kind == SkillKind.Damage;
+
+        // 단일 대상 스킬이면 target 필수. intensity = 연속으로 맞혀야 할 단어 수 (공격 기술만 2 이상).
+        // 반환된 문제를 UI에 보여준다
+        public QuizQuestion SelectSkill(SkillData skill, BattleUnit target = null, int intensity = 1)
         {
             RequirePhase(BattlePhase.ChoosingSkill);
             if (skill == null || !Contains(CurrentActor.Skills, skill))
                 throw new ArgumentException($"{CurrentActor.DisplayName}의 스킬이 아닙니다", nameof(skill));
             if (skill.NeedsTargetChoice) ValidateTarget(skill, target);
+            if (intensity < 1 || intensity > config.MaxIntensity)
+                throw new ArgumentOutOfRangeException(nameof(intensity), $"강도는 1~{config.MaxIntensity}");
+            if (intensity > 1 && !CanChooseIntensity(skill))
+                throw new ArgumentException("강도는 공격 기술만 고를 수 있습니다", nameof(intensity));
 
             pendingSkill = skill;
             pendingTarget = target;
+            Intensity = intensity;
+            ChainCorrect = 0;
+            chainAllFast = true;
             CurrentQuestion = quiz.NextQuestion(skill.QuizDirection);
             Phase = BattlePhase.AnsweringQuiz;
             return CurrentQuestion;
+        }
+
+        // 강도 고르기 화면의 예상 피해 (랜덤·크리티컬 빼고, 다 맞혔을 때 쌓일 콤보까지 넣어서)
+        public int EstimateDamage(SkillData skill, BattleUnit target, int intensity)
+        {
+            if (skill == null || target == null) return 0;
+            float bonus = Combo.DamageBonus(Streak + intensity, config.ComboBonusPerStep);
+            return BattleFormulas.ExpectedDamage(skill.Power, CurrentActor.Attack, target.Defense, bonus,
+                config.IntensityMultiplier(intensity));
         }
 
         // choiceIndex < 0 이면 시간 초과로 처리
@@ -96,6 +122,8 @@ namespace WordRPG.Battle
             {
                 CorrectAnswers++;
                 Streak++;
+                ChainCorrect++;
+                chainAllFast &= secondsTaken <= config.CriticalTimeSeconds;
             }
             else
             {
@@ -104,12 +132,18 @@ namespace WordRPG.Battle
             }
             events.Add(BattleEvent.QuizAnswered(CurrentActor, correct, mastery));
 
+            // 강도를 올렸으면 남은 단어를 계속 낸다 (차례는 그대로)
+            if (correct && ChainCorrect < Intensity)
+            {
+                CurrentQuestion = quiz.NextQuestion(pendingSkill.QuizDirection);
+                return events;
+            }
+
             if (correct)
             {
                 if (Combo.Step(Streak) > 0) events.Add(BattleEvent.Combo(CurrentActor, Streak));
-                bool critical = secondsTaken <= config.CriticalTimeSeconds;
-                ExecuteSkill(CurrentActor, pendingSkill, pendingTarget, critical, events,
-                    Combo.DamageBonus(Streak, config.ComboBonusPerStep));
+                ExecuteSkill(CurrentActor, pendingSkill, pendingTarget, chainAllFast, events,
+                    Combo.DamageBonus(Streak, config.ComboBonusPerStep), config.IntensityMultiplier(Intensity));
             }
             else
             {
@@ -119,6 +153,8 @@ namespace WordRPG.Battle
             pendingSkill = null;
             pendingTarget = null;
             CurrentQuestion = null;
+            Intensity = 1;
+            ChainCorrect = 0;
 
             if (!CheckBattleEnd(events)) AdvanceTurn(events);
             return events;
@@ -203,18 +239,18 @@ namespace WordRPG.Battle
             }
         }
 
-        // comboBonus: 연속 정답 콤보 추가 피해 (아군이 문제를 맞혔을 때만, 공격 기술에만)
+        // comboBonus: 연속 정답 콤보 추가 피해, intensity: 강도 배율 (아군이 문제를 맞혔을 때만, 공격 기술에만)
         private void ExecuteSkill(BattleUnit user, SkillData skill, BattleUnit chosenTarget, bool critical,
-            List<BattleEvent> events, float comboBonus = 0f)
+            List<BattleEvent> events, float comboBonus = 0f, float intensity = 1f)
         {
-            events.Add(BattleEvent.SkillUsed(user, skill));
+            events.Add(BattleEvent.SkillUsed(user, skill, intensity));
 
             foreach (var target in ResolveTargets(user, skill, chosenTarget))
             {
                 switch (skill.Kind)
                 {
                     case SkillKind.Damage:
-                        int damage = BattleFormulas.Damage(skill.Power, user.Attack, target.Defense, critical, config, rng, comboBonus);
+                        int damage = BattleFormulas.Damage(skill.Power, user.Attack, target.Defense, critical, config, rng, comboBonus, intensity);
                         target.ReceiveDamage(damage, out int hpDamage, out int absorbed);
                         events.Add(BattleEvent.Damage(user, target, skill, hpDamage, absorbed, critical));
                         if (target.IsDefeated) events.Add(BattleEvent.Defeated(target));

@@ -30,7 +30,7 @@ namespace WordRPG.Tests
         public static string AllText(Component root) =>
             string.Join(" | ", Array.ConvertAll(root.GetComponentsInChildren<Text>(true), t => t.text));
 
-        // 결과 패널이 뜰 때까지: 새 단어 카드 확인 → 정답(또는 오답) 고르기 → 첫 번째 스킬 사용 반복
+        // 결과 패널이 뜰 때까지: 새 단어 카드 확인 → 정답(또는 오답) 고르기 → 첫 번째 스킬(공격이면 강도 ×1) 사용 반복
         public static IEnumerator PlayUntilResult(BattleScreen screen, bool answerCorrectly)
         {
             var root = screen.transform;
@@ -50,7 +50,7 @@ namespace WordRPG.Tests
                 }
                 else if (engine != null && engine.Phase == BattlePhase.ChoosingSkill)
                 {
-                    ActiveButton(root, "SkillButton_0")?.onClick.Invoke();
+                    (ActiveButton(root, "Intensity_0") ?? ActiveButton(root, "SkillButton_0"))?.onClick.Invoke();
                 }
                 yield return null;
             }

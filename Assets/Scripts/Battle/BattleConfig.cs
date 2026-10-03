@@ -18,6 +18,10 @@ namespace WordRPG.Battle
         [SerializeField] private int expPerCorrectAnswer = 2;
         [Tooltip("연속 정답 콤보 한 단계마다 아군 기술 피해 증가 (0.05 = +5%, 6단계면 +30%)")]
         [SerializeField] private float comboBonusPerStep = 0.05f;
+        [Tooltip("공격 기술 강도: n번째 값 = 단어 n개를 연속으로 맞혀야 할 때의 피해 배율 (하나라도 틀리면 이번 턴 공격 실패)")]
+        [SerializeField] private float[] intensityMultipliers = { 1f, 1.2f, 1.5f, 2f };
+
+        private static readonly float[] DefaultIntensity = { 1f, 1.2f, 1.5f, 2f };
 
         public float AnswerTimeLimitSeconds => answerTimeLimitSeconds;
         public float CriticalTimeSeconds => criticalTimeSeconds;
@@ -26,11 +30,21 @@ namespace WordRPG.Battle
         public int ExpPerCorrectAnswer => expPerCorrectAnswer;
         public float ComboBonusPerStep => comboBonusPerStep;
 
+        // 고를 수 있는 가장 높은 강도 (= 연속으로 맞혀야 할 단어 수의 최대)
+        public int MaxIntensity => Multipliers.Length;
+
+        // 강도(단어 수 1~MaxIntensity)의 피해 배율
+        public float IntensityMultiplier(int intensity) =>
+            Multipliers[Math.Max(0, Math.Min(intensity, Multipliers.Length) - 1)];
+
+        private float[] Multipliers => intensityMultipliers != null && intensityMultipliers.Length > 0 ? intensityMultipliers : DefaultIntensity;
+
         public BattleConfig() { }
 
         public BattleConfig(float answerTimeLimitSeconds, float criticalTimeSeconds, float criticalMultiplier,
-            float variance, int expPerCorrectAnswer, float comboBonusPerStep = 0.05f)
+            float variance, int expPerCorrectAnswer, float comboBonusPerStep = 0.05f, float[] intensityMultipliers = null)
         {
+            if (intensityMultipliers != null) this.intensityMultipliers = intensityMultipliers;
             this.answerTimeLimitSeconds = answerTimeLimitSeconds;
             this.criticalTimeSeconds = criticalTimeSeconds;
             this.criticalMultiplier = criticalMultiplier;
